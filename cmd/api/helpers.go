@@ -2,10 +2,18 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 )
 
 type envelope map[string]any
+
+func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	app.writeMethodNotAllowedError(w, r)
+}
 
 func (app *application) outputJSON(w http.ResponseWriter, status int, env envelope) error {
 	data, err := json.Marshal(env)
@@ -18,5 +26,41 @@ func (app *application) outputJSON(w http.ResponseWriter, status int, env envelo
 	w.Write(data)
 
 	return nil
+}
 
+func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destination any) error {
+	var max int64 = 1048576
+	r.Body = http.MaxBytesReader(w, r.Body, max)
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	err := decoder.Decode(destination)
+	if err != nil {
+		var jsonSyntaxError *json.SyntaxError
+		var jsonUnmarshalTypeError *json.UnmarshalTypeError
+		var jsonInvalidUnmarshalError *json.InvalidUnmarshalError
+
+		switch {
+		case errors.Is(err, io.EOF):
+			return errors.New("empty JSON provided")
+		case errors.As(err, &jsonSyntaxError) || errors.Is(err, io.ErrUnexpectedEOF):
+			return errors.New("malformed JSON provided")
+		case errors.As(err, &jsonUnmarshalTypeError):
+			return fmt.Errorf("value of invalid type provided for %s", jsonUnmarshalTypeError.Field)
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			return fmt.Errorf("invalid field %s", strings.TrimPrefix(err.Error(), "json: unknown field "))
+		case errors.As(err, &jsonInvalidUnmarshalError):
+			// kui see juhtub, on midagi koodis valesti
+			panic(err)
+		case err.Error() == "http: request body too large":
+			return errors.New("maximum body size is 1 MiB")
+		}
+	}
+
+	if err = decoder.Decode(&struct{}{}); err != io.EOF {
+		return errors.New("must contain only one JSON object")
+	}
+
+	return nil
 }

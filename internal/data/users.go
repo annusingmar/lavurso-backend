@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	Administrator = iota
+	Administrator = iota + 1
 	Teacher
 	Parent
 	Student
