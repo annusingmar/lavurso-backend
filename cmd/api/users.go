@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 )
 
@@ -20,16 +22,11 @@ func (app *application) listAllUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
-	// phone, address ja birthdate on pointerid, kuna
-	// siis saab vorrelda nil-iga, st saab defaultida tyhjale
 	var input struct {
-		Name      string     `json:"name"`
-		Email     string     `json:"email"`
-		Password  string     `json:"password"`
-		Phone     *string    `json:"phone,omitempty"`
-		Address   *string    `json:"address,omitempty"`
-		BirthDate *time.Time `json:"birth_date,omitempty"`
-		Role      int        `json:"role"`
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Role     int    `json:"role"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -42,16 +39,43 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	v.Check(input.Name != "", "name", "must be provided")
 	v.Check(input.Email != "", "email", "must be provided")
 	v.Check(input.Password != "", "password", "must be provided")
-	v.Check(input.Phone != nil, "phone", "must be provided")
-	v.Check(input.Address != nil, "address", "must be provided")
-	v.Check(input.BirthDate != nil, "birth_date", "must be provided")
-	v.Check(input.Role != 0, "role", "must be provided")
+	v.Check(input.Role > 0 && input.Role < 4, "role", "must be {1,2,3}")
 
 	if !v.Valid() {
 		app.writeBadRequestError(w, r, v.Errors)
 		return
 	}
 
-	// TODO: sisestada kasutaja
+	user := &data.User{
+		Name:     input.Name,
+		Email:    input.Email,
+		Password: data.Password{Plaintext: input.Password},
+		Role:     input.Role,
+	}
+
+	user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	user.CreatedAt = time.Now().UTC()
+	user.Version = 1
+
+	err = app.models.Users.InsertUser(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEmailAlreadyExists):
+			app.writeErrorResponse(w, r, http.StatusConflict, data.ErrEmailAlreadyExists.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusCreated, envelope{"user": user})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
 
 }

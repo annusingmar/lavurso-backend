@@ -55,6 +55,8 @@ func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destin
 			panic(err)
 		case err.Error() == "http: request body too large":
 			return errors.New("maximum body size is 1 MiB")
+		default:
+			return err
 		}
 	}
 

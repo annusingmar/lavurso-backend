@@ -3,35 +3,53 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
 	Administrator = iota + 1
-	Teacher
 	Parent
 	Student
+)
+
+var (
+	ErrEmailAlreadyExists = errors.New("an user with specified email already exists")
 )
 
 type User struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
-	Password  []byte    `json:"-"`
-	Phone     string    `json:"phone,omitempty"`
-	Address   string    `json:"address,omitempty"`
-	BirthDate time.Time `json:"birth_date,omitempty"`
+	Password  Password  `json:"-"`
 	Role      int       `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	Version   int       `json:"version"`
+}
+
+type Password struct {
+	Hashed    []byte
+	Plaintext string
 }
 
 type UserModel struct {
 	DB *sql.DB
 }
 
+func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(plaintext), 12)
+	if err != nil {
+		return nil, err
+	}
+	return hashed, err
+}
+
+// DATABASE
+
 func (m UserModel) AllUsers() ([]*User, error) {
-	query := `SELECT id, name, email, password, phone, address, birth_date, role, created_at, version FROM users`
+	query := `SELECT id, name, email, password, role, created_at, version FROM users`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -51,10 +69,7 @@ func (m UserModel) AllUsers() ([]*User, error) {
 			&user.ID,
 			&user.Name,
 			&user.Email,
-			&user.Password,
-			&user.Phone,
-			&user.Address,
-			&user.BirthDate,
+			&user.Password.Hashed,
 			&user.Role,
 			&user.CreatedAt,
 			&user.Version,
@@ -71,4 +86,26 @@ func (m UserModel) AllUsers() ([]*User, error) {
 
 	return users, nil
 
+}
+
+func (m UserModel) InsertUser(u *User) error {
+	stmt := `INSERT INTO users
+	(name, email, password, role, created_at, version)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.CreatedAt, u.Version).Scan(&u.ID)
+	if err != nil {
+		switch {
+		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)`:
+			return ErrEmailAlreadyExists
+		default:
+			return err
+		}
+	}
+
+	return nil
 }
