@@ -38,6 +38,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 	v.Check(input.Name != "", "name", "must be provided")
 	v.Check(input.Email != "", "email", "must be provided")
+	v.Check(data.EmailRegex.MatchString(input.Email), "email", "must be a valid email address")
 	v.Check(input.Password != "", "password", "must be provided")
 	v.Check(input.Role > 0 && input.Role < 4, "role", "must be {1,2,3}")
 
