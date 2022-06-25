@@ -8,7 +8,7 @@ import (
 
 func (app *application) routes() http.Handler {
 	mux := httprouter.New()
-	mux.HandlerFunc(http.MethodGet, "/", app.tere)
+	mux.HandlerFunc(http.MethodGet, "/users", app.listAllUsers)
 
 	return mux
 }
