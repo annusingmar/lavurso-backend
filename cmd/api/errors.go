@@ -17,10 +17,6 @@ func (app *application) writeInternalServerError(w http.ResponseWriter, r *http.
 	app.writeErrorResponse(w, r, http.StatusInternalServerError, "internal server error")
 }
 
-func (app *application) writeBadRequestError(w http.ResponseWriter, r *http.Request, data any) {
-	app.writeErrorResponse(w, r, http.StatusBadRequest, data)
-}
-
-func (app *application) writeMethodNotAllowedError(w http.ResponseWriter, r *http.Request) {
+func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	app.writeErrorResponse(w, r, http.StatusMethodNotAllowed, "method not allowed")
 }

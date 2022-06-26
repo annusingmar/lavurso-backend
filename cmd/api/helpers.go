@@ -11,10 +11,6 @@ import (
 
 type envelope map[string]any
 
-func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
-	app.writeMethodNotAllowedError(w, r)
-}
-
 func (app *application) outputJSON(w http.ResponseWriter, status int, env envelope) error {
 	data, err := json.Marshal(env)
 	if err != nil {
@@ -29,7 +25,7 @@ func (app *application) outputJSON(w http.ResponseWriter, status int, env envelo
 }
 
 func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destination any) error {
-	var max int64 = 1048576
+	var max int64 = 1048576 // 1 MiB
 	r.Body = http.MaxBytesReader(w, r.Body, max)
 
 	decoder := json.NewDecoder(r.Body)
