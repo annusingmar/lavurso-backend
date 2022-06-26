@@ -14,7 +14,7 @@ func (app *application) routes() http.Handler {
 	mux.HandlerFunc(http.MethodGet, "/roles", app.listRoles)
 	mux.HandlerFunc(http.MethodGet, "/users", app.listAllUsers)
 	mux.HandlerFunc(http.MethodPost, "/users/create", app.createUser)
-	mux.HandlerFunc(http.MethodDelete, "/users/:id/delete", app.deleteUser)
 	mux.HandlerFunc(http.MethodPatch, "/users/:id/update", app.updateUser)
+	mux.HandlerFunc(http.MethodGet, "/users/:id/class", app.getUserClass)
 	return mux
 }

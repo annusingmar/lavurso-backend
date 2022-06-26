@@ -80,31 +80,6 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (app *application) deleteUser(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	err = app.models.Users.DeleteUserById(userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	err = app.outputJSON(w, http.StatusOK, envelope{"message": "user deleted"})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-}
-
 func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	userID, err := strconv.Atoi(params.ByName("id"))
@@ -113,7 +88,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := app.models.Users.GetUserById(userID)
+	user, err := app.models.Users.GetUserByID(userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -128,6 +103,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		Name     *string `json:"name"`
 		Email    *string `json:"email"`
 		Password *string `json:"password"`
+		Active   *bool   `json:"active"`
 		Role     *int    `json:"role"`
 	}
 
@@ -156,6 +132,9 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.Role != nil {
 		user.Role = *input.Role
+	}
+	if input.Active != nil {
+		user.Active = *input.Active
 	}
 
 	app.models.Users.ValidateUser(v, user)
@@ -191,6 +170,47 @@ func (app *application) listRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := app.outputJSON(w, http.StatusOK, envelope{"roles": roles})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getUserClass(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	userID, err := strconv.Atoi(params.ByName("id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if user.Role != data.Student {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+		return
+	}
+
+	class, err := app.models.Classes.GetClassForUserID(user.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoClassForUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"class": class})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

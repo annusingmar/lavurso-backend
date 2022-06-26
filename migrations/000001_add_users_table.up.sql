@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS
     "password" bytea not null,
     "role" INTEGER not null,
     "created_at" timestamp not null default NOW(),
+    "active" BOOLEAN not null default true,
     "version" INTEGER not null default 1
   );

@@ -21,6 +21,7 @@ var (
 	ErrEmailAlreadyExists = errors.New("an user with specified email already exists")
 	ErrNoSuchUser         = errors.New("no such user")
 	ErrEditConflict       = errors.New("edit conflict, try again")
+	ErrNotAStudent        = errors.New("not a student")
 )
 
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
@@ -32,6 +33,7 @@ type User struct {
 	Password  Password  `json:"-"`
 	Role      int       `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
+	Active    bool      `json:"active"`
 	Version   int       `json:"version"`
 }
 
@@ -84,7 +86,9 @@ func (m UserModel) RoleName(r int) string {
 // DATABASE
 
 func (m UserModel) AllUsers() ([]*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, version FROM users`
+	query := `SELECT id, name, email, password, role, created_at, active, version
+	FROM users
+	ORDER BY id ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -107,6 +111,7 @@ func (m UserModel) AllUsers() ([]*User, error) {
 			&user.Password.Hashed,
 			&user.Role,
 			&user.CreatedAt,
+			&user.Active,
 			&user.Version,
 		)
 		if err != nil {
@@ -123,8 +128,8 @@ func (m UserModel) AllUsers() ([]*User, error) {
 
 }
 
-func (m UserModel) GetUserById(userID int) (*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, version
+func (m UserModel) GetUserByID(userID int) (*User, error) {
+	query := `SELECT id, name, email, password, role, created_at, active, version
 	FROM users
 	WHERE id = $1`
 
@@ -140,6 +145,7 @@ func (m UserModel) GetUserById(userID int) (*User, error) {
 		&user.Password.Hashed,
 		&user.Role,
 		&user.CreatedAt,
+		&user.Active,
 		&user.Version,
 	)
 
@@ -157,14 +163,14 @@ func (m UserModel) GetUserById(userID int) (*User, error) {
 
 func (m UserModel) InsertUser(u *User) error {
 	stmt := `INSERT INTO users
-	(name, email, password, role, created_at, version)
+	(name, email, password, role, created_at, active, version)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.CreatedAt, u.Version).Scan(&u.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.CreatedAt, u.Active, u.Version).Scan(&u.ID)
 	if err != nil {
 		switch {
 		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)`:
@@ -177,31 +183,8 @@ func (m UserModel) InsertUser(u *User) error {
 	return nil
 }
 
-func (m UserModel) DeleteUserById(userID int) error {
-	query := `DELETE FROM users WHERE id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	result, err := m.DB.ExecContext(ctx, query, userID)
-	if err != nil {
-		return err
-	}
-
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if affected == 0 {
-		return ErrNoSuchUser
-	}
-
-	return nil
-}
-
 func (m UserModel) UpdateUser(u *User) error {
-	stmt := `UPDATE users SET (name, email, password, role, version) =
+	stmt := `UPDATE users SET (name, email, password, role, active, version) =
 	($1, $2, $3, $4, version+1)
 	WHERE id = $5
 	RETURNING version`
@@ -209,7 +192,7 @@ func (m UserModel) UpdateUser(u *User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.ID).Scan(&u.Version)
+	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.Active, u.ID).Scan(&u.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
