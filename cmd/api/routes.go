@@ -46,5 +46,17 @@ func (app *application) routes() http.Handler {
 	// get users in class
 	mux.HandlerFunc(http.MethodGet, "/classes/:id/users", app.getUsersInClass)
 
+	// list all subjects
+	mux.HandlerFunc(http.MethodGet, "/subjects", app.listAllSubjects)
+
+	// get subject by id
+	mux.HandlerFunc(http.MethodGet, "/subjects/:id", app.getSubject)
+
+	// create subject
+	mux.HandlerFunc(http.MethodPost, "/subjects", app.createSubject)
+
+	// update subject
+	mux.HandlerFunc(http.MethodPatch, "/subjects/:id", app.updateSubject)
+
 	return mux
 }

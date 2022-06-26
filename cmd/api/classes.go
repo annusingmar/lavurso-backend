@@ -14,6 +14,7 @@ func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
 	classes, err := app.models.Classes.AllClasses()
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
+		return
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"classes": classes})
