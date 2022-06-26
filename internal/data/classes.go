@@ -23,6 +23,83 @@ type ClassModel struct {
 	DB *sql.DB
 }
 
+// DATABASE
+
+func (m ClassModel) InsertClass(c *Class) error {
+	stmt := `INSERT INTO classes
+	(name, teacher_id, archived)
+	VALUES
+	($1, $2, $3)
+	RETURNING id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, stmt, c.Name, c.TeacherID, c.Archived).Scan(&c.ID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m ClassModel) AllClasses() ([]*Class, error) {
+	query := `SELECT id, name, teacher_id, archived
+	FROM classes`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var classes []*Class
+
+	rows, err := m.DB.QueryContext(ctx, query)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var class Class
+
+		err = rows.Scan(
+			&class.ID,
+			&class.Name,
+			&class.TeacherID,
+			&class.Archived,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		classes = append(classes, &class)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return classes, nil
+}
+
+func (m ClassModel) UpdateClass(c *Class) error {
+	stmt := `UPDATE classes SET (name, teacher_id) =
+	($1, $2)
+	WHERE id = $3`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, stmt, c.Name, c.TeacherID, c.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 	query := `SELECT id, name, teacher_id, archived
 	FROM classes
@@ -128,4 +205,21 @@ func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
 	}
 
 	return users, nil
+}
+
+func (m ClassModel) SetClassIDForUserID(userID, classID int) error {
+	stmt := `INSERT INTO users_classes
+	(user_id, class_id)
+	VALUES ($1, $2)
+	ON CONFLICT (user_id)
+	DO UPDATE SET class_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, stmt, userID, classID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
