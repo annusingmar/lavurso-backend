@@ -181,3 +181,17 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func (app *application) listRoles(w http.ResponseWriter, r *http.Request) {
+	var roles []data.Role
+
+	for i := 1; i < 4; i++ {
+		name := app.models.Users.RoleName(i)
+		roles = append(roles, data.Role{ID: i, Name: name})
+	}
+
+	err := app.outputJSON(w, http.StatusOK, envelope{"roles": roles})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}

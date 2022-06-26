@@ -40,6 +40,11 @@ type Password struct {
 	Plaintext string
 }
 
+type Role struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 type UserModel struct {
 	DB *sql.DB
 }
@@ -61,6 +66,19 @@ func (m UserModel) ValidateUser(v *validator.Validator, u *User) {
 
 func (m UserModel) ValidatePassword(v *validator.Validator, u *User) {
 	v.Check(u.Password.Plaintext != "", "password", "must be provided")
+}
+
+func (m UserModel) RoleName(r int) string {
+	switch r {
+	case Administrator:
+		return "Administrator"
+	case Parent:
+		return "Parent"
+	case Student:
+		return "Student"
+	default:
+		return ""
+	}
 }
 
 // DATABASE
