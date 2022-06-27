@@ -37,14 +37,14 @@ func (app *application) routes() http.Handler {
 	// update class
 	mux.HandlerFunc(http.MethodPatch, "/classes/:id", app.updateClass)
 
-	// get user's class
-	mux.HandlerFunc(http.MethodGet, "/users/:id/class", app.getClassForUser)
+	// get student's class
+	mux.HandlerFunc(http.MethodGet, "/students/:id/class", app.getClassForStudent)
 
-	// set user's class
-	mux.HandlerFunc(http.MethodPut, "/users/:id/class", app.setClassForUser)
+	// set student's class
+	mux.HandlerFunc(http.MethodPut, "/students/:id/class", app.setClassForStudent)
 
-	// get users in class
-	mux.HandlerFunc(http.MethodGet, "/classes/:id/users", app.getUsersInClass)
+	// get students in class
+	mux.HandlerFunc(http.MethodGet, "/classes/:id/students", app.getStudentsInClass)
 
 	// list all subjects
 	mux.HandlerFunc(http.MethodGet, "/subjects", app.listAllSubjects)
@@ -71,7 +71,7 @@ func (app *application) routes() http.Handler {
 	mux.HandlerFunc(http.MethodGet, "/journals/:id", app.getJournal)
 
 	// get journals for teacher
-	mux.HandlerFunc(http.MethodGet, "/users/:id/journals", app.getJournalsForTeacher)
+	mux.HandlerFunc(http.MethodGet, "/teachers/:id/journals", app.getJournalsForTeacher)
 
 	// get users for journal
 

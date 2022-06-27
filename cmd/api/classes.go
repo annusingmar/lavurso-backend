@@ -184,7 +184,7 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) getClassForUser(w http.ResponseWriter, r *http.Request) {
+func (app *application) getClassForStudent(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	userID, err := strconv.Atoi(params.ByName("id"))
 	if userID < 0 || err != nil {
@@ -225,7 +225,7 @@ func (app *application) getClassForUser(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (app *application) getUsersInClass(w http.ResponseWriter, r *http.Request) {
+func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	classID, err := strconv.Atoi(params.ByName("id"))
 	if classID < 0 || err != nil {
@@ -257,7 +257,7 @@ func (app *application) getUsersInClass(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (app *application) setClassForUser(w http.ResponseWriter, r *http.Request) {
+func (app *application) setClassForStudent(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	userID, err := strconv.Atoi(params.ByName("id"))
 	if userID < 0 || err != nil {
@@ -273,6 +273,11 @@ func (app *application) setClassForUser(w http.ResponseWriter, r *http.Request) 
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if user.Role != data.Student {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
 
