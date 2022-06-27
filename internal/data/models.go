@@ -6,6 +6,7 @@ type Models struct {
 	Users    UserModel
 	Classes  ClassModel
 	Subjects SubjectModel
+	Journals JournalModel
 }
 
 func NewModel(db *sql.DB) Models {
@@ -13,5 +14,6 @@ func NewModel(db *sql.DB) Models {
 		Users:    UserModel{DB: db},
 		Classes:  ClassModel{DB: db},
 		Subjects: SubjectModel{DB: db},
+		Journals: JournalModel{DB: db},
 	}
 }

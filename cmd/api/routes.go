@@ -58,5 +58,28 @@ func (app *application) routes() http.Handler {
 	// update subject
 	mux.HandlerFunc(http.MethodPatch, "/subjects/:id", app.updateSubject)
 
+	// create journal
+	mux.HandlerFunc(http.MethodPost, "/journals", app.createJournal)
+
+	// update journal
+	mux.HandlerFunc(http.MethodPatch, "/journals/:id", app.updateJournal)
+
+	// get all journals
+	mux.HandlerFunc(http.MethodGet, "/journals", app.listAllJournals)
+
+	// get journal by id
+	mux.HandlerFunc(http.MethodGet, "/journals/:id", app.getJournal)
+
+	// get journals for teacher
+	mux.HandlerFunc(http.MethodGet, "/users/:id/journals", app.getJournalsForTeacher)
+
+	// get users for journal
+
+	// get journals for user
+
+	// add user to journal
+
+	// remove user from journal
+
 	return mux
 }
