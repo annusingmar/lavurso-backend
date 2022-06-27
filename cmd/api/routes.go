@@ -74,10 +74,13 @@ func (app *application) routes() http.Handler {
 	mux.HandlerFunc(http.MethodGet, "/teachers/:id/journals", app.getJournalsForTeacher)
 
 	// get users for journal
+	mux.HandlerFunc(http.MethodGet, "/journals/:id/students", app.getStudentsForJournal)
 
 	// get journals for user
+	mux.HandlerFunc(http.MethodGet, "/students/:id/journals", app.getJournalsForStudent)
 
 	// add user to journal
+	mux.HandlerFunc(http.MethodPost, "/students/:id/journals", app.addStudentToJournal)
 
 	// remove user from journal
 

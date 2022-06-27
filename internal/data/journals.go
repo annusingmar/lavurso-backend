@@ -8,7 +8,9 @@ import (
 )
 
 var (
-	ErrNoSuchJournal = errors.New("no such journal")
+	ErrNoSuchJournal        = errors.New("no such journal")
+	ErrUserAlreadyInJournal = errors.New("user is already part of journal")
+	ErrJournalArchived      = errors.New("journal is archived")
 )
 
 type Journal struct {
@@ -136,6 +138,117 @@ func (m JournalModel) GetJournalsForTeacher(teacherID int) ([]*Journal, error) {
 	defer cancel()
 
 	rows, err := m.DB.QueryContext(ctx, query, teacherID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var journals []*Journal
+
+	for rows.Next() {
+		var journal Journal
+		err = rows.Scan(
+			&journal.ID,
+			&journal.Name,
+			&journal.TeacherID,
+			&journal.SubjectID,
+			&journal.Archived,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		journals = append(journals, &journal)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return journals, nil
+}
+
+func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
+	stmt := `INSERT INTO
+	users_journals
+	(user_id, journal_id)
+	VALUES
+	($1, $2)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
+	if err != nil {
+		switch {
+		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_journals_pkey" (SQLSTATE 23505)`:
+			return ErrUserAlreadyInJournal
+		default:
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
+	query := `SELECT id, name, email, password, role, created_at, active, version
+	FROM users u
+	INNER JOIN users_journals uj
+	ON uj.user_id = u.id
+	WHERE uj.journal_id = $1
+	ORDER BY id ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*User
+
+	for rows.Next() {
+		var user User
+		err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.Password.Hashed,
+			&user.Role,
+			&user.CreatedAt,
+			&user.Active,
+			&user.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
+	query := `SELECT id, name, teacher_id, subject_id, archived
+	FROM journals j
+	INNER JOIN users_journals uj
+	ON uj.journal_id = j.id
+	WHERE uj.user_id = $1
+	ORDER BY id ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
