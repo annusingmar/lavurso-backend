@@ -3,9 +3,10 @@ module github.com/annusingmar/lavurso-backend
 go 1.18
 
 require (
+	github.com/BurntSushi/toml v1.1.0
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/julienschmidt/httprouter v1.3.0
-	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 )
 
 require (

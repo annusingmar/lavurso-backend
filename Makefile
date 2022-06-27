@@ -3,7 +3,7 @@ include .makerc
 .PHONY: api/run
 api/run:
 	@clear
-	@go run ./cmd/api -dsn="${DSN}"
+	@go run ./cmd/api
 
 .PHONY: db/migration_up
 db/migration_up:
