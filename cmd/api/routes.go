@@ -88,5 +88,8 @@ func (app *application) routes() http.Handler {
 	// remove user from journal
 	mux.HandlerFunc(http.MethodDelete, "/students/:id/journals", app.removeStudentFromJournal)
 
+	// create lesson
+	mux.HandlerFunc(http.MethodPost, "/lessons", app.createLesson)
+
 	return mux
 }
