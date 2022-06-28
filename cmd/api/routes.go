@@ -91,5 +91,11 @@ func (app *application) routes() http.Handler {
 	// create lesson
 	mux.HandlerFunc(http.MethodPost, "/lessons", app.createLesson)
 
+	// get lesson by id
+	mux.HandlerFunc(http.MethodGet, "/lessons/:id", app.getLesson)
+
+	// update lesson
+	mux.HandlerFunc(http.MethodPatch, "/lessons/:id", app.updateLesson)
+
 	return mux
 }
