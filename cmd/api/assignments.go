@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -200,6 +201,88 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	journalID, err := strconv.Atoi(params.ByName("id"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	assignments, err := app.models.Assignments.GetAssignmentsByJournalID(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignments})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	userID, err := strconv.Atoi(params.ByName("id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if user.Role != data.Student {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+		return
+	}
+
+	journals, err := app.models.Journals.GetJournalsByUserID(user.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	var assignments []*data.Assignment
+
+	for i := range journals {
+		a, err := app.models.Assignments.GetAssignmentsByJournalID(journals[i].ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		assignments = append(assignments, a...)
+	}
+
+	sort.SliceStable(assignments, func(i, j int) bool {
+		return assignments[i].Deadline.Time.After(assignments[j].Deadline.Time)
+	})
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignments})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

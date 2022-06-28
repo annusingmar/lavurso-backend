@@ -112,5 +112,11 @@ func (app *application) routes() http.Handler {
 	// delete assignment
 	mux.HandlerFunc(http.MethodDelete, "/assignments/:id", app.deleteAssignment)
 
+	// get all assignments for journal
+	mux.HandlerFunc(http.MethodGet, "/journals/:id/assignments", app.getAssignmentsForJournal)
+
+	// get all assignments for student
+	mux.HandlerFunc(http.MethodGet, "/students/:id/assignments", app.getAssignmentsForStudent)
+
 	return mux
 }

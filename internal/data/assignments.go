@@ -130,3 +130,47 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 
 	return nil
 }
+
+func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment, error) {
+	query := `SELECT id, journal_id, description, deadline, type, created_at, updated_at, version
+	FROM assignments
+	WHERE journal_id = $1
+	ORDER BY deadline DESC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var assignments []*Assignment
+
+	for rows.Next() {
+		var assignment Assignment
+		err = rows.Scan(
+			&assignment.ID,
+			&assignment.JournalID,
+			&assignment.Description,
+			&assignment.Deadline.Time,
+			&assignment.Type,
+			&assignment.CreatedAt,
+			&assignment.UpdatedAt,
+			&assignment.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		assignments = append(assignments, &assignment)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return assignments, nil
+}
