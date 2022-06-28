@@ -97,5 +97,8 @@ func (app *application) routes() http.Handler {
 	// update lesson
 	mux.HandlerFunc(http.MethodPatch, "/lessons/:id", app.updateLesson)
 
+	// get lessons for journal
+	mux.HandlerFunc(http.MethodGet, "/journals/:id/lessons", app.getLessonsForJournal)
+
 	return mux
 }
