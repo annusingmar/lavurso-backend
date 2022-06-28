@@ -10,6 +10,7 @@ import (
 var (
 	ErrNoClassForUser = errors.New("no class set for user")
 	ErrNoSuchClass    = errors.New("no such class")
+	ErrClassArchived  = errors.New("class is archived")
 )
 
 type Class struct {

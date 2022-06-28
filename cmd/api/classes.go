@@ -314,6 +314,11 @@ func (app *application) setClassForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if class.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrClassArchived.Error())
+		return
+	}
+
 	err = app.models.Classes.SetClassIDForUserID(user.ID, class.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)

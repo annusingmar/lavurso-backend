@@ -213,6 +213,37 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) deleteJournal(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	journalID, err := strconv.Atoi(params.ByName("id"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.models.Journals.DeleteJournal(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
 func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	teacherID, err := strconv.Atoi(params.ByName("id"))
@@ -311,6 +342,80 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 		switch {
 		case errors.Is(err, data.ErrUserAlreadyInJournal):
 			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	userID, err := strconv.Atoi(params.ByName("id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if user.Role != data.Student {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+		return
+	}
+
+	var input struct {
+		JournalID int `json:"journal_id"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	v := validator.NewValidator()
+	v.Check(input.JournalID > 0, "journal_id", "must be provided and valid")
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(input.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
+		return
+	}
+
+	err = app.models.Journals.DeleteUserFromJournal(user.ID, journal.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrUserNotInJournal):
+			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		default:
 			app.writeInternalServerError(w, r, err)
 		}

@@ -11,6 +11,7 @@ var (
 	ErrNoSuchJournal        = errors.New("no such journal")
 	ErrUserAlreadyInJournal = errors.New("user is already part of journal")
 	ErrJournalArchived      = errors.New("journal is archived")
+	ErrUserNotInJournal     = errors.New("user not in journal")
 )
 
 type Journal struct {
@@ -128,6 +129,20 @@ func (m JournalModel) UpdateJournal(j *Journal) error {
 	return nil
 }
 
+func (m JournalModel) DeleteJournal(journalID int) error {
+	stmt := `DELETE FROM journals
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.ExecContext(ctx, stmt, journalID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (m JournalModel) GetJournalsForTeacher(teacherID int) ([]*Journal, error) {
 	query := `SELECT id, name, teacher_id, subject_id, archived
 	FROM journals
@@ -187,6 +202,31 @@ func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
 		default:
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (m JournalModel) DeleteUserFromJournal(userID, journalID int) error {
+	stmt := `DELETE FROM
+	users_journals
+	WHERE user_id = $1 and journal_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if affected == 0 {
+		return ErrUserNotInJournal
 	}
 
 	return nil

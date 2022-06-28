@@ -129,7 +129,6 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		Email    *string `json:"email"`
 		Password *string `json:"password"`
 		Active   *bool   `json:"active"`
-		Role     *int    `json:"role"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -154,9 +153,6 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-	}
-	if input.Role != nil {
-		user.Role = *input.Role
 	}
 	if input.Active != nil {
 		user.Active = *input.Active

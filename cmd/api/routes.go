@@ -64,6 +64,9 @@ func (app *application) routes() http.Handler {
 	// update journal
 	mux.HandlerFunc(http.MethodPatch, "/journals/:id", app.updateJournal)
 
+	// delete journal
+	mux.HandlerFunc(http.MethodDelete, "/journals/:id", app.deleteJournal)
+
 	// get all journals
 	mux.HandlerFunc(http.MethodGet, "/journals", app.listAllJournals)
 
@@ -83,6 +86,7 @@ func (app *application) routes() http.Handler {
 	mux.HandlerFunc(http.MethodPost, "/students/:id/journals", app.addStudentToJournal)
 
 	// remove user from journal
+	mux.HandlerFunc(http.MethodDelete, "/students/:id/journals", app.removeStudentFromJournal)
 
 	return mux
 }
