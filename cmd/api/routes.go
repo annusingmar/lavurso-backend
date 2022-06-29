@@ -118,5 +118,17 @@ func (app *application) routes() http.Handler {
 	// get all assignments for student
 	mux.HandlerFunc(http.MethodGet, "/students/:id/assignments", app.getAssignmentsForStudent)
 
+	// get all grades
+	mux.HandlerFunc(http.MethodGet, "/grades", app.listAllGrades)
+
+	// get grade by id
+	mux.HandlerFunc(http.MethodGet, "/grades/:id", app.getGrade)
+
+	// create grade
+	mux.HandlerFunc(http.MethodPost, "/grades", app.createGrade)
+
+	// update grade
+	mux.HandlerFunc(http.MethodPatch, "/grades/:id", app.updateGrade)
+
 	return mux
 }

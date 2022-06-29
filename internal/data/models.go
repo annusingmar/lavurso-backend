@@ -9,6 +9,8 @@ type Models struct {
 	Journals    JournalModel
 	Lessons     LessonModel
 	Assignments AssignmentModel
+	Grades      GradeModel
+	Marks       MarkModel
 }
 
 func NewModel(db *sql.DB) Models {
@@ -19,5 +21,7 @@ func NewModel(db *sql.DB) Models {
 		Journals:    JournalModel{DB: db},
 		Lessons:     LessonModel{DB: db},
 		Assignments: AssignmentModel{DB: db},
+		Grades:      GradeModel{DB: db},
+		Marks:       MarkModel{DB: db},
 	}
 }
