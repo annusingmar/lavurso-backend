@@ -319,3 +319,21 @@ func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
 
 	return journals, nil
 }
+
+func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
+	query := `SELECT COUNT(1) FROM users_journals
+	WHERE user_id = $1 and journal_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRowContext(ctx, query, userID, journalID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
+
+}

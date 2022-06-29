@@ -16,3 +16,11 @@ db/migration_down:
 .PHONY: db/migration_create
 db/migration_create:
 	@migrate create -ext=.sql -dir=./migrations -seq ${NAME}
+
+.PHONY: db/migration_goto
+db/migration_goto:
+	@migrate -path=./migrations -database="${MIGRATE_DSN}" goto ${NR}
+
+.PHONY: db/migration_force
+db/migration_force:
+	@migrate -path=./migrations -database="${MIGRATE_DSN}" force ${NR}

@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS lesson_marks;
+DROP TABLE IF EXISTS marks;

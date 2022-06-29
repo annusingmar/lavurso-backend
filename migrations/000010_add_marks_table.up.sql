@@ -8,7 +8,7 @@ create table
     "grade_id" INTEGER,
     "subject_id" INTEGER,
     "comment" TEXT,
-    "type" INTEGER not null,
+    "type" TEXT not null,
     "current" BOOLEAN default true,
     "previous_ids" INTEGER [],
     "by" INTEGER not null,

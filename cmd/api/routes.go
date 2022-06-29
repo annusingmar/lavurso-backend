@@ -130,5 +130,8 @@ func (app *application) routes() http.Handler {
 	// update grade
 	mux.HandlerFunc(http.MethodPatch, "/grades/:id", app.updateGrade)
 
+	// add mark
+	mux.HandlerFunc(http.MethodPost, "/marks", app.addMark)
+
 	return mux
 }

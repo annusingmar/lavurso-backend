@@ -3,7 +3,13 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
+)
+
+var (
+	ErrNoSuchMark = errors.New("no such mark")
+	ErrNoSuchType = errors.New("no such mark type")
 )
 
 type Mark struct {
@@ -15,7 +21,7 @@ type Mark struct {
 	GradeID     *int      `json:"grade_id,omitempty"`
 	SubjectID   *int      `json:"subject_id,omitempty"`
 	Comment     *string   `json:"comment,omitempty"`
-	Type        int       `json:"type"`
+	Type        string    `json:"type"`
 	Current     bool      `json:"current"`
 	PreviousIDs *[]int    `json:"previous_ids,omitempty"`
 	By          int       `json:"by"`
@@ -27,16 +33,54 @@ type MarkModel struct {
 }
 
 const (
-	MarkLessonGrade = iota + 1
-	MarkCourseGrade
-	MarkSubjectGrade
-	MarkNotDone
-	MarkGood
-	MarkNotice
-	MarkBad
-	MarkAbsent
-	MarkLate
+	MarkLessonGrade   = "lesson_grade"
+	MarkCourseGrade   = "course_grade"
+	MarkSubjectGrade  = "subject_grade"
+	MarkNotDone       = "not_done"
+	MarkNoticeGood    = "notice_good"
+	MarkNoticeNeutral = "notice_neutral"
+	MarkNoticeBad     = "notice_bad"
+	MarkAbsent        = "absent"
+	MarkLate          = "late"
 )
+
+func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
+	query := `SELECT FROM marks
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, previous_ids, by, at
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var mark Mark
+
+	err := m.DB.QueryRowContext(ctx, query, markID).Scan(
+		&mark.ID,
+		&mark.UserID,
+		&mark.LessonID,
+		&mark.Course,
+		&mark.JournalID,
+		&mark.GradeID,
+		&mark.SubjectID,
+		&mark.Comment,
+		&mark.Type,
+		&mark.Current,
+		&mark.PreviousIDs,
+		&mark.By,
+		&mark.At,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrNoSuchMark
+		default:
+			return nil, err
+		}
+	}
+
+	return &mark, nil
+}
 
 func (m MarkModel) InsertMark(mark *Mark) error {
 	stmt := `INSERT INTO marks
