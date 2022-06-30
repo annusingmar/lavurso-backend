@@ -9,12 +9,11 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	assignmentID, err := strconv.Atoi(params.ByName("id"))
+	assignmentID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if assignmentID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
 		return
@@ -106,8 +105,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	assignmentID, err := strconv.Atoi(params.ByName("id"))
+	assignmentID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if assignmentID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
 		return
@@ -176,8 +174,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	assignmentID, err := strconv.Atoi(params.ByName("id"))
+	assignmentID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if assignmentID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
 		return
@@ -207,8 +204,7 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -238,8 +234,7 @@ func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.
 }
 
 func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return

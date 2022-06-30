@@ -3,7 +3,7 @@
 ## depencencies
 [pgx](https://github.com/jackc/pgx)
 
-[httprouter](https://github.com/julienschmidt/httprouter)
+[chi](https://github.com/go-chi/chi)
 
 [toml](https://github.com/BurntSushi/toml)
     

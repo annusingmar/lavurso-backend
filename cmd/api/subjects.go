@@ -7,7 +7,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllSubjects(w http.ResponseWriter, r *http.Request) {
@@ -61,8 +61,7 @@ func (app *application) createSubject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getSubject(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	subjectID, err := strconv.Atoi(params.ByName("id"))
+	subjectID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if subjectID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchSubject.Error())
 		return
@@ -86,8 +85,7 @@ func (app *application) getSubject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateSubject(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	subjectID, err := strconv.Atoi(params.ByName("id"))
+	subjectID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if subjectID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchSubject.Error())
 		return

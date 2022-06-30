@@ -7,7 +7,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllJournals(w http.ResponseWriter, r *http.Request) {
@@ -23,8 +23,7 @@ func (app *application) listAllJournals(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -119,8 +118,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -214,8 +212,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) deleteJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -245,8 +242,7 @@ func (app *application) deleteJournal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	teacherID, err := strconv.Atoi(params.ByName("id"))
+	teacherID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if teacherID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -281,8 +277,7 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -355,8 +350,7 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -429,8 +423,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 }
 
 func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -460,8 +453,7 @@ func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return

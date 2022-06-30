@@ -7,7 +7,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
@@ -81,8 +81,7 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getClass(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	classID, err := strconv.Atoi(params.ByName("id"))
+	classID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if classID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchClass.Error())
 		return
@@ -106,8 +105,7 @@ func (app *application) getClass(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	classID, err := strconv.Atoi(params.ByName("id"))
+	classID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if classID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchClass.Error())
 		return
@@ -185,8 +183,7 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getClassForStudent(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -226,8 +223,7 @@ func (app *application) getClassForStudent(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	classID, err := strconv.Atoi(params.ByName("id"))
+	classID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if classID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchClass.Error())
 		return
@@ -258,8 +254,7 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) setClassForStudent(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return

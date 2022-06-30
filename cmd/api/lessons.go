@@ -8,7 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
@@ -79,8 +79,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	lessonID, err := strconv.Atoi(params.ByName("id"))
+	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if lessonID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchLesson.Error())
 		return
@@ -105,8 +104,7 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	lessonID, err := strconv.Atoi(params.ByName("id"))
+	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if lessonID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchLesson.Error())
 		return
@@ -161,8 +159,7 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return

@@ -20,3 +20,7 @@ func (app *application) writeInternalServerError(w http.ResponseWriter, r *http.
 func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	app.writeErrorResponse(w, r, http.StatusMethodNotAllowed, "method not allowed")
 }
+
+func (app *application) notFound(w http.ResponseWriter, r *http.Request) {
+	app.writeErrorResponse(w, r, http.StatusNotFound, "not found")
+}

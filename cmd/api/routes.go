@@ -3,147 +3,157 @@ package main
 import (
 	"net/http"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func (app *application) routes() http.Handler {
-	mux := httprouter.New()
-	mux.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowed)
+	mux := chi.NewRouter()
+
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.Recoverer)
+	mux.Use(middleware.StripSlashes)
+
+	mux.MethodNotAllowed(app.methodNotAllowed)
+	mux.NotFound(app.notFound)
 
 	// list all users
-	mux.HandlerFunc(http.MethodGet, "/users", app.listAllUsers)
+	mux.Get("/users", app.listAllUsers)
 
 	// create new user
-	mux.HandlerFunc(http.MethodPost, "/users", app.createUser)
+	mux.Post("/users", app.createUser)
 
 	// get user by id
-	mux.HandlerFunc(http.MethodGet, "/users/:id", app.getUser)
+	mux.Get("/users/{id}", app.getUser)
 
 	// update user
-	mux.HandlerFunc(http.MethodPatch, "/users/:id", app.updateUser)
+	mux.Patch("/users/{id}", app.updateUser)
 
 	// list all classes
-	mux.HandlerFunc(http.MethodGet, "/classes", app.listAllClasses)
+	mux.Get("/classes", app.listAllClasses)
 
 	// create new class
-	mux.HandlerFunc(http.MethodPost, "/classes", app.createClass)
+	mux.Post("/classes", app.createClass)
 
 	// get class by id
-	mux.HandlerFunc(http.MethodGet, "/classes/:id", app.getClass)
+	mux.Get("/classes/{id}", app.getClass)
 
 	// update class
-	mux.HandlerFunc(http.MethodPatch, "/classes/:id", app.updateClass)
+	mux.Patch("/classes/{id}", app.updateClass)
 
 	// get student's class
-	mux.HandlerFunc(http.MethodGet, "/students/:id/class", app.getClassForStudent)
+	mux.Get("/students/{id}/class", app.getClassForStudent)
 
 	// set student's class
-	mux.HandlerFunc(http.MethodPut, "/students/:id/class", app.setClassForStudent)
+	mux.Put("/students/{id}/class", app.setClassForStudent)
 
 	// get students in class
-	mux.HandlerFunc(http.MethodGet, "/classes/:id/students", app.getStudentsInClass)
+	mux.Get("/classes/{id}/students", app.getStudentsInClass)
 
 	// list all subjects
-	mux.HandlerFunc(http.MethodGet, "/subjects", app.listAllSubjects)
+	mux.Get("/subjects", app.listAllSubjects)
 
 	// get subject by id
-	mux.HandlerFunc(http.MethodGet, "/subjects/:id", app.getSubject)
+	mux.Get("/subjects/{id}", app.getSubject)
 
 	// create subject
-	mux.HandlerFunc(http.MethodPost, "/subjects", app.createSubject)
+	mux.Post("/subjects", app.createSubject)
 
 	// update subject
-	mux.HandlerFunc(http.MethodPatch, "/subjects/:id", app.updateSubject)
+	mux.Patch("/subjects/{id}", app.updateSubject)
 
 	// create journal
-	mux.HandlerFunc(http.MethodPost, "/journals", app.createJournal)
+	mux.Post("/journals", app.createJournal)
 
 	// update journal
-	mux.HandlerFunc(http.MethodPatch, "/journals/:id", app.updateJournal)
+	mux.Patch("/journals/{id}", app.updateJournal)
 
 	// delete journal
-	mux.HandlerFunc(http.MethodDelete, "/journals/:id", app.deleteJournal)
+	mux.Delete("/journals/{id}", app.deleteJournal)
 
 	// get all journals
-	mux.HandlerFunc(http.MethodGet, "/journals", app.listAllJournals)
+	mux.Get("/journals", app.listAllJournals)
 
 	// get journal by id
-	mux.HandlerFunc(http.MethodGet, "/journals/:id", app.getJournal)
+	mux.Get("/journals/{id}", app.getJournal)
 
 	// get journals for teacher
-	mux.HandlerFunc(http.MethodGet, "/teachers/:id/journals", app.getJournalsForTeacher)
+	mux.Get("/teachers/{id}/journals", app.getJournalsForTeacher)
 
 	// get users for journal
-	mux.HandlerFunc(http.MethodGet, "/journals/:id/students", app.getStudentsForJournal)
+	mux.Get("/journals/{id}/students", app.getStudentsForJournal)
 
 	// get journals for user
-	mux.HandlerFunc(http.MethodGet, "/students/:id/journals", app.getJournalsForStudent)
+	mux.Get("/students/{id}/journals", app.getJournalsForStudent)
 
 	// add user to journal
-	mux.HandlerFunc(http.MethodPost, "/students/:id/journals", app.addStudentToJournal)
+	mux.Post("/students/{id}/journals", app.addStudentToJournal)
 
 	// remove user from journal
-	mux.HandlerFunc(http.MethodDelete, "/students/:id/journals", app.removeStudentFromJournal)
+	mux.Delete("/students/{id}/journals", app.removeStudentFromJournal)
 
 	// create lesson
-	mux.HandlerFunc(http.MethodPost, "/lessons", app.createLesson)
+	mux.Post("/lessons", app.createLesson)
 
 	// get lesson by id
-	mux.HandlerFunc(http.MethodGet, "/lessons/:id", app.getLesson)
+	mux.Get("/lessons/{id}", app.getLesson)
 
 	// update lesson
-	mux.HandlerFunc(http.MethodPatch, "/lessons/:id", app.updateLesson)
+	mux.Patch("/lessons/{id}", app.updateLesson)
 
 	// get lessons for journal
-	mux.HandlerFunc(http.MethodGet, "/journals/:id/lessons", app.getLessonsForJournal)
+	mux.Get("/journals/{id}/lessons", app.getLessonsForJournal)
 
 	// get assignment by id
-	mux.HandlerFunc(http.MethodGet, "/assignments/:id", app.getAssignment)
+	mux.Get("/assignments/{id}", app.getAssignment)
 
 	// create assignment
-	mux.HandlerFunc(http.MethodPost, "/assignments", app.createAssignment)
+	mux.Post("/assignments", app.createAssignment)
 
 	// update assignment
-	mux.HandlerFunc(http.MethodPatch, "/assignments/:id", app.updateAssignment)
+	mux.Patch("/assignments/{id}", app.updateAssignment)
 
 	// delete assignment
-	mux.HandlerFunc(http.MethodDelete, "/assignments/:id", app.deleteAssignment)
+	mux.Delete("/assignments/{id}", app.deleteAssignment)
 
 	// get all assignments for journal
-	mux.HandlerFunc(http.MethodGet, "/journals/:id/assignments", app.getAssignmentsForJournal)
+	mux.Get("/journals/{id}/assignments", app.getAssignmentsForJournal)
 
 	// get all assignments for student
-	mux.HandlerFunc(http.MethodGet, "/students/:id/assignments", app.getAssignmentsForStudent)
+	mux.Get("/students/{id}/assignments", app.getAssignmentsForStudent)
 
 	// get all grades
-	mux.HandlerFunc(http.MethodGet, "/grades", app.listAllGrades)
+	mux.Get("/grades", app.listAllGrades)
 
 	// get grade by id
-	mux.HandlerFunc(http.MethodGet, "/grades/:id", app.getGrade)
+	mux.Get("/grades/{id}", app.getGrade)
 
 	// create grade
-	mux.HandlerFunc(http.MethodPost, "/grades", app.createGrade)
+	mux.Post("/grades", app.createGrade)
 
 	// update grade
-	mux.HandlerFunc(http.MethodPatch, "/grades/:id", app.updateGrade)
+	mux.Patch("/grades/{id}", app.updateGrade)
 
 	// get mark by id
-	mux.HandlerFunc(http.MethodGet, "/marks/:id", app.getMark)
+	mux.Get("/marks/{id}", app.getMark)
 
 	// get current marks for student
-	mux.HandlerFunc(http.MethodGet, "/students/:id/marks", app.getMarksForStudent)
+	mux.Get("/students/{id}/marks", app.getMarksForStudent)
 
 	// get current marks for journal
-	mux.HandlerFunc(http.MethodGet, "/journals/:id/marks", app.getMarksForJournal)
+	mux.Get("/journals/{id}/marks", app.getMarksForJournal)
+
+	// get current marks for student's journal
+	mux.Get("/students/{sid}/journals/{jid}/marks", app.getMarksForStudentsJournal)
 
 	// add mark
-	mux.HandlerFunc(http.MethodPost, "/marks", app.addMark)
+	mux.Post("/marks", app.addMark)
 
 	// "delete" mark
-	mux.HandlerFunc(http.MethodDelete, "/marks/:id", app.deleteMark)
+	mux.Delete("/marks/{id}", app.deleteMark)
 
 	// update mark
-	mux.HandlerFunc(http.MethodPatch, "/marks/:id", app.updateMark)
+	mux.Patch("/marks/{id}", app.updateMark)
 
 	return mux
 }

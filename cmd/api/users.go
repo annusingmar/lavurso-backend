@@ -8,7 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllUsers(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +82,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -107,8 +106,7 @@ func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return

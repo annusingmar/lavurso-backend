@@ -8,7 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
@@ -190,8 +190,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	markID, err := strconv.Atoi(params.ByName("id"))
+	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if markID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
 		return
@@ -235,8 +234,7 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	markID, err := strconv.Atoi(params.ByName("id"))
+	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if markID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
 		return
@@ -335,8 +333,7 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	markID, err := strconv.Atoi(params.ByName("id"))
+	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if markID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
 		return
@@ -360,8 +357,7 @@ func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("id"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -396,8 +392,7 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	journalID, err := strconv.Atoi(params.ByName("id"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -427,8 +422,7 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	userID, err := strconv.Atoi(params.ByName("sid"))
+	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
@@ -450,7 +444,7 @@ func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *htt
 		return
 	}
 
-	journalID, err := strconv.Atoi(params.ByName("jid"))
+	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
@@ -464,6 +458,16 @@ func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *htt
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	ok, err := app.models.Journals.IsUserInJournal(user.ID, journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	if !ok {
+		app.writeErrorResponse(w, r, http.StatusTeapot, "user not in journal")
 		return
 	}
 

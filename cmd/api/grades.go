@@ -7,7 +7,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllGrades(w http.ResponseWriter, r *http.Request) {
@@ -24,8 +24,7 @@ func (app *application) listAllGrades(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getGrade(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	gradeID, err := strconv.Atoi(params.ByName("id"))
+	gradeID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if gradeID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGrade.Error())
 		return
@@ -88,8 +87,7 @@ func (app *application) createGrade(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateGrade(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	gradeID, err := strconv.Atoi(params.ByName("id"))
+	gradeID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if gradeID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGrade.Error())
 		return
