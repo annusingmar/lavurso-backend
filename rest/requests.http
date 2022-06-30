@@ -441,6 +441,11 @@ Content-Type: application/json
 
 ###
 
+// get current marks for student
+GET {{host}}/students/1/marks
+
+###
+
 // adding subject grade
 POST {{host}}/marks
 Content-Type: application/json
@@ -470,6 +475,11 @@ Content-Type: application/json
 
 ###
 
+// get current marks for journal
+GET {{host}}/journals/1/marks
+
+###
+
 // updating notice
 PATCH {{host}}/marks/8
 Content-Type: application/json
@@ -477,3 +487,8 @@ Content-Type: application/json
 {
     "comment": "very good!"
 }
+
+###
+
+// get current marks for student's journal
+GET {{host}}/students/1/journals/1/marks
