@@ -42,7 +42,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		JournalID   int       `json:"journal_id"`
 		Description string    `json:"description"`
 		Deadline    data.Date `json:"deadline"`
-		Type        int       `json:"type"`
+		Type        string    `json:"type"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -69,7 +69,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 	v := validator.NewValidator()
 
 	v.Check(assignment.JournalID > 0, "journal_id", "must be provided and valid")
-	v.Check(assignment.Type == data.Homework || assignment.Type == data.Test, "type", "must be provided and valid")
+	v.Check(assignment.Type == data.AssignmentHomework || assignment.Type == data.AssignmentTest, "type", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -127,7 +127,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 	var input struct {
 		Description *string    `json:"description"`
 		Deadline    *data.Date `json:"deadline"`
-		Type        *int       `json:"type"`
+		Type        *string    `json:"type"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -148,7 +148,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 
 	v := validator.NewValidator()
 
-	v.Check(assignment.Type == data.Homework || assignment.Type == data.Test, "type", "must be provided and valid")
+	v.Check(assignment.Type == data.AssignmentHomework || assignment.Type == data.AssignmentTest, "type", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -256,7 +256,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if user.Role != data.Student {
+	if user.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}

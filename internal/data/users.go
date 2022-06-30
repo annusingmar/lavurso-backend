@@ -2,19 +2,19 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"regexp"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/validator"
+	"github.com/jackc/pgx/v4"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	Administrator = iota + 1
-	Parent
-	Student
+	RoleAdministrator = "admin"
+	RoleParent        = "parent"
+	RoleStudent       = "student"
 )
 
 var (
@@ -31,7 +31,7 @@ type User struct {
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Password  Password  `json:"-"`
-	Role      int       `json:"role"`
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	Active    bool      `json:"active"`
 	Version   int       `json:"version"`
@@ -48,7 +48,7 @@ type Role struct {
 }
 
 type UserModel struct {
-	DB *sql.DB
+	DB *pgx.Conn
 }
 
 func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
@@ -63,24 +63,11 @@ func (m UserModel) ValidateUser(v *validator.Validator, u *User) {
 	v.Check(u.Name != "", "name", "must be provided")
 	v.Check(u.Email != "", "email", "must be provided")
 	v.Check(EmailRegex.MatchString(u.Email), "email", "must be a valid email address")
-	v.Check(u.Role > 0 && u.Role < 4, "role", "must be {1,2,3}")
+	v.Check(u.Role == RoleAdministrator || u.Role == RoleParent || u.Role == RoleStudent, "role", "must be valid role")
 }
 
 func (m UserModel) ValidatePassword(v *validator.Validator, u *User) {
 	v.Check(u.Password.Plaintext != "", "password", "must be provided")
-}
-
-func (m UserModel) RoleName(r int) string {
-	switch r {
-	case Administrator:
-		return "Administrator"
-	case Parent:
-		return "Parent"
-	case Student:
-		return "Student"
-	default:
-		return ""
-	}
 }
 
 // DATABASE
@@ -93,7 +80,7 @@ func (m UserModel) AllUsers() ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	rows, err := m.DB.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +125,7 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 
 	var user User
 
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
+	err := m.DB.QueryRow(ctx, query, userID).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -151,7 +138,7 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrNoSuchUser
 		default:
 			return nil, err
@@ -164,13 +151,13 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 func (m UserModel) InsertUser(u *User) error {
 	stmt := `INSERT INTO users
 	(name, email, password, role, created_at, active, version)
-	VALUES ($1, $2, $3, $4, $5, $6)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.CreatedAt, u.Active, u.Version).Scan(&u.ID)
+	err := m.DB.QueryRow(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.CreatedAt, u.Active, u.Version).Scan(&u.ID)
 	if err != nil {
 		switch {
 		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)`:
@@ -185,17 +172,17 @@ func (m UserModel) InsertUser(u *User) error {
 
 func (m UserModel) UpdateUser(u *User) error {
 	stmt := `UPDATE users SET (name, email, password, role, active, version) =
-	($1, $2, $3, $4, version+1)
-	WHERE id = $5
+	($1, $2, $3, $4, $5, version+1)
+	WHERE id = $6
 	RETURNING version`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.Active, u.ID).Scan(&u.Version)
+	err := m.DB.QueryRow(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.Active, u.ID).Scan(&u.Version)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return ErrEditConflict
 		default:
 			return err

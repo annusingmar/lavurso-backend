@@ -4,7 +4,7 @@ create table if not exists
     "journal_id" INTEGER not null,
     "description" TEXT not null,
     "deadline" DATE not null,
-    "type" INTEGER not null,
+    "type" TEXT not null,
     "created_at" TIMESTAMP not null default NOW(),
     "updated_at" TIMESTAMP not null default NOW(),
     "version" INTEGER not null default 1

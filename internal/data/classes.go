@@ -2,9 +2,10 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v4"
 )
 
 var (
@@ -21,7 +22,7 @@ type Class struct {
 }
 
 type ClassModel struct {
-	DB *sql.DB
+	DB *pgx.Conn
 }
 
 // DATABASE
@@ -36,7 +37,7 @@ func (m ClassModel) InsertClass(c *Class) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, c.Name, c.TeacherID, c.Archived).Scan(&c.ID)
+	err := m.DB.QueryRow(ctx, stmt, c.Name, c.TeacherID, c.Archived).Scan(&c.ID)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 
 	var classes []*Class
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	rows, err := m.DB.Query(ctx, query)
 
 	if err != nil {
 		return nil, err
@@ -92,7 +93,7 @@ func (m ClassModel) UpdateClass(c *Class) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, c.Name, c.TeacherID, c.ID)
+	_, err := m.DB.Exec(ctx, stmt, c.Name, c.TeacherID, c.ID)
 	if err != nil {
 		return err
 	}
@@ -111,7 +112,7 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 
 	var class Class
 
-	err := m.DB.QueryRowContext(ctx, query, classID).Scan(
+	err := m.DB.QueryRow(ctx, query, classID).Scan(
 		&class.ID,
 		&class.Name,
 		&class.TeacherID,
@@ -120,7 +121,7 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrNoSuchClass
 		default:
 			return nil, err
@@ -143,7 +144,7 @@ func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
 
 	var class Class
 
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
+	err := m.DB.QueryRow(ctx, query, userID).Scan(
 		&class.ID,
 		&class.Name,
 		&class.TeacherID,
@@ -152,7 +153,7 @@ func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrNoClassForUser
 		default:
 			return nil, err
@@ -174,7 +175,7 @@ func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, classID)
+	rows, err := m.DB.Query(ctx, query, classID)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +219,7 @@ func (m ClassModel) SetClassIDForUserID(userID, classID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, classID)
+	_, err := m.DB.Exec(ctx, stmt, userID, classID)
 	if err != nil {
 		return err
 	}

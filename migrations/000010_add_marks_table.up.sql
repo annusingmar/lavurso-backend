@@ -10,6 +10,7 @@ create table
     "comment" TEXT,
     "type" TEXT not null,
     "current" BOOLEAN default true,
+    "deleted" BOOLEAN default false,
     "previous_ids" INTEGER [],
     "by" INTEGER not null,
     "at" TIMESTAMP default NOW()
@@ -44,3 +45,6 @@ ALTER TABLE
   "public"."marks"
 ADD
   CONSTRAINT "marks_relation_6" FOREIGN KEY ("by") REFERENCES "public"."users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+
+CREATE INDEX
+  "marks_index_2" on "public"."marks"("user_id" ASC);

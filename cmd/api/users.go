@@ -28,7 +28,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		Name     string `json:"name"`
 		Email    string `json:"email"`
 		Password string `json:"password"`
-		Role     int    `json:"role"`
+		Role     string `json:"role"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -60,6 +60,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user.CreatedAt = time.Now().UTC()
+	user.Active = true
 	user.Version = 1
 
 	err = app.models.Users.InsertUser(user)
@@ -180,18 +181,4 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		app.writeInternalServerError(w, r, err)
 	}
 
-}
-
-func (app *application) listRoles(w http.ResponseWriter, r *http.Request) {
-	var roles []data.Role
-
-	for i := 1; i < 4; i++ {
-		name := app.models.Users.RoleName(i)
-		roles = append(roles, data.Role{ID: i, Name: name})
-	}
-
-	err := app.outputJSON(w, http.StatusOK, envelope{"roles": roles})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
 }

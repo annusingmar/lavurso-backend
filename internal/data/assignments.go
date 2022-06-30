@@ -2,18 +2,20 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v4"
 )
 
 const (
-	Homework = iota + 1
-	Test
+	AssignmentHomework = "homework"
+	AssignmentTest     = "test"
 )
 
 var (
-	ErrNoSuchAssignment = errors.New("no such assignment")
+	ErrNoSuchAssignment     = errors.New("no such assignment")
+	ErrNoSuchAssignmentType = errors.New("no such assignment type")
 )
 
 type Assignment struct {
@@ -21,25 +23,14 @@ type Assignment struct {
 	JournalID   int       `json:"journal_id"`
 	Description string    `json:"description"`
 	Deadline    Date      `json:"deadline"`
-	Type        int       `json:"type"`
+	Type        string    `json:"type"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Version     int       `json:"version"`
 }
 
 type AssignmentModel struct {
-	DB *sql.DB
-}
-
-func (m AssignmentModel) AssignmentName(r int) string {
-	switch r {
-	case Homework:
-		return "Homework"
-	case Test:
-		return "Test"
-	default:
-		return ""
-	}
+	DB *pgx.Conn
 }
 
 func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error) {
@@ -52,7 +43,7 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 
 	var assignment Assignment
 
-	err := m.DB.QueryRowContext(ctx, query, assignmentID).Scan(
+	err := m.DB.QueryRow(ctx, query, assignmentID).Scan(
 		&assignment.ID,
 		&assignment.JournalID,
 		&assignment.Description,
@@ -65,7 +56,7 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrNoSuchAssignment
 		default:
 			return nil, err
@@ -85,7 +76,7 @@ func (m AssignmentModel) InsertAssignment(a *Assignment) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, a.JournalID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt, a.Version).Scan(&a.ID)
+	err := m.DB.QueryRow(ctx, stmt, a.JournalID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt, a.Version).Scan(&a.ID)
 	if err != nil {
 		return err
 	}
@@ -103,10 +94,10 @@ func (m AssignmentModel) UpdateAssignment(a *Assignment) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID, a.Version).Scan(&a.Version)
+	err := m.DB.QueryRow(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID, a.Version).Scan(&a.Version)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return ErrEditConflict
 		default:
 			return err
@@ -123,7 +114,7 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, assignmentID)
+	_, err := m.DB.Exec(ctx, stmt, assignmentID)
 	if err != nil {
 		return err
 	}
@@ -140,7 +131,7 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	rows, err := m.DB.Query(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}

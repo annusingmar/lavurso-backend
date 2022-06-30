@@ -1,6 +1,6 @@
 package data
 
-import "database/sql"
+import "github.com/jackc/pgx/v4"
 
 type Models struct {
 	Users       UserModel
@@ -13,7 +13,7 @@ type Models struct {
 	Marks       MarkModel
 }
 
-func NewModel(db *sql.DB) Models {
+func NewModel(db *pgx.Conn) Models {
 	return Models{
 		Users:       UserModel{DB: db},
 		Classes:     ClassModel{DB: db},

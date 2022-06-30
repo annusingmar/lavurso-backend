@@ -2,9 +2,10 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v4"
 )
 
 var (
@@ -23,7 +24,7 @@ type Lesson struct {
 }
 
 type LessonModel struct {
-	DB *sql.DB
+	DB *pgx.Conn
 }
 
 // DATABASE
@@ -38,7 +39,7 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, l.JournalID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt, l.Version).Scan(&l.ID)
+	err := m.DB.QueryRow(ctx, stmt, l.JournalID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt, l.Version).Scan(&l.ID)
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 
 	var lesson Lesson
 
-	err := m.DB.QueryRowContext(ctx, query, lessonID).Scan(
+	err := m.DB.QueryRow(ctx, query, lessonID).Scan(
 		&lesson.ID,
 		&lesson.JournalID,
 		&lesson.Description,
@@ -70,7 +71,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrNoSuchLesson
 		default:
 			return nil, err
@@ -90,10 +91,10 @@ func (m LessonModel) UpdateLesson(l *Lesson) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID, l.Version).Scan(&l.Version)
+	err := m.DB.QueryRow(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID, l.Version).Scan(&l.Version)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return ErrEditConflict
 		default:
 			return err
@@ -112,7 +113,7 @@ func (m LessonModel) GetLessonsByJournalID(journalID int) ([]*Lesson, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	rows, err := m.DB.Query(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}

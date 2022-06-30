@@ -10,9 +10,6 @@ func (app *application) routes() http.Handler {
 	mux := httprouter.New()
 	mux.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowed)
 
-	// list all roles
-	mux.HandlerFunc(http.MethodGet, "/roles", app.listRoles)
-
 	// list all users
 	mux.HandlerFunc(http.MethodGet, "/users", app.listAllUsers)
 
@@ -130,8 +127,23 @@ func (app *application) routes() http.Handler {
 	// update grade
 	mux.HandlerFunc(http.MethodPatch, "/grades/:id", app.updateGrade)
 
+	// get mark by id
+	mux.HandlerFunc(http.MethodGet, "/marks/:id", app.getMark)
+
+	// get current marks for student
+	mux.HandlerFunc(http.MethodGet, "/students/:id/marks", app.getMarksForStudent)
+
+	// get current marks for journal
+	mux.HandlerFunc(http.MethodGet, "/journals/:id/marks", app.getMarksForJournal)
+
 	// add mark
 	mux.HandlerFunc(http.MethodPost, "/marks", app.addMark)
+
+	// "delete" mark
+	mux.HandlerFunc(http.MethodDelete, "/marks/:id", app.deleteMark)
+
+	// update mark
+	mux.HandlerFunc(http.MethodPatch, "/marks/:id", app.updateMark)
 
 	return mux
 }

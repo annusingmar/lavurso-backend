@@ -1,0 +1,479 @@
+@host = http://localhost:8888
+
+######################################################### USERS
+
+// create student
+POST {{host}}/users
+Content-Type: application/json
+
+{
+    "name": "Some Student",
+    "email": "some.student@example.com",
+    "password": "password",
+    "role": "student"
+}
+
+###
+
+// create admin/teacher
+POST {{host}}/users
+Content-Type: application/json
+
+{
+    "name": "Some Admin",
+    "email": "some.admin@example.com",
+    "password": "password",
+    "role": "admin"
+}
+
+###
+
+// get user by id
+GET {{host}}/users/1
+
+###
+
+// update user
+PATCH {{host}}/users/2
+Content-Type: application/json
+
+{
+    "name": "Another Admin",
+    "password": "NewPassword"
+}
+
+###
+
+// list all users
+GET {{host}}/users
+
+######################################################### CLASSES
+
+// create class
+POST {{host}}/classes
+Content-Type: application/json
+
+{
+    "name": "11a",
+    "teacher_id": 2
+}
+
+###
+
+// get class by id
+GET {{host}}/classes/1
+
+###
+
+// update class
+PATCH {{host}}/classes/1
+Content-Type: application/json
+
+{
+    "name": "12a",
+    "teacher_id": 2
+}
+
+###
+
+// get all classes
+GET {{host}}/classes
+
+###
+
+// get student's class
+GET {{host}}/students/1/class
+
+###
+
+// set student's class
+PUT {{host}}/students/1/class
+Content-Type: application/json
+
+{
+    "class_id": 1
+}
+
+###
+
+// get all students in class
+GET {{host}}/classes/1/students
+
+######################################################### SUBJECTS
+
+// create subject
+POST {{host}}/subjects
+Content-Type: application/json
+
+{
+    "name": "Mathematics"
+}
+
+###
+
+// get subject by id
+GET {{host}}/subjects/1
+
+###
+
+// update subject
+PATCH {{host}}/subjects/1
+Content-Type: application/json
+
+{
+    "name": "Advanced Mathematics"
+}
+
+###
+
+// list all subjects
+GET {{host}}/subjects
+
+######################################################### JOURNALS
+
+// create journal
+
+POST {{host}}/journals
+Content-Type: application/json
+
+{
+    "name": "12a Advanced Mathematics",
+    "teacher_id": 2,
+    "subject_id": 1
+}
+
+###
+
+// get journal by id
+GET {{host}}/journals/1
+
+###
+
+// update journal
+PATCH {{host}}/journals/1
+Content-Type: application/json
+
+{
+    "name": "12a Mathematics Advanced",
+    "teacher_id": 2
+}
+
+###
+
+// get all journals
+GET {{host}}/journals
+
+###
+
+// get journals for teacher
+GET {{host}}/teachers/2/journals
+
+###
+
+// add student to journal
+POST {{host}}/students/1/journals
+Content-Type: application/json
+
+{
+    "journal_id": 1
+}
+
+###
+
+// remove student from journal
+DELETE {{host}}/students/1/journals
+Content-Type: application/json
+
+{
+    "journal_id": 1
+}
+
+###
+
+// add student to journal (again)
+POST {{host}}/students/1/journals
+Content-Type: application/json
+
+{
+    "journal_id": 1
+}
+
+###
+
+// get students for journal
+GET {{host}}/journals/1/students
+
+###
+
+// get journals for student
+GET {{host}}/students/1/journals
+
+######################################################### LESSONS
+
+// create lesson
+POST {{host}}/lessons
+Content-Type: application/json
+
+{
+    "journal_id": 1,
+    "description": "Algebra; p. 90-95 ex 1-6",
+    "date": "2022-06-30",
+    "course": 1
+}
+
+###
+
+// get lesson by id
+GET {{host}}/lessons/1
+
+###
+
+// update lesson
+PATCH {{host}}/lessons/1
+Content-Type: application/json
+
+{
+    "description": "Algebra I Revision: p. 80-85",
+    "date": "2022-06-29"
+}
+
+###
+
+// get lessons for journal
+GET {{host}}/journals/1/lessons
+
+######################################################### ASSIGNMENTS
+
+// create assignment
+POST {{host}}/assignments
+Content-Type: application/json
+
+{
+    "journal_id": 1,
+    "description": "Test: Algebra I",
+    "deadline": "2022-07-01",
+    "type": "test"
+}
+
+###
+
+// update assignment
+PATCH {{host}}/assignments/1
+Content-Type: application/json
+
+{
+    "description": "Test: Algebra I Advanced",
+    "deadline": "2022-07-04",
+    "type": "test"
+}
+
+###
+
+// get assignment by id
+GET {{host}}/assignments/1
+
+###
+
+// delete assignment
+DELETE {{host}}/assignments/1
+
+###
+
+// create assignment (again)
+POST {{host}}/assignments
+Content-Type: application/json
+
+{
+    "journal_id": 1,
+    "description": "Algebra I revision: p. 90-95 ex. 1-6",
+    "deadline": "2022-07-04",
+    "type": "homework"
+}
+
+###
+
+// get all assignments for journal
+GET {{host}}/journals/1/assignments
+
+###
+
+// get all assignments for student
+GET {{host}}/students/1/assignments
+
+######################################################### GRADES
+
+// create some grades
+
+POST {{host}}/grades
+Content-Type: application/json
+
+{
+    "identifier": "5",
+    "value": 100
+}
+
+###
+
+POST {{host}}/grades
+Content-Type: application/json
+
+{
+    "identifier": "4",
+    "value": 90
+}
+
+###
+
+POST {{host}}/grades
+Content-Type: application/json
+
+{
+    "identifier": "3",
+    "value": 75
+}
+
+###
+
+POST {{host}}/grades
+Content-Type: application/json
+
+{
+    "identifier": "2",
+    "value": 50
+}
+
+###
+
+POST {{host}}/grades
+Content-Type: application/json
+
+{
+    "identifier": "1",
+    "value": 20
+}
+
+###
+
+POST {{host}}/grades
+Content-Type: application/json
+
+{
+    "identifier": "F",
+    "value": 10
+}
+
+###
+
+// get all grades
+GET {{host}}/grades
+
+###
+
+// update grade
+PATCH {{host}}/grades/5
+Content-Type: application/json
+
+{
+    "identifier": "1",
+    "value": 15
+}
+
+###
+
+// get grade by id
+GET {{host}}/grades/5
+
+######################################################### MARKS
+
+// ADDING MARKS
+
+// adding lesson grades
+POST {{host}}/marks
+Content-Type: application/json
+
+{
+    "user_id": 1,
+    "lesson_id": 1,
+    "grade_id": 1,
+    "comment": "100%",
+    "type": "lesson_grade"
+}
+
+###
+
+POST {{host}}/marks
+Content-Type: application/json
+
+{
+    "user_id": 1,
+    "lesson_id": 1,
+    "grade_id": 3,
+    "comment": "80%",
+    "type": "lesson_grade"
+}
+
+###
+
+// adding good notice
+POST {{host}}/marks
+Content-Type: application/json
+
+{
+    "user_id": 1,
+    "lesson_id": 1,
+    "comment": "<insert good comment here>",
+    "type": "notice_good"
+}
+
+###
+
+// adding course grade
+POST {{host}}/marks
+Content-Type: application/json
+
+{
+    "user_id": 1,
+    "course": 1,
+    "journal_id": 1,
+    "grade_id": 2,
+    "type": "course_grade"
+}
+
+###
+
+// adding subject grade
+POST {{host}}/marks
+Content-Type: application/json
+
+{
+    "user_id": 1,
+    "journal_id": 1,
+    "grade_id": 2,
+    "type": "subject_grade"
+}
+
+###
+
+// deleting mark
+DELETE {{host}}/marks/7
+
+###
+
+// updating lesson grade
+PATCH {{host}}/marks/6
+Content-Type: application/json
+
+{
+    "grade_id": 2,
+    "comment": "90%"
+}
+
+###
+
+// updating notice
+PATCH {{host}}/marks/8
+Content-Type: application/json
+
+{
+    "comment": "very good!"
+}

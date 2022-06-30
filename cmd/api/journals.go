@@ -89,7 +89,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if teacher.Role != data.Administrator {
+	if teacher.Role != data.RoleAdministrator {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
@@ -185,7 +185,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if teacher.Role != data.Administrator {
+	if teacher.Role != data.RoleAdministrator {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
@@ -263,7 +263,7 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if teacher.Role != data.Administrator {
+	if teacher.Role != data.RoleAdministrator {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
@@ -299,7 +299,7 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if user.Role != data.Student {
+	if user.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
@@ -373,7 +373,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if user.Role != data.Student {
+	if user.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
@@ -478,7 +478,7 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if user.Role != data.Student {
+	if user.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS
     "name" TEXT not null,
     "email" CITEXT UNIQUE not null,
     "password" bytea not null,
-    "role" INTEGER not null,
+    "role" TEXT not null,
     "created_at" timestamp not null default NOW(),
     "active" BOOLEAN not null default true,
     "version" INTEGER not null default 1

@@ -2,9 +2,10 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v4"
 )
 
 var (
@@ -23,7 +24,7 @@ type Journal struct {
 }
 
 type JournalModel struct {
-	DB *sql.DB
+	DB *pgx.Conn
 }
 
 func (m JournalModel) AllJournals() ([]*Journal, error) {
@@ -34,7 +35,7 @@ func (m JournalModel) AllJournals() ([]*Journal, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	rows, err := m.DB.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 
 	var journal Journal
 
-	err := m.DB.QueryRowContext(ctx, query, journalID).Scan(
+	err := m.DB.QueryRow(ctx, query, journalID).Scan(
 		&journal.ID,
 		&journal.Name,
 		&journal.TeacherID,
@@ -86,7 +87,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrNoSuchJournal
 		default:
 			return nil, err
@@ -106,7 +107,7 @@ func (m JournalModel) InsertJournal(j *Journal) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, j.Name, j.TeacherID, j.SubjectID, j.Archived).Scan(&j.ID)
+	err := m.DB.QueryRow(ctx, stmt, j.Name, j.TeacherID, j.SubjectID, j.Archived).Scan(&j.ID)
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,7 @@ func (m JournalModel) UpdateJournal(j *Journal) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, j.Name, j.TeacherID, j.SubjectID, j.Archived, j.ID)
+	_, err := m.DB.Exec(ctx, stmt, j.Name, j.TeacherID, j.SubjectID, j.Archived, j.ID)
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,7 @@ func (m JournalModel) DeleteJournal(journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, journalID)
+	_, err := m.DB.Exec(ctx, stmt, journalID)
 	if err != nil {
 		return err
 	}
@@ -152,7 +153,7 @@ func (m JournalModel) GetJournalsForTeacher(teacherID int) ([]*Journal, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, teacherID)
+	rows, err := m.DB.Query(ctx, query, teacherID)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +195,7 @@ func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
+	_, err := m.DB.Exec(ctx, stmt, userID, journalID)
 	if err != nil {
 		switch {
 		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_journals_pkey" (SQLSTATE 23505)`:
@@ -215,15 +216,12 @@ func (m JournalModel) DeleteUserFromJournal(userID, journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
+	result, err := m.DB.Exec(ctx, stmt, userID, journalID)
 	if err != nil {
 		return err
 	}
 
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
+	affected := result.RowsAffected()
 
 	if affected == 0 {
 		return ErrUserNotInJournal
@@ -243,7 +241,7 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	rows, err := m.DB.Query(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +286,7 @@ func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, userID)
+	rows, err := m.DB.Query(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +327,7 @@ func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
 
 	var result int
 
-	err := m.DB.QueryRowContext(ctx, query, userID, journalID).Scan(&result)
+	err := m.DB.QueryRow(ctx, query, userID, journalID).Scan(&result)
 	if err != nil {
 		return false, err
 	}

@@ -1,19 +1,23 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"log"
+	"time"
 
-	_ "github.com/jackc/pgx/v4"
-	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v4"
 )
 
-func openDBConnection(connectionString string) *sql.DB {
-	pool, err := sql.Open("pgx", connectionString)
+func openDBConnection(connectionString string) *pgx.Conn {
+	pool, err := pgx.Connect(context.Background(), connectionString)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if err = pool.Ping(); err != nil {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if err = pool.Ping(ctx); err != nil {
 		log.Fatalln(err)
 	}
 	return pool
