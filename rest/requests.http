@@ -460,12 +460,12 @@ Content-Type: application/json
 ###
 
 // deleting mark
-DELETE {{host}}/marks/7
+DELETE {{host}}/marks/2
 
 ###
 
 // updating lesson grade
-PATCH {{host}}/marks/6
+PATCH {{host}}/marks/1
 Content-Type: application/json
 
 {
@@ -481,7 +481,7 @@ GET {{host}}/journals/1/marks
 ###
 
 // updating notice
-PATCH {{host}}/marks/8
+PATCH {{host}}/marks/3
 Content-Type: application/json
 
 {
@@ -492,3 +492,8 @@ Content-Type: application/json
 
 // get current marks for student's journal
 GET {{host}}/students/1/journals/1/marks
+
+###
+
+// get previous marks for mark
+GET {{host}}/marks/1/previous

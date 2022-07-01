@@ -9,9 +9,6 @@ create table
     "subject_id" INTEGER,
     "comment" TEXT,
     "type" TEXT not null,
-    "current" BOOLEAN default true,
-    "deleted" BOOLEAN default false,
-    "previous_ids" INTEGER [],
     "by" INTEGER not null,
     "at" TIMESTAMP default NOW()
   );

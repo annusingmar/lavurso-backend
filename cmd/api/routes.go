@@ -155,5 +155,8 @@ func (app *application) routes() http.Handler {
 	// update mark
 	mux.Patch("/marks/{id}", app.updateMark)
 
+	// get previous marks for mark
+	mux.Get("/marks/{id}/previous", app.getPreviousMarksForMark)
+
 	return mux
 }

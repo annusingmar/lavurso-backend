@@ -59,7 +59,6 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 
 	mark.UserID = user.ID
 	mark.Type = input.Type
-	mark.Deleted = false
 
 	switch mark.Type {
 	case data.MarkLessonGrade, data.MarkNotDone, data.MarkNoticeGood, data.MarkNoticeNeutral, data.MarkNoticeBad, data.MarkAbsent, data.MarkLate:
@@ -173,7 +172,6 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	mark.SubjectID = &subject.ID
 
 	mark.Comment = input.Comment
-	mark.Current = true
 	mark.By = 1 // temporary
 	mark.At = time.Now().UTC()
 
@@ -207,21 +205,7 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !mark.Current {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrMarkNotCurrent.Error())
-		return
-	}
-
-	if mark.Deleted {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrMarkDeleted)
-		return
-	}
-
-	mark.Deleted = true
-	mark.By = 1 // to change
-	mark.At = time.Now().UTC()
-
-	err = app.models.Marks.UpdateMark(mark)
+	err = app.models.Marks.DeleteMark(mark.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -251,28 +235,21 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !mark.Current {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrMarkNotCurrent.Error())
-		return
-	}
-
-	if mark.Deleted {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrMarkDeleted)
-		return
-	}
-
 	var input struct {
 		GradeID *int    `json:"grade_id"`
 		Comment *string `json:"comment"`
 	}
-
-	var updated bool
 
 	err = app.inputJSON(w, r, &input)
 	if err != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	var updated bool
+
+	oldMark := *mark
+	oldMark.MarkID = &oldMark.ID
 
 	switch mark.Type {
 	case data.MarkLessonGrade, data.MarkCourseGrade, data.MarkSubjectGrade:
@@ -310,15 +287,18 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if updated {
-		err = app.models.Marks.SetMarkNotCurrent(mark.ID, 1) // to change
+		app.infoLogger.Println("updating!")
+
+		mark.At = time.Now().UTC()
+		mark.By = 1 // temporary
+
+		err = app.models.Marks.UpdateMark(mark)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
 
-		mark.PreviousIDs = append(mark.PreviousIDs, mark.ID)
-
-		err = app.models.Marks.InsertMark(mark)
+		err = app.models.Marks.InsertOldMark(&oldMark)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -478,6 +458,36 @@ func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *htt
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"marks": marks})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getPreviousMarksForMark(w http.ResponseWriter, r *http.Request) {
+	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if markID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
+		return
+	}
+
+	mark, err := app.models.Marks.GetMarkByID(markID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchMark):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	previousMarks, err := app.models.Marks.GetOldMarksByMarkID(mark.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"marks": previousMarks})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

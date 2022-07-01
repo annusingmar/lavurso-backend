@@ -9,27 +9,23 @@ import (
 )
 
 var (
-	ErrNoSuchMark     = errors.New("no such mark")
-	ErrNoSuchType     = errors.New("no such mark type")
-	ErrMarkNotCurrent = errors.New("mark is not current")
-	ErrMarkDeleted    = errors.New("mark is deleted")
+	ErrNoSuchMark = errors.New("no such mark")
+	ErrNoSuchType = errors.New("no such mark type")
 )
 
 type Mark struct {
-	ID          int       `json:"id"`
-	UserID      int       `json:"user_id"`
-	LessonID    *int      `json:"lesson_id,omitempty"`
-	Course      *int      `json:"course,omitempty"`
-	JournalID   *int      `json:"journal_id,omitempty"`
-	GradeID     *int      `json:"grade_id,omitempty"`
-	SubjectID   *int      `json:"subject_id,omitempty"`
-	Comment     *string   `json:"comment,omitempty"`
-	Type        string    `json:"type"`
-	Current     bool      `json:"current"`
-	Deleted     bool      `json:"deleted"`
-	PreviousIDs []int     `json:"previous_ids,omitempty"`
-	By          int       `json:"by"`
-	At          time.Time `json:"at"`
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	MarkID    *int      `json:"mark_id,omitempty"`
+	LessonID  *int      `json:"lesson_id,omitempty"`
+	Course    *int      `json:"course,omitempty"`
+	JournalID *int      `json:"journal_id,omitempty"`
+	GradeID   *int      `json:"grade_id,omitempty"`
+	SubjectID *int      `json:"subject_id,omitempty"`
+	Comment   *string   `json:"comment,omitempty"`
+	Type      string    `json:"type"`
+	By        int       `json:"by"`
+	At        time.Time `json:"at"`
 }
 
 type MarkModel struct {
@@ -64,9 +60,6 @@ func scanMarks(rows pgx.Rows) ([]*Mark, error) {
 			&mark.SubjectID,
 			&mark.Comment,
 			&mark.Type,
-			&mark.Current,
-			&mark.Deleted,
-			&mark.PreviousIDs,
 			&mark.By,
 			&mark.At,
 		)
@@ -85,7 +78,7 @@ func scanMarks(rows pgx.Rows) ([]*Mark, error) {
 
 func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	query := `SELECT
-	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, deleted, previous_ids, by, at
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at
 	FROM marks
 	WHERE id = $1`
 
@@ -104,9 +97,6 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 		&mark.SubjectID,
 		&mark.Comment,
 		&mark.Type,
-		&mark.Current,
-		&mark.Deleted,
-		&mark.PreviousIDs,
 		&mark.By,
 		&mark.At,
 	)
@@ -125,9 +115,10 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 
 func (m MarkModel) GetMarksByUserID(userID int) ([]*Mark, error) {
 	query := `SELECT
-	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, deleted, previous_ids, by, at
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at
 	FROM marks
-	WHERE user_id = $1`
+	WHERE user_id = $1
+	ORDER BY at DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -149,7 +140,7 @@ func (m MarkModel) GetMarksByUserID(userID int) ([]*Mark, error) {
 
 func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
 	query := `SELECT
-	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, deleted, previous_ids, by, at
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at
 	FROM marks
 	WHERE journal_id = $1`
 
@@ -173,7 +164,7 @@ func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
 
 func (m MarkModel) GetMarksByUserIDAndJournalID(userID, journalID int) ([]*Mark, error) {
 	query := `SELECT
-	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, deleted, previous_ids, by, at
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at
 	FROM marks
 	WHERE user_id = $1 and journal_id = $2`
 
@@ -197,34 +188,17 @@ func (m MarkModel) GetMarksByUserIDAndJournalID(userID, journalID int) ([]*Mark,
 
 func (m MarkModel) InsertMark(mark *Mark) error {
 	stmt := `INSERT INTO marks
-	(user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, previous_ids, by, at)
+	(user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at)
 	VALUES
-	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	err := m.DB.QueryRow(ctx, stmt, mark.UserID, mark.LessonID, mark.Course, mark.JournalID, mark.GradeID,
-		mark.SubjectID, mark.Comment, mark.Type, mark.Current, mark.PreviousIDs, mark.By, mark.At).Scan(&mark.ID)
+		mark.SubjectID, mark.Comment, mark.Type, mark.By, mark.At).Scan(&mark.ID)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m MarkModel) SetMarkNotCurrent(markID, by int) error {
-	stmt := `UPDATE marks
-	SET (current, by, at)
-	= ($1, $2, $3)
-	WHERE id = $4`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.Exec(ctx, stmt, false, by, time.Now().UTC(), markID)
 	if err != nil {
 		return err
 	}
@@ -234,19 +208,79 @@ func (m MarkModel) SetMarkNotCurrent(markID, by int) error {
 
 func (m MarkModel) UpdateMark(mark *Mark) error {
 	stmt := `UPDATE marks
-	SET (user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, current, deleted, previous_ids, by, at)
-	= ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-	WHERE id = $14`
+	SET (user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at)
+	= ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	WHERE id = $11`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, mark.UserID, mark.LessonID, mark.Course, mark.JournalID, mark.GradeID,
-		mark.SubjectID, mark.Comment, mark.Type, mark.Current, mark.Deleted, mark.PreviousIDs, mark.By, mark.At, mark.ID)
+		mark.SubjectID, mark.Comment, mark.Type, mark.By, mark.At, mark.ID)
 
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (m MarkModel) DeleteMark(markID int) error {
+	stmt := `DELETE FROM marks
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, markID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MarkModel) InsertOldMark(mark *Mark) error {
+	stmt := `INSERT INTO mark_history
+	(user_id, mark_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at)
+	VALUES
+	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	RETURNING id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRow(ctx, stmt, mark.UserID, mark.MarkID, mark.LessonID, mark.Course, mark.JournalID, mark.GradeID,
+		mark.SubjectID, mark.Comment, mark.Type, mark.By, mark.At).Scan(&mark.ID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MarkModel) GetOldMarksByMarkID(markID int) ([]*Mark, error) {
+	query := `SELECT
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at
+	FROM mark_history
+	WHERE mark_id = $1
+	ORDER BY at DESC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, markID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	marks, err := scanMarks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
 }
