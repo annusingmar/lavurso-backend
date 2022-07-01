@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var (
@@ -18,7 +19,7 @@ type Subject struct {
 }
 
 type SubjectModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (m SubjectModel) AllSubjects() ([]*Subject, error) {

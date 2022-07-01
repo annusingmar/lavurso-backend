@@ -149,7 +149,7 @@ func (app *application) routes() http.Handler {
 	// add mark
 	mux.Post("/marks", app.addMark)
 
-	// "delete" mark
+	// delete mark
 	mux.Delete("/marks/{id}", app.deleteMark)
 
 	// update mark
@@ -160,6 +160,12 @@ func (app *application) routes() http.Handler {
 
 	// get absences for student
 	mux.Get("/students/{id}/absences", app.getAbsencesForStudent)
+
+	// excuse absence for student
+	mux.Put("/students/{id}/excuses", app.excuseAbsenceForStudent)
+
+	// delete excuse for student
+	mux.Delete("/students/{sid}/excuses/{eid}", app.deleteAbsenceExcuseForStudent)
 
 	return mux
 }

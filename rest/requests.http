@@ -514,3 +514,15 @@ Content-Type: application/json
 
 // get absences for student
 GET {{host}}/students/1/absences
+
+###
+
+// add excuse for student's absence
+PUT {{host}}/students/1/excuses
+
+{"absence_id": 6, "excuse": "xx"}
+
+###
+
+// delete excuse for student's absence
+DELETE {{host}}/students/1/excuses/6

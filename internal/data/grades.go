@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var (
@@ -19,7 +20,7 @@ type Grade struct {
 }
 
 type GradeModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (m GradeModel) AllGrades() ([]*Grade, error) {

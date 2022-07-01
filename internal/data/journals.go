@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var (
@@ -24,7 +25,7 @@ type Journal struct {
 }
 
 type JournalModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (m JournalModel) AllJournals() ([]*Journal, error) {

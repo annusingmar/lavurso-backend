@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var (
@@ -30,7 +31,7 @@ type Mark struct {
 }
 
 type MarkModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 const (

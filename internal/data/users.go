@@ -8,6 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -48,7 +49,7 @@ type Role struct {
 }
 
 type UserModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (m UserModel) HashPassword(plaintext string) ([]byte, error) {

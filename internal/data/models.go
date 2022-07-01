@@ -1,6 +1,6 @@
 package data
 
-import "github.com/jackc/pgx/v4"
+import "github.com/jackc/pgx/v4/pgxpool"
 
 type Models struct {
 	Users       UserModel
@@ -14,7 +14,7 @@ type Models struct {
 	Absences    AbsenceModel
 }
 
-func NewModel(db *pgx.Conn) Models {
+func NewModel(db *pgxpool.Pool) Models {
 	return Models{
 		Users:       UserModel{DB: db},
 		Classes:     ClassModel{DB: db},

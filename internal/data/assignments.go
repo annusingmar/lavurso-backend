@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 const (
@@ -30,7 +31,7 @@ type Assignment struct {
 }
 
 type AssignmentModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error) {

@@ -2,9 +2,18 @@ package data
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+)
+
+var (
+	ErrNotValidAbsence = errors.New("not valid absence for user")
+	ErrNoSuchAbsence   = errors.New("no such absence")
+	ErrAbsenceExcused  = errors.New("absence already excused")
+	ErrNoSuchExcuse    = errors.New("no such excuse")
 )
 
 type AbsenceExcuse struct {
@@ -16,7 +25,7 @@ type AbsenceExcuse struct {
 }
 
 type AbsenceModel struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
@@ -76,4 +85,115 @@ func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 	}
 
 	return marks, nil
+}
+
+func (m AbsenceModel) GetAbsenceByMarkID(markID int) (*Mark, error) {
+	query := `SELECT
+	m.id, m.user_id, m.lesson_id, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
+	FROM marks m
+	LEFT JOIN absences_excuses exc
+	ON m.id = exc.absence_mark_id
+	WHERE m.id = $1 and m.type = 'absent'`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var mark Mark
+	mark.AbsenceExcuses = new(AbsenceExcuse)
+
+	err := m.DB.QueryRow(ctx, query, markID).Scan(
+		&mark.ID,
+		&mark.UserID,
+		&mark.LessonID,
+		&mark.Course,
+		&mark.JournalID,
+		&mark.GradeID,
+		&mark.SubjectID,
+		&mark.Comment,
+		&mark.Type,
+		&mark.By,
+		&mark.At,
+		&mark.AbsenceExcuses.ID,
+		&mark.AbsenceExcuses.AbsenceMarkID,
+		&mark.AbsenceExcuses.Excuse,
+		&mark.AbsenceExcuses.By,
+		&mark.AbsenceExcuses.At,
+	)
+
+	if mark.AbsenceExcuses.AbsenceMarkID == nil {
+		mark.AbsenceExcuses = nil
+	}
+
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrNoSuchAbsence
+		default:
+			return nil, err
+		}
+	}
+
+	return &mark, nil
+}
+
+func (m AbsenceModel) InsertExcuse(excuse *AbsenceExcuse) error {
+	stmt := `INSERT INTO absences_excuses
+	(absence_mark_id, excuse, by, at)
+	VALUES
+	($1, $2, $3, $4)
+	RETURNING id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRow(ctx, stmt, excuse.AbsenceMarkID, excuse.Excuse, excuse.By, excuse.At).Scan(&excuse.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m AbsenceModel) DeleteExcuse(excuseID int) error {
+	stmt := `DELETE FROM absences_excuses
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, excuseID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m AbsenceModel) GetExcuseByID(excuseID int) (*AbsenceExcuse, error) {
+	query := `SELECT id, absence_mark_id, excuse, by, at
+	FROM absences_excuses
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var excuse AbsenceExcuse
+
+	err := m.DB.QueryRow(ctx, query, excuseID).Scan(
+		&excuse.ID,
+		&excuse.AbsenceMarkID,
+		&excuse.Excuse,
+		&excuse.By,
+		&excuse.At,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrNoSuchExcuse
+		default:
+			return nil, err
+		}
+	}
+
+	return &excuse, nil
 }
