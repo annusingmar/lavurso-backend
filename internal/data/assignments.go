@@ -166,3 +166,36 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 
 	return assignments, nil
 }
+
+func (m AssignmentModel) SetAssignmentDoneForUserID(userID, assignmentID int) error {
+	stmt := `INSERT INTO done_assignments
+	(user_id, assignment_id)
+	VALUES
+	($1, $2)
+	ON CONFLICT DO NOTHING`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, userID, assignmentID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m AssignmentModel) RemoveAssignmentDoneForUserID(userID, assignmentID int) error {
+	stmt := `DELETE FROM done_assignments
+	WHERE user_id = $1 and assignment_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, userID, assignmentID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

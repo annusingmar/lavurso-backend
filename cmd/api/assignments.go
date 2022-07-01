@@ -282,3 +282,129 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		app.writeInternalServerError(w, r, err)
 	}
 }
+
+func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if user.Role != data.RoleStudent {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+		return
+	}
+
+	assignmentID, err := strconv.Atoi(chi.URLParam(r, "aid"))
+	if assignmentID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
+		return
+	}
+
+	assignment, err := app.models.Assignments.GetAssignmentByID(assignmentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchAssignment):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	userInJournal, err := app.models.Journals.IsUserInJournal(user.ID, assignment.JournalID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if !userInJournal {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrUserNotInJournal.Error())
+		return
+	}
+
+	err = app.models.Assignments.SetAssignmentDoneForUserID(user.ID, assignment.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if user.Role != data.RoleStudent {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+		return
+	}
+
+	assignmentID, err := strconv.Atoi(chi.URLParam(r, "aid"))
+	if assignmentID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
+		return
+	}
+
+	assignment, err := app.models.Assignments.GetAssignmentByID(assignmentID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchAssignment):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	userInJournal, err := app.models.Journals.IsUserInJournal(user.ID, assignment.JournalID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if !userInJournal {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrUserNotInJournal)
+		return
+	}
+
+	err = app.models.Assignments.RemoveAssignmentDoneForUserID(user.ID, assignment.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}

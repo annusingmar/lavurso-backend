@@ -300,6 +300,16 @@ GET {{host}}/journals/1/assignments
 // get all assignments for student
 GET {{host}}/students/1/assignments
 
+###
+
+// set assignment done for student
+PUT {{host}}/students/1/assignments/2/done
+
+###
+
+// remove assignment done for student
+DELETE {{host}}/students/1/assignments/2/done
+
 ######################################################### GRADES
 
 // create some grades
@@ -518,11 +528,11 @@ GET {{host}}/students/1/absences
 ###
 
 // add excuse for student's absence
-PUT {{host}}/students/1/excuses
+POST {{host}}/students/1/excuses
 
 {"absence_id": 6, "excuse": "xx"}
 
 ###
 
 // delete excuse for student's absence
-DELETE {{host}}/students/1/excuses/6
+DELETE {{host}}/students/1/excuses/7

@@ -122,6 +122,12 @@ func (app *application) routes() http.Handler {
 	// get all assignments for student
 	mux.Get("/students/{id}/assignments", app.getAssignmentsForStudent)
 
+	// set assignment done for student
+	mux.Put("/students/{sid}/assignments/{aid}/done", app.setAssignmentDoneForStudent)
+
+	// remove assignment done for student
+	mux.Delete("/students/{sid}/assignments/{aid}/done", app.removeAssignmentDoneForStudent)
+
 	// get all grades
 	mux.Get("/grades", app.listAllGrades)
 
@@ -162,7 +168,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/students/{id}/absences", app.getAbsencesForStudent)
 
 	// excuse absence for student
-	mux.Put("/students/{id}/excuses", app.excuseAbsenceForStudent)
+	mux.Post("/students/{id}/excuses", app.excuseAbsenceForStudent)
 
 	// delete excuse for student
 	mux.Delete("/students/{sid}/excuses/{eid}", app.deleteAbsenceExcuseForStudent)
