@@ -158,5 +158,8 @@ func (app *application) routes() http.Handler {
 	// get previous marks for mark
 	mux.Get("/marks/{id}/previous", app.getPreviousMarksForMark)
 
+	// get absences for student
+	mux.Get("/students/{id}/absences", app.getAbsencesForStudent)
+
 	return mux
 }

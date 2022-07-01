@@ -11,6 +11,7 @@ type Models struct {
 	Assignments AssignmentModel
 	Grades      GradeModel
 	Marks       MarkModel
+	Absences    AbsenceModel
 }
 
 func NewModel(db *pgx.Conn) Models {
@@ -23,5 +24,6 @@ func NewModel(db *pgx.Conn) Models {
 		Assignments: AssignmentModel{DB: db},
 		Grades:      GradeModel{DB: db},
 		Marks:       MarkModel{DB: db},
+		Absences:    AbsenceModel{DB: db},
 	}
 }

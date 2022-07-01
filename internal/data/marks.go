@@ -14,18 +14,19 @@ var (
 )
 
 type Mark struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	MarkID    *int      `json:"mark_id,omitempty"`
-	LessonID  *int      `json:"lesson_id,omitempty"`
-	Course    *int      `json:"course,omitempty"`
-	JournalID *int      `json:"journal_id,omitempty"`
-	GradeID   *int      `json:"grade_id,omitempty"`
-	SubjectID *int      `json:"subject_id,omitempty"`
-	Comment   *string   `json:"comment,omitempty"`
-	Type      string    `json:"type"`
-	By        int       `json:"by"`
-	At        time.Time `json:"at"`
+	ID             int            `json:"id"`
+	UserID         int            `json:"user_id"`
+	MarkID         *int           `json:"mark_id,omitempty"`
+	LessonID       *int           `json:"lesson_id,omitempty"`
+	Course         *int           `json:"course,omitempty"`
+	JournalID      *int           `json:"journal_id,omitempty"`
+	GradeID        *int           `json:"grade_id,omitempty"`
+	SubjectID      *int           `json:"subject_id,omitempty"`
+	Comment        *string        `json:"comment,omitempty"`
+	Type           string         `json:"type"`
+	AbsenceExcuses *AbsenceExcuse `json:"absence_excuses,omitempty"`
+	By             int            `json:"by"`
+	At             time.Time      `json:"at"`
 }
 
 type MarkModel struct {

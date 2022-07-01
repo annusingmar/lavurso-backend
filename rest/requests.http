@@ -497,3 +497,20 @@ GET {{host}}/students/1/journals/1/marks
 
 // get previous marks for mark
 GET {{host}}/marks/1/previous
+
+###
+
+// add absence to student
+POST {{host}}/marks
+Content-Type: application/json
+
+{
+    "user_id": 1,
+    "lesson_id": 1,
+    "type": "absent"
+}
+
+###
+
+// get absences for student
+GET {{host}}/students/1/absences
