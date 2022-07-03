@@ -200,5 +200,30 @@ func (app *application) routes() http.Handler {
 	// get users by group id
 	mux.Get("/groups/{id}/users", app.getUsersForGroup)
 
+	// get all threads for user
+
+	// create thread
+	mux.Post("/threads", app.createThread)
+
+	// update thread
+
+	// lock thread
+	mux.Put("/threads/{id}/lock", app.lockThread)
+
+	// unlock thread
+	mux.Put("/threads/{id}/unlock", app.unlockThread)
+
+	// delete thread
+	mux.Delete("/threads/{id}", app.deleteThread)
+
+	// add users to thread
+	mux.Put("/threads/{id}/users", app.addNewUsersToThread)
+
+	// create message
+
+	// edit message
+
+	// delete message
+
 	return mux
 }

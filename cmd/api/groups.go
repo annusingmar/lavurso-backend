@@ -193,23 +193,23 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	for _, id := range input.UserIDs {
-		user, err := app.models.Users.GetUserByID(id)
-		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoSuchUser):
-				app.writeErrorResponse(w, r, http.StatusNotFound, fmt.Sprintf("%s: id %d", err.Error(), id))
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
-			return
+	badIDs, err := app.verifyUsersExist(input.UserIDs)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNoSuchUsers):
+			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
+		default:
+			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
 
-		err = app.models.Groups.InsertUserIntoGroup(user.ID, group.ID)
+	for _, id := range input.UserIDs {
+		err = app.models.Groups.InsertUserIntoGroup(id, group.ID)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrUserAlreadyInGroup):
-				app.writeErrorResponse(w, r, http.StatusConflict, fmt.Sprintf("%s: id %d", err.Error(), user.ID))
+				app.writeErrorResponse(w, r, http.StatusConflict, fmt.Sprintf("%s: id %d", err.Error(), id))
 			default:
 				app.writeInternalServerError(w, r, err)
 			}
@@ -251,19 +251,19 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	for _, id := range input.UserIDs {
-		user, err := app.models.Users.GetUserByID(id)
-		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoSuchUser):
-				app.writeErrorResponse(w, r, http.StatusNotFound, fmt.Sprintf("%s: id %d", err.Error(), id))
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
-			return
+	badIDs, err := app.verifyUsersExist(input.UserIDs)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNoSuchUsers):
+			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
+		default:
+			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
 
-		err = app.models.Groups.RemoveUserFromGroup(user.ID, group.ID)
+	for _, id := range input.UserIDs {
+		err = app.models.Groups.RemoveUserFromGroup(id, group.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

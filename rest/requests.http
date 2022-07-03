@@ -605,3 +605,38 @@ GET {{host}}/users/1/groups
 
 // get users for groups
 GET {{host}}/groups/3/users
+
+######################################################### THREADS
+
+// create thread
+POST {{host}}/threads
+
+{
+    "title": "my thread",
+    "body": "cool",
+    "user_ids": [1,2]
+}
+ 
+###
+
+// delete thread
+DELETE {{host}}/threads/8
+
+###
+
+// lock thread
+PUT {{host}}/threads/9/lock
+
+###
+
+// unlock thread
+PUT {{host}}/threads/9/unlock
+
+###
+
+// add users to thread
+PUT {{host}}/threads/9/users
+
+{
+    "user_ids": [1,5]
+}
