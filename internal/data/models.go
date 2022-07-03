@@ -12,6 +12,7 @@ type Models struct {
 	Grades      GradeModel
 	Marks       MarkModel
 	Absences    AbsenceModel
+	Groups      GroupModel
 }
 
 func NewModel(db *pgxpool.Pool) Models {
@@ -25,5 +26,6 @@ func NewModel(db *pgxpool.Pool) Models {
 		Grades:      GradeModel{DB: db},
 		Marks:       MarkModel{DB: db},
 		Absences:    AbsenceModel{DB: db},
+		Groups:      GroupModel{DB: db},
 	}
 }

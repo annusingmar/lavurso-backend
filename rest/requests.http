@@ -536,3 +536,72 @@ POST {{host}}/students/1/excuses
 
 // delete excuse for student's absence
 DELETE {{host}}/students/1/excuses/7
+
+######################################################### GROUPS
+
+// create group
+
+POST {{host}}/groups
+
+{
+    "name": "Students"
+}
+
+###
+
+// update group
+
+PATCH {{host}}/groups/2
+
+{"name": "All students"}
+
+###
+
+// delete group
+
+DELETE {{host}}/groups/2
+
+###
+
+// create group (again)
+
+POST {{host}}/groups
+
+{
+    "name": "Everyone"
+}
+
+###
+
+// get group
+
+GET {{host}}/groups/3
+
+###
+
+// add users to group
+POST {{host}}/groups/3/users
+
+{"user_ids": [1, 2]}
+
+###
+
+// remove users from group
+DELETE {{host}}/groups/3/users
+
+{"user_ids": [1]}
+
+###
+
+// get all groups
+GET {{host}}/groups
+
+###
+
+// get groups for user
+GET {{host}}/users/1/groups
+
+###
+
+// get users for groups
+GET {{host}}/groups/3/users

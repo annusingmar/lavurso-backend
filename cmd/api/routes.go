@@ -173,5 +173,32 @@ func (app *application) routes() http.Handler {
 	// delete excuse for student
 	mux.Delete("/students/{sid}/excuses/{eid}", app.deleteAbsenceExcuseForStudent)
 
+	// get group by id
+	mux.Get("/groups/{id}", app.getGroup)
+
+	// get all groups
+	mux.Get("/groups", app.getAllGroups)
+
+	// create group
+	mux.Post("/groups", app.createGroup)
+
+	// update group
+	mux.Patch("/groups/{id}", app.updateGroup)
+
+	// delete group
+	mux.Delete("/groups/{id}", app.removeGroup)
+
+	// add users to group
+	mux.Post("/groups/{id}/users", app.addUsersToGroup)
+
+	// delete users from groups
+	mux.Delete("/groups/{id}/users", app.removeUsersFromGroup)
+
+	// get groups by user id
+	mux.Get("/users/{id}/groups", app.getGroupsForUser)
+
+	// get users by group id
+	mux.Get("/groups/{id}/users", app.getUsersForGroup)
+
 	return mux
 }
