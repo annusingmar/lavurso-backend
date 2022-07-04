@@ -206,6 +206,7 @@ func (app *application) routes() http.Handler {
 	mux.Post("/threads", app.createThread)
 
 	// update thread
+	mux.Put("/threads/{id}", app.updateThread)
 
 	// lock thread
 	mux.Put("/threads/{id}/lock", app.lockThread)
@@ -218,6 +219,9 @@ func (app *application) routes() http.Handler {
 
 	// add users to thread
 	mux.Put("/threads/{id}/users", app.addNewUsersToThread)
+
+	// remove users from thread
+	mux.Delete("/threads/{id}/users", app.removeUsersFromThread)
 
 	// create message
 

@@ -12,6 +12,7 @@ import (
 var (
 	ErrUserAlreadyInThread   = errors.New("user already in thread")
 	ErrUserNotInThread       = errors.New("user not in thread")
+	ErrUsersNotInThread      = errors.New("users not in thread")
 	ErrNoSuchThread          = errors.New("no such thread")
 	ErrThreadAlreadyLocked   = errors.New("thread already locked")
 	ErrThreadAlreadyUnlocked = errors.New("thread already unlocked")
@@ -31,6 +32,7 @@ type Thread struct {
 	Body      string    `json:"body"`
 	Locked    bool      `json:"locked"`
 	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Message struct {
@@ -55,7 +57,7 @@ type MessagingModel struct {
 }
 
 func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
-	query := `SELECT id, user_id, title, body, locked, created_at
+	query := `SELECT id, user_id, title, body, locked, created_at, updated_at
 	FROM threads
 	WHERE id = $1`
 
@@ -71,6 +73,7 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 		&thread.Body,
 		&thread.Locked,
 		&thread.CreatedAt,
+		&thread.UpdatedAt,
 	)
 	if err != nil {
 		switch {
@@ -86,14 +89,14 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 
 func (m MessagingModel) InsertThread(t *Thread) error {
 	stmt := `INSERT INTO threads
-	(user_id, title, body, locked, created_at)
-	VALUES ($1, $2, $3, $4, $5)
+	(user_id, title, body, locked, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, t.UserID, t.Title, t.Body, t.Locked, t.CreatedAt).Scan(&t.ID)
+	err := m.DB.QueryRow(ctx, stmt, t.UserID, t.Title, t.Body, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
 	if err != nil {
 		return err
 	}
@@ -116,14 +119,14 @@ func (m MessagingModel) DeleteThread(threadID int) error {
 
 func (m MessagingModel) UpdateThread(t *Thread) error {
 	stmt := `UPDATE threads
-	SET (title, body, locked)
-	= ($1, $2, $3)
-	WHERE id = $4`
+	SET (title, body, locked, updated_at)
+	= ($1, $2, $3, $4)
+	WHERE id = $5`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, t.Title, t.Body, t.Locked, t.ID)
+	_, err := m.DB.Exec(ctx, stmt, t.Title, t.Body, t.Locked, t.UpdatedAt, t.ID)
 	if err != nil {
 		return err
 	}

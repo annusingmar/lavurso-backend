@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/jackc/pgx/v4 v4.16.1
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
+	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
 )
 
 require (

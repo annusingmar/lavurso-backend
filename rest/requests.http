@@ -612,9 +612,9 @@ GET {{host}}/groups/3/users
 POST {{host}}/threads
 
 {
-    "title": "my thread",
+    "title": "my thread 2",
     "body": "cool",
-    "user_ids": [1,2]
+    "user_ids": [1,5]
 }
  
 ###
@@ -638,5 +638,21 @@ PUT {{host}}/threads/9/unlock
 PUT {{host}}/threads/9/users
 
 {
-    "user_ids": [1,5]
+    "user_ids": [1,2,5]
 }
+
+###
+
+// remove users from thread
+DELETE {{host}}/threads/9/users
+
+{
+    "user_ids": [2,5]
+}
+
+###
+
+// update thread
+PUT {{host}}/threads/9
+
+{"body": "eyeyeyey", "title": "x"}

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -193,14 +194,15 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	badIDs, err := app.verifyUsersExist(input.UserIDs)
+	allUserIDs, err := app.models.Users.GetAllUserIDs()
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrNoSuchUsers):
-			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allUserIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
 		return
 	}
 
@@ -251,14 +253,15 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	badIDs, err := app.verifyUsersExist(input.UserIDs)
+	allUserIDs, err := app.models.Users.GetAllUserIDs()
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrNoSuchUsers):
-			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allUserIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
 		return
 	}
 

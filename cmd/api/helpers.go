@@ -7,12 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/annusingmar/lavurso-backend/internal/data"
-)
-
-var (
-	ErrNoSuchUsers = errors.New("no such users")
 )
 
 type envelope map[string]any
@@ -67,26 +61,4 @@ func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destin
 	}
 
 	return nil
-}
-
-func (app *application) verifyUsersExist(userIDs []int) ([]int, error) {
-	var notFound []int
-
-	for _, id := range userIDs {
-		_, err := app.models.Users.GetUserByID(id)
-		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoSuchUser):
-				notFound = append(notFound, id)
-			default:
-				return nil, err
-			}
-		}
-	}
-
-	if notFound != nil {
-		return notFound, ErrNoSuchUsers
-	}
-
-	return nil, nil
 }
