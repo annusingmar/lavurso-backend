@@ -647,7 +647,7 @@ PUT {{host}}/threads/9/users
 DELETE {{host}}/threads/9/users
 
 {
-    "user_ids": [2,5]
+    "user_ids": [1,5]
 }
 
 ###
@@ -656,3 +656,31 @@ DELETE {{host}}/threads/9/users
 PUT {{host}}/threads/9
 
 {"body": "eyeyeyey", "title": "x"}
+
+###
+
+// get threads for user
+GET {{host}}/users/2/threads
+
+###
+
+// create message
+POST {{host}}/threads/9/messages
+
+{
+    "body": "msg"
+}
+
+###
+
+// update message
+PUT {{host}}/messages/5
+
+{
+    "body": "msgx"
+}
+
+###
+
+// delete message
+DELETE {{host}}/messages/4

@@ -27,7 +27,7 @@ type Assignment struct {
 	Type        string    `json:"type"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Version     int       `json:"version"`
+	Version     int       `json:"-"`
 }
 
 type AssignmentModel struct {

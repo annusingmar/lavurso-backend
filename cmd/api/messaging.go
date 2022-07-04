@@ -11,6 +11,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/exp/slices"
 )
 
 func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
@@ -413,6 +414,195 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"user_ids": ids})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	threads, err := app.models.Messaging.GetThreadsForUser(user.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"threads": threads})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
+	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if threadID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
+		return
+	}
+
+	thread, err := app.models.Messaging.GetThreadByID(threadID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchThread):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	threadUsers, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	userID := 1 // to change
+
+	if !slices.Contains(threadUsers, userID) {
+		app.writeErrorResponse(w, r, http.StatusForbidden, "denied")
+		return
+	}
+
+	var input struct {
+		Body string `json:"body"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	v := validator.NewValidator()
+
+	v.Check(input.Body != "", "body", "must be provided")
+
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	message := &data.Message{
+		ThreadID:  thread.ID,
+		UserID:    userID,
+		Body:      input.Body,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		Version:   1,
+	}
+
+	err = app.models.Messaging.InsertMessage(message)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusCreated, envelope{"message": message})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if messageID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMessage.Error())
+		return
+	}
+
+	message, err := app.models.Messaging.GetMessageByID(messageID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchMessage):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	var input struct {
+		Body string `json:"body"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	v := validator.NewValidator()
+
+	v.Check(input.Body != "", "body", "must be provided")
+
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	if message.Body != input.Body {
+		message.Body = input.Body
+		message.UpdatedAt = time.Now().UTC()
+
+		err = app.models.Messaging.UpdateMessage(message)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrEditConflict):
+				app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
+			default:
+				app.writeInternalServerError(w, r, err)
+			}
+			return
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": message})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
+	messageID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if messageID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMessage.Error())
+		return
+	}
+
+	message, err := app.models.Messaging.GetMessageByID(messageID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchMessage):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.models.Messaging.DeleteMessage(message.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

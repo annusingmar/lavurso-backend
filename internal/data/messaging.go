@@ -14,6 +14,7 @@ var (
 	ErrUserNotInThread       = errors.New("user not in thread")
 	ErrUsersNotInThread      = errors.New("users not in thread")
 	ErrNoSuchThread          = errors.New("no such thread")
+	ErrNoSuchMessage         = errors.New("no such message")
 	ErrThreadAlreadyLocked   = errors.New("thread already locked")
 	ErrThreadAlreadyUnlocked = errors.New("thread already unlocked")
 )
@@ -42,7 +43,7 @@ type Message struct {
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Version   int       `json:"version"`
+	Version   int       `json:"-"`
 }
 
 type ThreadLog struct {
@@ -187,7 +188,7 @@ func (m MessagingModel) InsertThreadLog(tl *ThreadLog) error {
 	return nil
 }
 
-func (m MessagingModel) GetMessageByID(messageID error) (*Message, error) {
+func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	query := `SELECT id, thread_id, user_id, body, created_at, updated_at, version
 	FROM messages
 	WHERE id = $1`
@@ -207,7 +208,12 @@ func (m MessagingModel) GetMessageByID(messageID error) (*Message, error) {
 		&message.Version,
 	)
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrNoSuchMessage
+		default:
+			return nil, err
+		}
 	}
 
 	return &message, nil
@@ -217,7 +223,7 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	stmt := `INSERT INTO messages
 	(thread_id, user_id, body, created_at, updated_at, version)
 	VALUES
-	($1, $2, $3, $4, $5, $6, $7)
+	($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -307,6 +313,51 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	}
 
 	return messages, nil
+}
+
+func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
+	query := `SELECT t.id, t.user_id, t.title, t.body, t.locked, t.created_at, t.updated_at
+	FROM threads t
+	INNER JOIN users_threads ut
+	ON t.id = ut.thread_id
+	WHERE ut.user_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var threads []*Thread
+
+	for rows.Next() {
+		var thread Thread
+
+		err = rows.Scan(
+			&thread.ID,
+			&thread.UserID,
+			&thread.Title,
+			&thread.Body,
+			&thread.Locked,
+			&thread.CreatedAt,
+			&thread.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		threads = append(threads, &thread)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return threads, nil
 }
 
 func (m MessagingModel) GetThreadIDsForUser(userID int) ([]int, error) {

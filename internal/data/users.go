@@ -36,7 +36,7 @@ type User struct {
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 	Active    bool      `json:"active"`
-	Version   int       `json:"version"`
+	Version   int       `json:"-"`
 }
 
 type Password struct {

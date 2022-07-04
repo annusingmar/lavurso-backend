@@ -201,6 +201,7 @@ func (app *application) routes() http.Handler {
 	mux.Get("/groups/{id}/users", app.getUsersForGroup)
 
 	// get all threads for user
+	mux.Get("/users/{id}/threads", app.getThreadsForUser)
 
 	// create thread
 	mux.Post("/threads", app.createThread)
@@ -224,10 +225,13 @@ func (app *application) routes() http.Handler {
 	mux.Delete("/threads/{id}/users", app.removeUsersFromThread)
 
 	// create message
+	mux.Post("/threads/{id}/messages", app.createMessage)
 
 	// edit message
+	mux.Put("/messages/{id}", app.updateMessage)
 
 	// delete message
+	mux.Delete("/messages/{id}", app.deleteMessage)
 
 	return mux
 }

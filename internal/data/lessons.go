@@ -21,7 +21,7 @@ type Lesson struct {
 	Course      int       `json:"course"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Version     int       `json:"version"`
+	Version     int       `json:"-"`
 }
 
 type LessonModel struct {
