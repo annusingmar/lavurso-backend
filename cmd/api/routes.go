@@ -233,5 +233,8 @@ func (app *application) routes() http.Handler {
 	// delete message
 	mux.Delete("/messages/{id}", app.deleteMessage)
 
+	// get thread by id
+	mux.Get("/threads/{id}", app.getThread)
+
 	return mux
 }

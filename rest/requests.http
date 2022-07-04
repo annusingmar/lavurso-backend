@@ -684,3 +684,8 @@ PUT {{host}}/messages/5
 
 // delete message
 DELETE {{host}}/messages/4
+
+###
+
+// get thread
+GET {{host}}/threads/12

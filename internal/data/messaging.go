@@ -47,10 +47,11 @@ type Message struct {
 }
 
 type ThreadLog struct {
-	Action  string    `json:"action"`
-	Targets []int     `json:"target"`
-	By      int       `json:"by"`
-	At      time.Time `json:"at"`
+	ThreadID int       `json:"thread_id"`
+	Action   string    `json:"action"`
+	Targets  []int     `json:"target"`
+	By       int       `json:"by"`
+	At       time.Time `json:"at"`
 }
 
 type MessagingModel struct {
@@ -173,14 +174,14 @@ func (m MessagingModel) RemoveUserFromThread(userID, threadID int) error {
 
 func (m MessagingModel) InsertThreadLog(tl *ThreadLog) error {
 	stmt := `INSERT INTO thread_log
-	(action, target, by, at)
+	(thread_id, action, target, by, at)
 	VALUES
-	($1, $2, $3, $4)`
+	($1, $2, $3, $4, $5)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, tl.Action, tl.Targets, tl.By, tl.At)
+	_, err := m.DB.Exec(ctx, stmt, tl.ThreadID, tl.Action, tl.Targets, tl.By, tl.At)
 	if err != nil {
 		return err
 	}
@@ -313,6 +314,47 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	}
 
 	return messages, nil
+}
+
+func (m MessagingModel) GetAllLogsByThreadID(threadID int) ([]*ThreadLog, error) {
+	query := `SELECT thread_id, action, target, by, at
+	FROM thread_log
+	WHERE thread_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var threadLogs []*ThreadLog
+
+	for rows.Next() {
+		var tl ThreadLog
+
+		err = rows.Scan(
+			&tl.ThreadID,
+			&tl.Action,
+			&tl.Targets,
+			&tl.By,
+			&tl.At,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		threadLogs = append(threadLogs, &tl)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return threadLogs, nil
 }
 
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {

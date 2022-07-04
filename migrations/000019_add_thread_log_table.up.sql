@@ -1,5 +1,6 @@
 create table
   "public"."thread_log" (
+    "thread_id" INTEGER not null,
     "action" TEXT not null,
     "target" INTEGER [],
     "by" INTEGER not null,

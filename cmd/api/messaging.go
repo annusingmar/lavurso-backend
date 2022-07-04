@@ -191,9 +191,10 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 	thread.Locked = true
 
 	log := &data.ThreadLog{
-		Action: data.ActionLocked,
-		By:     1, // to change
-		At:     time.Now().UTC(),
+		ThreadID: thread.ID,
+		Action:   data.ActionLocked,
+		By:       1, // to change
+		At:       time.Now().UTC(),
 	}
 
 	err = app.models.Messaging.UpdateThread(thread)
@@ -239,9 +240,10 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 	thread.Locked = false
 
 	log := &data.ThreadLog{
-		Action: data.ActionUnlocked,
-		By:     1, // to change
-		At:     time.Now().UTC(),
+		ThreadID: thread.ID,
+		Action:   data.ActionUnlocked,
+		By:       1, // to change
+		At:       time.Now().UTC(),
 	}
 
 	err = app.models.Messaging.UpdateThread(thread)
@@ -319,10 +321,11 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 	}
 	if len(addedUsers) > 0 {
 		log := &data.ThreadLog{
-			Action:  data.ActionAddedUser,
-			Targets: addedUsers,
-			By:      1, // to change
-			At:      time.Now().UTC(),
+			ThreadID: thread.ID,
+			Action:   data.ActionAddedUser,
+			Targets:  addedUsers,
+			By:       1, // to change
+			At:       time.Now().UTC(),
 		}
 		err = app.models.Messaging.InsertThreadLog(log)
 		if err != nil {
@@ -395,10 +398,11 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 	}
 	if len(removedUsers) > 0 {
 		log := &data.ThreadLog{
-			Action:  data.ActionRemovedUser,
-			Targets: removedUsers,
-			By:      1, // to change
-			At:      time.Now().UTC(),
+			ThreadID: thread.ID,
+			Action:   data.ActionRemovedUser,
+			Targets:  removedUsers,
+			By:       1, // to change
+			At:       time.Now().UTC(),
 		}
 		err = app.models.Messaging.InsertThreadLog(log)
 		if err != nil {
@@ -603,6 +607,55 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
+	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if threadID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
+		return
+	}
+
+	thread, err := app.models.Messaging.GetThreadByID(threadID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchThread):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	threadUsers, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	userID := 1 // to change
+
+	if !slices.Contains(threadUsers, userID) {
+		app.writeErrorResponse(w, r, http.StatusForbidden, "denied")
+		return
+	}
+
+	logs, err := app.models.Messaging.GetAllLogsByThreadID(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	messages, err := app.models.Messaging.GetAllMessagesByThreadID(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread, "messages": messages, "logs": logs})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
