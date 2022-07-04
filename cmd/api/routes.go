@@ -13,6 +13,7 @@ func (app *application) routes() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.StripSlashes)
+	mux.Use(app.authenticateSession)
 
 	mux.MethodNotAllowed(app.methodNotAllowed)
 	mux.NotFound(app.notFound)
@@ -235,6 +236,9 @@ func (app *application) routes() http.Handler {
 
 	// get thread by id
 	mux.Get("/threads/{id}", app.getThread)
+
+	// authenticate user
+	mux.Post("/authenticate", app.authenticateUser)
 
 	return mux
 }

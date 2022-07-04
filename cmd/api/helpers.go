@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 )
@@ -61,4 +62,13 @@ func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destin
 	}
 
 	return nil
+}
+
+func (app *application) getIP(r *http.Request) (string, error) {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return "", err
+	}
+
+	return ip, nil
 }

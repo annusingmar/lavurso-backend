@@ -689,3 +689,13 @@ DELETE {{host}}/messages/4
 
 // get thread
 GET {{host}}/threads/12
+
+######################################################### AUTHENTICATION
+
+// authenticate user
+POST {{host}}/authenticate
+
+{
+    "email": "some.admin@example.com",
+    "password": "NewPassword"
+}

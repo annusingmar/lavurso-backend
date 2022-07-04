@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"regexp"
 	"time"
@@ -24,7 +25,6 @@ var (
 	ErrNoSuchUsers        = errors.New("no such users")
 	ErrEditConflict       = errors.New("edit conflict, try again")
 	ErrNotAStudent        = errors.New("not a student")
-	ErrInvalidToken       = errors.New("invalid token")
 )
 
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
@@ -213,21 +213,22 @@ func (m UserModel) GetAllUserIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m UserModel) GetUserByToken(token *Token) (*User, error) {
+func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
+	hash := sha256.Sum256([]byte(plaintextToken))
+
 	query := `SELECT u.id, u.name, u.email, u.password, u.role, u.created_at, u.active, u.version
 	FROM users u
-	INNER JOIN tokens t
-	ON u.id = t.user_id
-	WHERE t.hash = $1
-	AND t.type = $2
-	AND t.expiry > $3`
+	INNER JOIN sessions s
+	ON u.id = s.user_id
+	WHERE s.token_hash = $1
+	AND s.expires > $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
 
-	err := m.DB.QueryRow(ctx, query, token.Hash, token.Type, token.Expires).Scan(
+	err := m.DB.QueryRow(ctx, query, hash[:], time.Now().UTC()).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -242,6 +243,39 @@ func (m UserModel) GetUserByToken(token *Token) (*User, error) {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 			return nil, ErrInvalidToken
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}
+
+func (m UserModel) GetUserByEmail(email string) (*User, error) {
+	query := `SELECT id, name, email, password, role, created_at, active, version
+	FROM users
+	WHERE email = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var user User
+
+	err := m.DB.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Password.Hashed,
+		&user.Role,
+		&user.CreatedAt,
+		&user.Active,
+		&user.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrNoSuchUser
 		default:
 			return nil, err
 		}
