@@ -8,6 +8,10 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/data"
 )
 
+var (
+	ErrAuthenticationRequired = errors.New("authentication required")
+)
+
 func (app *application) authenticateSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -41,6 +45,17 @@ func (app *application) authenticateSession(next http.Handler) http.Handler {
 		}
 
 		r = app.setUserForContext(user, r)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) requireAuthenticatedUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.getUserFromContext(r)
+		if user == nil {
+			app.writeErrorResponse(w, r, http.StatusUnauthorized, ErrAuthenticationRequired.Error())
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }
