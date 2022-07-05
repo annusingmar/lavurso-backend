@@ -699,3 +699,22 @@ POST {{host}}/authenticate
     "email": "some.admin@example.com",
     "password": "NewPassword"
 }
+
+###
+
+// get sessions for user
+
+GET {{host}}/users/2/sessions
+Authorization: Bearer token
+
+###
+
+// delete specific session
+DELETE {{host}}/sessions/6
+Authorization: Bearer token
+
+###
+
+// delete all sessions for user
+DELETE {{host}}/users/2/sessions
+Authorization: Bearer token

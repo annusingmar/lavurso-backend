@@ -242,6 +242,15 @@ func (app *application) routes() http.Handler {
 
 		// get thread by id
 		mux.Get("/threads/{id}", app.getThread)
+
+		// get all sessions for user
+		mux.Get("/users/{id}/sessions", app.allSessionsForUser)
+
+		// delete all sesions for user
+		mux.Delete("/users/{id}/sessions", app.removeAllSessionsForUser)
+
+		// delete session by id
+		mux.Delete("/sessions/{id}", app.removeSession)
 	})
 
 	return mux
