@@ -37,6 +37,8 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) createAssignment(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	var input struct {
 		JournalID   int       `json:"journal_id"`
 		Description string    `json:"description"`
@@ -86,6 +88,11 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
 	if journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
@@ -105,6 +112,8 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	assignmentID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if assignmentID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
@@ -119,6 +128,22 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(assignment.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -174,6 +199,8 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	assignmentID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if assignmentID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchAssignment.Error())
@@ -188,6 +215,22 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(assignment.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 

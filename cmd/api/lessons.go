@@ -12,6 +12,8 @@ import (
 )
 
 func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	var input struct {
 		JournalID   int       `json:"journal_id"`
 		Description string    `json:"description"`
@@ -60,6 +62,11 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
 	if journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
@@ -104,6 +111,8 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if lessonID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchLesson.Error())
@@ -118,6 +127,22 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 

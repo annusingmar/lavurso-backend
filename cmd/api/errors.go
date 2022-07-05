@@ -24,3 +24,7 @@ func (app *application) methodNotAllowed(w http.ResponseWriter, r *http.Request)
 func (app *application) notFound(w http.ResponseWriter, r *http.Request) {
 	app.writeErrorResponse(w, r, http.StatusNotFound, "not found")
 }
+
+func (app *application) notAllowed(w http.ResponseWriter, r *http.Request) {
+	app.writeErrorResponse(w, r, http.StatusForbidden, "not allowed")
+}

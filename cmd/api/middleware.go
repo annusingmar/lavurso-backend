@@ -59,3 +59,36 @@ func (app *application) requireAuthenticatedUser(next http.Handler) http.Handler
 		next.ServeHTTP(w, r)
 	})
 }
+
+func (app *application) requireAdministrator(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.getUserFromContext(r)
+		if user.Role != data.RoleAdministrator {
+			app.notAllowed(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) requireTeacher(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.getUserFromContext(r)
+		if user.Role != data.RoleTeacher && user.Role != data.RoleAdministrator {
+			app.notAllowed(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) requireStudent(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.getUserFromContext(r)
+		if user.Role != data.RoleStudent && user.Role != data.RoleTeacher && user.Role != data.RoleAdministrator {
+			app.notAllowed(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}

@@ -15,6 +15,7 @@ import (
 
 const (
 	RoleAdministrator = "admin"
+	RoleTeacher       = "teacher"
 	RoleParent        = "parent"
 	RoleStudent       = "student"
 )

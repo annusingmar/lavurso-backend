@@ -12,6 +12,8 @@ import (
 )
 
 func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	var input struct {
 		UserID    int     `json:"user_id"`
 		LessonID  *int    `json:"lesson_id"`
@@ -147,6 +149,12 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
 	mark.JournalID = &journal.ID
 
 	ok, err := app.models.Journals.IsUserInJournal(mark.UserID, *mark.JournalID)
@@ -188,6 +196,8 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if markID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
@@ -202,6 +212,22 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(*mark.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -218,6 +244,8 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if markID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
@@ -232,6 +260,22 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(*mark.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -372,6 +416,8 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
@@ -386,6 +432,11 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 

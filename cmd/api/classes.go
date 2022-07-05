@@ -62,7 +62,7 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if teacher.Role != data.RoleAdministrator {
+	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
@@ -164,7 +164,7 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if teacher.Role != data.RoleAdministrator {
+	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
