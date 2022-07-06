@@ -91,7 +91,7 @@ func (m GroupModel) GetAllGroups() ([]*Group, error) {
 }
 
 func (m GroupModel) GetUsersByGroupID(groupID int) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.password, u.role, u.created_at, u.active, u.version
+	query := `SELECT u.id, u.name, u.role
 	FROM users_groups ug
 	INNER JOIN users u
 	ON ug.user_id = u.id
@@ -114,12 +114,7 @@ func (m GroupModel) GetUsersByGroupID(groupID int) ([]*User, error) {
 		err = rows.Scan(
 			&user.ID,
 			&user.Name,
-			&user.Email,
-			&user.Password.Hashed,
 			&user.Role,
-			&user.CreatedAt,
-			&user.Active,
-			&user.Version,
 		)
 		if err != nil {
 			return nil, err
@@ -256,4 +251,21 @@ func (m GroupModel) RemoveUserFromGroup(userID, groupID int) error {
 	}
 
 	return nil
+}
+
+func (m GroupModel) IsUserInGroup(userID, groupID int) (bool, error) {
+	query := `SELECT COUNT(1) FROM users_groups
+	WHERE user_id = $1 and group_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, userID, groupID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
 }

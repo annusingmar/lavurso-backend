@@ -13,6 +13,8 @@ import (
 )
 
 func (app *application) getGroup(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if groupID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGroup.Error())
@@ -27,6 +29,16 @@ func (app *application) getGroup(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	ok, err := app.models.Groups.IsUserInGroup(sessionUser.ID, group.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+
+	if !ok && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -280,9 +292,16 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 }
 
 func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.ID != userID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -310,6 +329,8 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if groupID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGroup.Error())
@@ -324,6 +345,16 @@ func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request)
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	ok, err := app.models.Groups.IsUserInGroup(sessionUser.ID, group.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+
+	if !ok && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 

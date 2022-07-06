@@ -10,9 +10,16 @@ import (
 )
 
 func (app *application) allSessionsForUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.ID != userID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -40,9 +47,16 @@ func (app *application) allSessionsForUser(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.ID != userID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -70,6 +84,8 @@ func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.
 }
 
 func (app *application) removeSession(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	sessionID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if sessionID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchSession.Error())
@@ -84,6 +100,11 @@ func (app *application) removeSession(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if sessionUser.ID != session.UserID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 

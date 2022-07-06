@@ -12,9 +12,16 @@ import (
 )
 
 func (app *application) getAbsencesForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.ID != userID || sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -47,9 +54,16 @@ func (app *application) getAbsencesForStudent(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.Role != data.RoleAdministrator && sessionUser.Role != data.RoleTeacher {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -80,13 +94,12 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	by := 2
 	at := time.Now().UTC()
 
 	excuse := &data.AbsenceExcuse{
 		AbsenceMarkID: &input.AbsenceMarkID,
 		Excuse:        &input.Excuse,
-		By:            &by, // to change
+		By:            &sessionUser.ID,
 		At:            &at,
 	}
 
@@ -109,6 +122,24 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 			app.writeInternalServerError(w, r, err)
 		}
 		return
+	}
+
+	if sessionUser.Role == data.RoleTeacher {
+		journal, err := app.models.Journals.GetJournalByID(*absence.JournalID)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrNoSuchJournal):
+				app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+			default:
+				app.writeInternalServerError(w, r, err)
+			}
+			return
+		}
+
+		if sessionUser.ID != journal.TeacherID {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	if absence.UserID != user.ID {
@@ -136,9 +167,16 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 }
 
 func (app *application) deleteAbsenceExcuseForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.Role != data.RoleAdministrator && sessionUser.Role != data.RoleTeacher {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -178,6 +216,24 @@ func (app *application) deleteAbsenceExcuseForStudent(w http.ResponseWriter, r *
 	absence, err := app.models.Absences.GetAbsenceByMarkID(*excuse.AbsenceMarkID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
+	}
+
+	if sessionUser.Role == data.RoleTeacher {
+		journal, err := app.models.Journals.GetJournalByID(*absence.JournalID)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrNoSuchJournal):
+				app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+			default:
+				app.writeInternalServerError(w, r, err)
+			}
+			return
+		}
+
+		if sessionUser.ID != journal.TeacherID {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	if absence.UserID != user.ID {

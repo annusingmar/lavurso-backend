@@ -15,6 +15,8 @@ import (
 )
 
 func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	var input struct {
 		Title   string `json:"title"`
 		Body    string `json:"body"`
@@ -30,7 +32,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	thread := &data.Thread{
-		UserID:    1, // to change
+		UserID:    sessionUser.ID,
 		Title:     input.Title,
 		Body:      input.Body,
 		Locked:    false,
@@ -80,6 +82,8 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -94,6 +98,11 @@ func (app *application) updateThread(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if thread.UserID != sessionUser.ID {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -167,6 +176,8 @@ func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -184,6 +195,11 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if thread.UserID != sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
 	if thread.Locked {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrThreadAlreadyLocked.Error())
 		return
@@ -193,7 +209,7 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 	log := &data.ThreadLog{
 		ThreadID: thread.ID,
 		Action:   data.ActionLocked,
-		By:       1, // to change
+		By:       sessionUser.ID,
 		At:       time.Now().UTC(),
 	}
 
@@ -216,6 +232,8 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -233,6 +251,11 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if thread.UserID != sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
 	if !thread.Locked {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrThreadAlreadyUnlocked.Error())
 		return
@@ -242,7 +265,7 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 	log := &data.ThreadLog{
 		ThreadID: thread.ID,
 		Action:   data.ActionUnlocked,
-		By:       1, // to change
+		By:       sessionUser.ID,
 		At:       time.Now().UTC(),
 	}
 
@@ -265,6 +288,8 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -279,6 +304,11 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if thread.UserID != sessionUser.ID {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -324,7 +354,7 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 			ThreadID: thread.ID,
 			Action:   data.ActionAddedUser,
 			Targets:  addedUsers,
-			By:       1, // to change
+			By:       sessionUser.ID,
 			At:       time.Now().UTC(),
 		}
 		err = app.models.Messaging.InsertThreadLog(log)
@@ -347,6 +377,8 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -361,6 +393,11 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if thread.UserID != sessionUser.ID {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -401,7 +438,7 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 			ThreadID: thread.ID,
 			Action:   data.ActionRemovedUser,
 			Targets:  removedUsers,
-			By:       1, // to change
+			By:       sessionUser.ID,
 			At:       time.Now().UTC(),
 		}
 		err = app.models.Messaging.InsertThreadLog(log)
@@ -424,24 +461,20 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+	if sessionUser.ID != userID {
+		app.notAllowed(w, r)
 		return
 	}
 
-	threads, err := app.models.Messaging.GetThreadsForUser(user.ID)
+	threads, err := app.models.Messaging.GetThreadsForUser(sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -454,6 +487,8 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 }
 
 func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -477,10 +512,8 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := 1 // to change
-
-	if !slices.Contains(threadUsers, userID) {
-		app.writeErrorResponse(w, r, http.StatusForbidden, "denied")
+	if !slices.Contains(threadUsers, sessionUser.ID) {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -505,7 +538,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 
 	message := &data.Message{
 		ThreadID:  thread.ID,
-		UserID:    userID,
+		UserID:    sessionUser.ID,
 		Body:      input.Body,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
@@ -525,6 +558,8 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	messageID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if messageID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMessage.Error())
@@ -539,6 +574,17 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	threadUsers, err := app.models.Messaging.GetUserIDsForThread(message.ThreadID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if message.UserID != sessionUser.ID || !slices.Contains(threadUsers, sessionUser.ID) {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -584,6 +630,8 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	messageID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if messageID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMessage.Error())
@@ -601,6 +649,17 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	threadUsers, err := app.models.Messaging.GetUserIDsForThread(message.ThreadID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if message.UserID != sessionUser.ID || !slices.Contains(threadUsers, sessionUser.ID) {
+		app.notAllowed(w, r)
+		return
+	}
+
 	err = app.models.Messaging.DeleteMessage(message.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -613,6 +672,8 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -636,10 +697,8 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := 1 // to change
-
-	if !slices.Contains(threadUsers, userID) {
-		app.writeErrorResponse(w, r, http.StatusForbidden, "denied")
+	if !slices.Contains(threadUsers, sessionUser.ID) {
+		app.notAllowed(w, r)
 		return
 	}
 

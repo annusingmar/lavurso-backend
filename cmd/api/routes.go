@@ -56,6 +56,9 @@ func (app *application) routes() http.Handler {
 			// create grade
 			mux.Post("/grades", app.createGrade)
 
+			// get all groups
+			mux.Get("/groups", app.getAllGroups)
+
 			// create group
 			mux.Post("/groups", app.createGroup)
 
@@ -209,9 +212,6 @@ func (app *application) routes() http.Handler {
 
 		// get group by id
 		mux.Get("/groups/{id}", app.getGroup)
-
-		// get all groups
-		mux.Get("/groups", app.getAllGroups)
 
 		// get groups by user id
 		mux.Get("/users/{id}/groups", app.getGroupsForUser)
