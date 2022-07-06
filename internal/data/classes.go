@@ -166,7 +166,7 @@ func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
 }
 
 func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, active, version
+	query := `SELECT id, name, role
 	FROM users u
 	INNER JOIN users_classes uc
 	ON uc.user_id = u.id
@@ -190,12 +190,7 @@ func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
 		err = rows.Scan(
 			&user.ID,
 			&user.Name,
-			&user.Email,
-			&user.Password.Hashed,
 			&user.Role,
-			&user.CreatedAt,
-			&user.Active,
-			&user.Version,
 		)
 		if err != nil {
 			return nil, err

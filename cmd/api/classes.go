@@ -223,6 +223,8 @@ func (app *application) getClassForStudent(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	classID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if classID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchClass.Error())
@@ -243,6 +245,23 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 	users, err := app.models.Classes.GetUsersForClassID(class.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if class.TeacherID != sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		for _, user := range users {
+			if user.ID == sessionUser.ID {
+				break
+			}
+		}
+		app.notAllowed(w, r)
 		return
 	}
 

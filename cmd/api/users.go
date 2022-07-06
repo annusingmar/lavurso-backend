@@ -59,7 +59,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.CreatedAt = time.Now().UTC()
+	*user.CreatedAt = time.Now().UTC()
 	user.Active = true
 	user.Version = 1
 
@@ -82,13 +82,22 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
+	var user *data.User
+
+	if sessionUser.ID == userID || sessionUser.Role == data.RoleAdministrator {
+		user, err = app.models.Users.GetUserByID(userID)
+	} else {
+		user, err = app.models.Users.GetUserByIDMinimal(userID)
+	}
+
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):

@@ -23,6 +23,8 @@ func (app *application) listAllJournals(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
@@ -38,6 +40,26 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 			app.writeInternalServerError(w, r, err)
 		}
 		return
+	}
+
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if journal.TeacherID != sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		if !userInJournal {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"journal": journal})
@@ -478,9 +500,16 @@ func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if sessionUser.ID != userID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 

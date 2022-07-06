@@ -29,6 +29,9 @@ func (app *application) routes() http.Handler {
 		mux.Group(func(mux chi.Router) {
 			mux.Use(app.requireAdministrator)
 
+			// list all users
+			mux.Get("/users", app.listAllUsers)
+
 			// create new user
 			mux.Post("/users", app.createUser)
 
@@ -71,11 +74,17 @@ func (app *application) routes() http.Handler {
 			// delete users from groups
 			mux.Delete("/groups/{id}/users", app.removeUsersFromGroup)
 
+			// get all journals
+			mux.Get("/journals", app.listAllJournals)
+
 		})
 
 		// requires at least role 'teacher'
 		mux.Group(func(mux chi.Router) {
 			mux.Use(app.requireTeacher)
+
+			// list all classes
+			mux.Get("/classes", app.listAllClasses)
 
 			// create journal
 			mux.Post("/journals", app.createJournal)
@@ -126,14 +135,8 @@ func (app *application) routes() http.Handler {
 			mux.Patch("/marks/{id}", app.updateMark)
 		})
 
-		// list all users
-		mux.Get("/users", app.listAllUsers)
-
 		// get user by id
 		mux.Get("/users/{id}", app.getUser)
-
-		// list all classes
-		mux.Get("/classes", app.listAllClasses)
 
 		// get class by id
 		mux.Get("/classes/{id}", app.getClass)
@@ -149,9 +152,6 @@ func (app *application) routes() http.Handler {
 
 		// get subject by id
 		mux.Get("/subjects/{id}", app.getSubject)
-
-		// get all journals
-		mux.Get("/journals", app.listAllJournals)
 
 		// get journal by id
 		mux.Get("/journals/{id}", app.getJournal)

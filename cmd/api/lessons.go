@@ -86,6 +86,8 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if lessonID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchLesson.Error())
@@ -101,6 +103,37 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 			app.writeInternalServerError(w, r, err)
 		}
 		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if journal.TeacherID != sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		if !userInJournal {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"lesson": lesson})
@@ -184,6 +217,8 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
@@ -199,6 +234,26 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 			app.writeInternalServerError(w, r, err)
 		}
 		return
+	}
+
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if journal.TeacherID != sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		if !userInJournal {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	lessons, err := app.models.Lessons.GetLessonsByJournalID(journal.ID)
