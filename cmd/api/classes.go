@@ -242,12 +242,6 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	users, err := app.models.Classes.GetUsersForClassID(class.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
@@ -255,13 +249,34 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		for _, user := range users {
-			if user.ID == sessionUser.ID {
-				break
-			}
+	case data.RoleParent:
+		ok, err := app.models.Classes.DoesParentHaveChildInClass(sessionUser.ID, class.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
 		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		ok, err := app.models.Classes.IsUserInClass(sessionUser.ID, class.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
 		app.notAllowed(w, r)
+		return
+	}
+
+	users, err := app.models.Classes.GetUsersForClassID(class.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
 		return
 	}
 

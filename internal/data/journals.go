@@ -334,5 +334,25 @@ func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
 	}
 
 	return result == 1, nil
+}
 
+func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (bool, error) {
+	query := `SELECT COUNT(1)
+	FROM parents_children pc
+	INNER JOIN users_journals uj
+	ON pc.child_id = uj.user_id
+	WHERE pc.parent_id = $1
+	AND uj.journal_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, parentID, journalID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result > 0, nil
 }

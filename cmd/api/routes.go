@@ -80,6 +80,12 @@ func (app *application) routes() http.Handler {
 			// get all journals
 			mux.Get("/journals", app.listAllJournals)
 
+			// add parent to student
+			mux.Put("/students/{id}/parents", app.addParentToStudent)
+
+			// remove parent from student
+			mux.Delete("/students/{id}/parents", app.removeParentFromStudent)
+
 		})
 
 		// requires at least role 'teacher'
@@ -263,6 +269,9 @@ func (app *application) routes() http.Handler {
 
 		// delete session by id
 		mux.Delete("/sessions/{id}", app.removeSession)
+
+		// get parents for student
+		mux.Get("/students/{id}/parents", app.getParentsForStudent)
 	})
 
 	return mux

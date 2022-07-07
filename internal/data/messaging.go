@@ -439,3 +439,59 @@ func (m MessagingModel) GetUserIDsForThread(threadID int) ([]int, error) {
 
 	return ids, nil
 }
+
+func (m MessagingModel) GetUsersForThread(threadID int) ([]*User, error) {
+	query := `SELECT id, name, role
+	FROM users u
+	INNER JOIN users_threads ut
+	ON u.id = ut.user_id
+	WHERE ut.thread_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*User
+
+	for rows.Next() {
+		var user User
+		err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Role,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {
+	query := `SELECT COUNT(1) FROM users_threads
+	WHERE user_id = $1 and thread_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, userID, threadID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
+}

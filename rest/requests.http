@@ -1,12 +1,14 @@
 @host = http://localhost:8888
-@token = token
+@adminToken = token1
+@parentToken = token2
+@studentToken = token3
 
 ######################################################### USERS
 
 // create student
 POST {{host}}/users
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Some Student",
@@ -20,7 +22,7 @@ Authorization: Bearer {{token}}
 // create admin/teacher
 POST {{host}}/users
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Some Admin",
@@ -31,16 +33,30 @@ Authorization: Bearer {{token}}
 
 ###
 
+// create parent
+POST {{host}}/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "name": "Some Parent",
+    "email": "some.parent@example.com",
+    "password": "password",
+    "role": "parent"
+}
+
+###
+
 // get user by id
 GET {{host}}/users/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // update user
 PATCH {{host}}/users/2
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Another Admin",
@@ -51,14 +67,14 @@ Authorization: Bearer {{token}}
 
 // list all users
 GET {{host}}/users
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### CLASSES
 
 // create class
 POST {{host}}/classes
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "11a",
@@ -69,13 +85,13 @@ Authorization: Bearer {{token}}
 
 // get class by id
 GET {{host}}/classes/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // update class
 PATCH {{host}}/classes/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -87,19 +103,19 @@ Content-Type: application/json
 
 // get all classes
 GET {{host}}/classes
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get student's class
 GET {{host}}/students/1/class
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // set student's class
 PUT {{host}}/students/1/class
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -110,14 +126,14 @@ Content-Type: application/json
 
 // get all students in class
 GET {{host}}/classes/1/students
-Authorization: Bearer {{token}}
+Authorization: Bearer {{parentToken}}
 
 ######################################################### SUBJECTS
 
 // create subject
 POST {{host}}/subjects
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Mathematics"
@@ -127,14 +143,14 @@ Authorization: Bearer {{token}}
 
 // get subject by id
 GET {{host}}/subjects/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // update subject
 PATCH {{host}}/subjects/1
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Advanced Mathematics"
@@ -144,7 +160,7 @@ Authorization: Bearer {{token}}
 
 // list all subjects
 GET {{host}}/subjects
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### JOURNALS
 
@@ -152,7 +168,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/journals
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "12a Advanced Mathematics",
@@ -164,13 +180,13 @@ Authorization: Bearer {{token}}
 
 // get journal by id
 GET {{host}}/journals/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // update journal
 PATCH {{host}}/journals/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -182,20 +198,20 @@ Content-Type: application/json
 
 // get all journals
 GET {{host}}/journals
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get journals for teacher
 GET {{host}}/teachers/2/journals
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // add student to journal
 POST {{host}}/students/1/journals
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "journal_id": 1
@@ -206,7 +222,7 @@ Authorization: Bearer {{token}}
 // remove student from journal
 DELETE {{host}}/students/1/journals
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "journal_id": 1
@@ -217,7 +233,7 @@ Authorization: Bearer {{token}}
 // add student to journal (again)
 POST {{host}}/students/1/journals
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "journal_id": 1
@@ -227,20 +243,20 @@ Authorization: Bearer {{token}}
 
 // get students for journal
 GET {{host}}/journals/1/students
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get journals for student
 GET {{host}}/students/1/journals
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### LESSONS
 
 // create lesson
 POST {{host}}/lessons
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "journal_id": 1,
@@ -253,14 +269,14 @@ Authorization: Bearer {{token}}
 
 // get lesson by id
 GET {{host}}/lessons/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // update lesson
 PATCH {{host}}/lessons/1
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "description": "Algebra I Revision: p. 80-85",
@@ -271,14 +287,14 @@ Authorization: Bearer {{token}}
 
 // get lessons for journal
 GET {{host}}/journals/1/lessons
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### ASSIGNMENTS
 
 // create assignment
 POST {{host}}/assignments
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "journal_id": 1,
@@ -292,7 +308,7 @@ Authorization: Bearer {{token}}
 // update assignment
 PATCH {{host}}/assignments/1
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "description": "Test: Algebra I Advanced",
@@ -304,20 +320,20 @@ Authorization: Bearer {{token}}
 
 // get assignment by id
 GET {{host}}/assignments/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // delete assignment
 DELETE {{host}}/assignments/1
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // create assignment (again)
 POST {{host}}/assignments
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "journal_id": 1,
@@ -330,25 +346,25 @@ Authorization: Bearer {{token}}
 
 // get all assignments for journal
 GET {{host}}/journals/1/assignments
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get all assignments for student
 GET {{host}}/students/1/assignments
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // set assignment done for student
 PUT {{host}}/students/1/assignments/2/done
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // remove assignment done for student
 DELETE {{host}}/students/1/assignments/2/done
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### GRADES
 
@@ -356,7 +372,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/grades
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "5",
@@ -367,7 +383,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/grades
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "4",
@@ -378,7 +394,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/grades
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "3",
@@ -389,7 +405,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/grades
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "2",
@@ -400,7 +416,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/grades
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "1",
@@ -411,7 +427,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/grades
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "F",
@@ -422,14 +438,14 @@ Authorization: Bearer {{token}}
 
 // get all grades
 GET {{host}}/grades
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // update grade
 PATCH {{host}}/grades/5
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "identifier": "1",
@@ -440,7 +456,7 @@ Authorization: Bearer {{token}}
 
 // get grade by id
 GET {{host}}/grades/5
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### MARKS
 
@@ -449,7 +465,7 @@ Authorization: Bearer {{token}}
 // adding lesson grades
 POST {{host}}/marks
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_id": 1,
@@ -463,7 +479,7 @@ Authorization: Bearer {{token}}
 
 POST {{host}}/marks
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_id": 1,
@@ -478,7 +494,7 @@ Authorization: Bearer {{token}}
 // adding good notice
 POST {{host}}/marks
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_id": 1,
@@ -492,7 +508,7 @@ Authorization: Bearer {{token}}
 // adding course grade
 POST {{host}}/marks
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_id": 1,
@@ -506,14 +522,14 @@ Authorization: Bearer {{token}}
 
 // get current marks for student
 GET {{host}}/students/1/marks
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // adding subject grade
 POST {{host}}/marks
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_id": 1,
@@ -526,14 +542,14 @@ Authorization: Bearer {{token}}
 
 // deleting mark
 DELETE {{host}}/marks/2
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // updating lesson grade
 PATCH {{host}}/marks/1
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "grade_id": 2,
@@ -544,14 +560,14 @@ Authorization: Bearer {{token}}
 
 // get current marks for journal
 GET {{host}}/journals/1/marks
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // updating notice
 PATCH {{host}}/marks/3
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "comment": "very good!"
@@ -561,20 +577,20 @@ Authorization: Bearer {{token}}
 
 // get current marks for student's journal
 GET {{host}}/students/1/journals/1/marks
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get previous marks for mark
 GET {{host}}/marks/1/previous
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // add absence to student
 POST {{host}}/marks
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_id": 1,
@@ -586,13 +602,13 @@ Authorization: Bearer {{token}}
 
 // get absences for student
 GET {{host}}/students/1/absences
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // add excuse for student's absence
 POST {{host}}/students/1/excuses
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {"absence_id": 6, "excuse": "xx"}
 
@@ -600,14 +616,14 @@ Authorization: Bearer {{token}}
 
 // delete excuse for student's absence
 DELETE {{host}}/students/1/excuses/7
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### GROUPS
 
 // create group
 
 POST {{host}}/groups
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Students"
@@ -616,7 +632,7 @@ Authorization: Bearer {{token}}
 ###
 
 // update group
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 PATCH {{host}}/groups/2
 
@@ -627,14 +643,14 @@ PATCH {{host}}/groups/2
 // delete group
 
 DELETE {{host}}/groups/2
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // create group (again)
 
 POST {{host}}/groups
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "name": "Everyone"
@@ -645,13 +661,13 @@ Authorization: Bearer {{token}}
 // get group
 
 GET {{host}}/groups/3
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // add users to group
 POST {{host}}/groups/3/users
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {"user_ids": [1, 2]}
 
@@ -659,7 +675,7 @@ Authorization: Bearer {{token}}
 
 // remove users from group
 DELETE {{host}}/groups/3/users
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {"user_ids": [1]}
 
@@ -667,25 +683,25 @@ Authorization: Bearer {{token}}
 
 // get all groups
 GET {{host}}/groups
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get groups for user
 GET {{host}}/users/1/groups
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get users for groups
 GET {{host}}/groups/3/users
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### THREADS
 
 // create thread
 POST {{host}}/threads
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "title": "my thread 2",
@@ -697,25 +713,25 @@ Authorization: Bearer {{token}}
 
 // delete thread
 DELETE {{host}}/threads/8
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // lock thread
 PUT {{host}}/threads/9/lock
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // unlock thread
 PUT {{host}}/threads/9/unlock
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // add users to thread
 PUT {{host}}/threads/9/users
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_ids": [1,2,5]
@@ -725,7 +741,7 @@ Authorization: Bearer {{token}}
 
 // remove users from thread
 DELETE {{host}}/threads/9/users
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "user_ids": [1,5]
@@ -735,7 +751,7 @@ Authorization: Bearer {{token}}
 
 // update thread
 PUT {{host}}/threads/9
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {"body": "eyeyeyey", "title": "x"}
 
@@ -743,13 +759,13 @@ Authorization: Bearer {{token}}
 
 // get threads for user
 GET {{host}}/users/2/threads
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // create message
 POST {{host}}/threads/9/messages
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "body": "msg"
@@ -759,7 +775,7 @@ Authorization: Bearer {{token}}
 
 // update message
 PUT {{host}}/messages/5
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 {
     "body": "msgx"
@@ -769,13 +785,13 @@ Authorization: Bearer {{token}}
 
 // delete message
 DELETE {{host}}/messages/4
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // get thread
 GET {{host}}/threads/12
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ######################################################### AUTHENTICATION
 
@@ -783,7 +799,7 @@ Authorization: Bearer {{token}}
 POST {{host}}/authenticate
 
 {
-    "email": "some.student@example.com",
+    "email": "some.parent@example.com",
     "password": "password"
 }
 
@@ -792,16 +808,45 @@ POST {{host}}/authenticate
 // get sessions for user
 
 GET {{host}}/users/2/sessions
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // delete specific session
 DELETE {{host}}/sessions/6
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 // delete all sessions for user
 DELETE {{host}}/users/2/sessions
-Authorization: Bearer {{token}}
+Authorization: Bearer {{adminToken}}
+
+######################################################### PARENT
+
+// set parent for student
+PUT {{host}}/students/1/parents
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "parent_id": 7
+}
+
+###
+
+// get parents for student
+GET {{host}}/students/1/parents
+Content-Type: application/json
+Authorization: Bearer {{studentToken}}
+
+###
+
+// remove parent from student
+DELETE {{host}}/students/1/parents
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "parent_id": 7
+}

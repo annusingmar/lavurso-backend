@@ -300,9 +300,13 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if sessionUser.ID != userID && sessionUser.Role != data.RoleAdministrator {
-		app.notAllowed(w, r)
-		return
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	default:
+		if sessionUser.ID != userID {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	user, err := app.models.Users.GetUserByID(userID)
@@ -348,14 +352,18 @@ func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	ok, err := app.models.Groups.IsUserInGroup(sessionUser.ID, group.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-
-	if !ok && sessionUser.Role != data.RoleAdministrator {
-		app.notAllowed(w, r)
-		return
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	default:
+		ok, err := app.models.Groups.IsUserInGroup(sessionUser.ID, group.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	users, err := app.models.Groups.GetUsersByGroupID(group.ID)

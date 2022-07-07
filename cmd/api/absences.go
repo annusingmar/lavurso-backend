@@ -20,7 +20,24 @@ func (app *application) getAbsencesForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if sessionUser.ID != userID || sessionUser.Role != data.RoleAdministrator {
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		if sessionUser.ID != userID {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
 		app.notAllowed(w, r)
 		return
 	}
@@ -62,7 +79,20 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if sessionUser.Role != data.RoleAdministrator && sessionUser.Role != data.RoleTeacher {
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleTeacher:
+	default:
 		app.notAllowed(w, r)
 		return
 	}
@@ -127,15 +157,9 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 	if sessionUser.Role == data.RoleTeacher {
 		journal, err := app.models.Journals.GetJournalByID(*absence.JournalID)
 		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoSuchJournal):
-				app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
+			app.writeInternalServerError(w, r, err)
 			return
 		}
-
 		if sessionUser.ID != journal.TeacherID {
 			app.notAllowed(w, r)
 			return
@@ -175,7 +199,20 @@ func (app *application) deleteAbsenceExcuseForStudent(w http.ResponseWriter, r *
 		return
 	}
 
-	if sessionUser.Role != data.RoleAdministrator && sessionUser.Role != data.RoleTeacher {
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleTeacher:
+	default:
 		app.notAllowed(w, r)
 		return
 	}
@@ -221,15 +258,9 @@ func (app *application) deleteAbsenceExcuseForStudent(w http.ResponseWriter, r *
 	if sessionUser.Role == data.RoleTeacher {
 		journal, err := app.models.Journals.GetJournalByID(*absence.JournalID)
 		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoSuchJournal):
-				app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
+			app.writeInternalServerError(w, r, err)
 			return
 		}
-
 		if sessionUser.ID != journal.TeacherID {
 			app.notAllowed(w, r)
 			return

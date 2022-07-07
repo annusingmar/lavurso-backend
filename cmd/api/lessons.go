@@ -123,17 +123,29 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+	case data.RoleParent:
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-
-		if !userInJournal {
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
+	case data.RoleStudent:
+		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
+		return
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"lesson": lesson})
@@ -243,17 +255,29 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+	case data.RoleParent:
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-
-		if !userInJournal {
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
+	case data.RoleStudent:
+		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
+		return
 	}
 
 	lessons, err := app.models.Lessons.GetLessonsByJournalID(journal.ID)

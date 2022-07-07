@@ -11,7 +11,6 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/exp/slices"
 )
 
 func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
@@ -146,6 +145,8 @@ func (app *application) updateThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if threadID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
@@ -160,6 +161,11 @@ func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if thread.UserID != sessionUser.ID {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -364,13 +370,13 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	ids, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	users, err := app.models.Messaging.GetUsersForThread(thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"user_ids": ids})
+	err = app.outputJSON(w, http.StatusOK, envelope{"users": users})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -448,13 +454,13 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	ids, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	users, err := app.models.Messaging.GetUsersForThread(thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"user_ids": ids})
+	err = app.outputJSON(w, http.StatusOK, envelope{"users": users})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -506,13 +512,12 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadUsers, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	if !slices.Contains(threadUsers, sessionUser.ID) {
+	if !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -577,13 +582,13 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadUsers, err := app.models.Messaging.GetUserIDsForThread(message.ThreadID)
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, message.ThreadID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	if message.UserID != sessionUser.ID || !slices.Contains(threadUsers, sessionUser.ID) {
+	if message.UserID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -649,13 +654,13 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadUsers, err := app.models.Messaging.GetUserIDsForThread(message.ThreadID)
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, message.ThreadID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	if message.UserID != sessionUser.ID || !slices.Contains(threadUsers, sessionUser.ID) {
+	if message.UserID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -691,13 +696,12 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadUsers, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	if !slices.Contains(threadUsers, sessionUser.ID) {
+	if !ok {
 		app.notAllowed(w, r)
 		return
 	}

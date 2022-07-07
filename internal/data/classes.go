@@ -221,3 +221,41 @@ func (m ClassModel) SetClassIDForUserID(userID, classID int) error {
 	}
 	return nil
 }
+
+func (m ClassModel) IsUserInClass(userID, classID int) (bool, error) {
+	query := `SELECT COUNT(1) FROM users_classes
+	WHERE user_id = $1 and class_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, userID, classID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
+}
+
+func (m ClassModel) DoesParentHaveChildInClass(parentID, classID int) (bool, error) {
+	query := `SELECT COUNT(1)
+	FROM parents_children pc
+	INNER JOIN users_classes uc
+	ON pc.child_id = uc.user_id
+	WHERE pc.parent_id = $1
+	AND uc.class_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, parentID, classID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result > 0, nil
+}

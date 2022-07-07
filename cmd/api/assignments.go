@@ -50,17 +50,29 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
+	case data.RoleParent:
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-
-		if !userInJournal {
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
+	case data.RoleStudent:
+		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
+		return
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"assignment": assignment})
@@ -306,17 +318,29 @@ func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+	case data.RoleParent:
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-
-		if !userInJournal {
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
+	case data.RoleStudent:
+		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
+		return
 	}
 
 	assignments, err := app.models.Assignments.GetAssignmentsByJournalID(journal.ID)
@@ -340,7 +364,24 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if sessionUser.Role == data.RoleStudent && sessionUser.ID != userID {
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		if sessionUser.ID != userID {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
 		app.notAllowed(w, r)
 		return
 	}
@@ -399,6 +440,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 
 	if sessionUser.ID != userID {
 		app.notAllowed(w, r)
+		return
 	}
 
 	if sessionUser.Role != data.RoleStudent {
@@ -423,13 +465,12 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	if !userInJournal {
+	if !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -482,13 +523,12 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	userInJournal, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	if !userInJournal {
+	if !ok {
 		app.notAllowed(w, r)
 		return
 	}

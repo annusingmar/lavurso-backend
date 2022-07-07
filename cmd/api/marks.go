@@ -382,9 +382,19 @@ func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
 		journal, err := app.models.Journals.GetJournalByID(*mark.JournalID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
+			return
 		}
-
 		if sessionUser.ID != journal.TeacherID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, mark.UserID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
@@ -393,6 +403,9 @@ func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
 			app.notAllowed(w, r)
 			return
 		}
+	default:
+		app.notAllowed(w, r)
+		return
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"mark": mark})
@@ -410,7 +423,24 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if sessionUser.ID != userID && sessionUser.Role != data.RoleAdministrator {
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		if sessionUser.ID != userID {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
 		app.notAllowed(w, r)
 		return
 	}
@@ -489,7 +519,20 @@ func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if sessionUser.Role == data.RoleStudent && sessionUser.ID != userID {
+	switch sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleTeacher:
+	default:
 		app.notAllowed(w, r)
 		return
 	}
@@ -579,16 +622,20 @@ func (app *application) getPreviousMarksForMark(w http.ResponseWriter, r *http.R
 	case data.RoleTeacher:
 		journal, err := app.models.Journals.GetJournalByID(*mark.JournalID)
 		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrNoSuchJournal):
-				app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
+			app.writeInternalServerError(w, r, err)
 			return
 		}
-
 		if sessionUser.ID != journal.TeacherID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, mark.UserID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
@@ -597,6 +644,9 @@ func (app *application) getPreviousMarksForMark(w http.ResponseWriter, r *http.R
 			app.notAllowed(w, r)
 			return
 		}
+	default:
+		app.notAllowed(w, r)
+		return
 	}
 
 	previousMarks, err := app.models.Marks.GetOldMarksByMarkID(mark.ID)
