@@ -1,1 +1,1 @@
-DROP TABLE users_threads;
+DROP TABLE IF EXISTS users_threads;

@@ -5,8 +5,8 @@ create table if not exists
     "title" TEXT not null,
     "body" TEXT not null,
     "locked" BOOLEAN not null default false,
-    "created_at" TIMESTAMP not null
-    "updated_at" TIMESTAMP not null,
+    "created_at" TIMESTAMP not null,
+    "updated_at" TIMESTAMP not null
   );
 
 ALTER TABLE
