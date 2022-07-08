@@ -180,7 +180,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	mark.SubjectID = &subject.ID
 
 	mark.Comment = input.Comment
-	mark.By = 1 // temporary
+	mark.By = sessionUser.ID
 	mark.At = time.Now().UTC()
 
 	err = app.models.Marks.InsertMark(mark)

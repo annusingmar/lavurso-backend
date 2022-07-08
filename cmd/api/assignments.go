@@ -102,8 +102,8 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		Description: input.Description,
 		Deadline:    input.Deadline,
 		Type:        input.Type,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 		Version:     1,
 	}
 

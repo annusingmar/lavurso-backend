@@ -111,10 +111,10 @@ func (app *application) routes() http.Handler {
 			mux.Get("/journals/{id}/students", app.getStudentsForJournal)
 
 			// add user to journal
-			mux.Post("/students/{id}/journals", app.addStudentToJournal)
+			mux.Post("/journals/{id}/students", app.addStudentToJournal)
 
 			// remove user from journal
-			mux.Delete("/students/{id}/journals", app.removeStudentFromJournal)
+			mux.Delete("/journals/{id}/students", app.removeStudentFromJournal)
 
 			// create lesson
 			mux.Post("/lessons", app.createLesson)

@@ -11,6 +11,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/exp/slices"
 )
 
 func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +52,10 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
+	}
+
+	if !slices.Contains(input.UserIDs, sessionUser.ID) {
+		input.UserIDs = append(input.UserIDs, sessionUser.ID)
 	}
 
 	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allUserIDs)
@@ -432,6 +437,9 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 	var removedUsers []int
 
 	for _, id := range input.UserIDs {
+		if id == sessionUser.ID {
+			continue
+		}
 		err = app.models.Messaging.RemoveUserFromThread(id, thread.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)

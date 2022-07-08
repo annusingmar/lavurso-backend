@@ -40,7 +40,7 @@ func main() {
 		Handler:  app.routes(),
 	}
 
-	app.infoLogger.Printf("starting http server on %s", app.config.Web.Listen)
+	app.infoLogger.Printf("starting HTTP server on %s", app.config.Web.Listen)
 	err := server.ListenAndServe()
 	log.Fatalln(err)
 }

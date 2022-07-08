@@ -317,24 +317,13 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
-	var input struct {
-		JournalID int `json:"journal_id"`
-	}
-
-	err := app.inputJSON(w, r, &input)
-	if err != nil {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
 	}
 
-	v := validator.NewValidator()
-	v.Check(input.JournalID > 0, "journal_id", "must be provided and valid")
-	if !v.Valid() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-		return
-	}
-
-	journal, err := app.models.Journals.GetJournalByID(input.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(journalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -355,13 +344,24 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+	var input struct {
+		StudentID int `json:"student_id"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
+	v := validator.NewValidator()
+	v.Check(input.StudentID > 0, "student_id", "must be provided and valid")
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(input.StudentID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -397,24 +397,13 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
-	var input struct {
-		JournalID int `json:"journal_id"`
-	}
-
-	err := app.inputJSON(w, r, &input)
-	if err != nil {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
 		return
 	}
 
-	v := validator.NewValidator()
-	v.Check(input.JournalID > 0, "journal_id", "must be provided and valid")
-	if !v.Valid() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-		return
-	}
-
-	journal, err := app.models.Journals.GetJournalByID(input.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(journalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -435,13 +424,24 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+	var input struct {
+		StudentID int `json:"student_id"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
+	v := validator.NewValidator()
+	v.Check(input.StudentID > 0, "student_id", "must be provided and valid")
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(input.StudentID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):

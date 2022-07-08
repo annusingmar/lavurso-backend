@@ -1,0 +1,342 @@
+@host = http://localhost:8888
+@token = teacher_1_token
+
+// authenticate
+POST {{host}}/authenticate
+Content-Type: application/json
+
+{
+    "email": "teacher1@example.com",
+    "password": "teacher1Password"
+}
+
+### // create journals
+
+POST {{host}}/journals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "12.a Advanced Mathematics",
+    "subject_id": 1
+}
+
+###
+
+POST {{host}}/journals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "11.a Advanced Mathematics",
+    "subject_id": 1
+}
+
+### // add students to journals
+
+POST {{host}}/journals/1/students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "student_id": 2
+}
+
+###
+
+POST {{host}}/journals/1/students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "student_id": 3
+}
+
+###
+
+POST {{host}}/journals/1/students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "student_id": 4
+}
+
+###
+
+POST {{host}}/journals/2/students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "student_id": 4
+}
+
+### // remove user from journal
+
+DELETE {{host}}/journals/1/students
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "student_id": 4
+}
+
+### // get students for journal
+GET {{host}}/journals/1/students
+Authorization: Bearer {{token}}
+
+###
+
+GET {{host}}/journals/2/students
+Authorization: Bearer {{token}}
+
+### // get journals for teacher
+GET {{host}}/teachers/5/journals
+Authorization: Bearer {{token}}
+
+### // create lessons
+
+POST {{host}}/lessons
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "journal_id": 1,
+    "description": "Test 3",
+    "date": "2022-07-08",
+    "course": 13
+}
+
+###
+
+POST {{host}}/lessons
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "journal_id": 2,
+    "description": "Test Revision",
+    "date": "2022-07-08",
+    "course": 7
+}
+
+### // update lesson
+PATCH {{host}}/lessons/2
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "description": "Test 2 Revision"
+}
+
+### // create assignment
+POST {{host}}/assignments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "journal_id": 2,
+    "description": "Test 2",
+    "deadline": "2022-07-11",
+    "type": "test"
+}
+
+###
+POST {{host}}/assignments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "journal_id": 2,
+    "description": "Study for Test 2",
+    "deadline": "2022-07-11",
+    "type": "homework"
+}
+
+### // add marks
+
+POST {{host}}/marks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "user_id": 4,
+    "lesson_id": 2,
+    "type": "absent"
+}
+
+###
+
+POST {{host}}/marks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "user_id": 2,
+    "lesson_id": 1,
+    "grade_id": 1,
+    "type": "lesson_grade",
+    "comment": "100%"
+}
+
+###
+
+POST {{host}}/marks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "user_id": 3,
+    "lesson_id": 1,
+    "grade_id": 4,
+    "type": "lesson_grade",
+    "comment": "85%"
+}
+
+### // update mark
+
+PATCH {{host}}/marks/3
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "comment": "80%"
+}
+
+### // get user by id
+
+GET {{host}}/users/5
+Authorization: Bearer {{token}}
+
+###
+
+GET {{host}}/users/2
+Authorization: Bearer {{token}}
+
+### // get student's class
+
+GET {{host}}/students/2/class
+Authorization: Bearer {{token}}
+
+### // get students in class
+
+GET {{host}}/classes/1/students
+Authorization: Bearer {{token}}
+
+### // get journal by id
+
+GET {{host}}/journals/1
+Authorization: Bearer {{token}}
+
+### // get lesson by id
+
+GET {{host}}/lessons/1
+Authorization: Bearer {{token}}
+
+### // get lessons for journals
+GET {{host}}/journals/1/lessons
+Authorization: Bearer {{token}}
+
+### // get lesson by id
+GET {{host}}/lessons/2
+Authorization: Bearer {{token}}
+
+### // get assignment by id
+GET {{host}}/assignments/1
+Authorization: Bearer {{token}}
+
+### // get assignments for journal
+GET {{host}}/journals/2/assignments
+Authorization: Bearer {{token}}
+
+### // get all grades
+GET {{host}}/grades
+Authorization: Bearer {{token}}
+
+### // excuse abscene for student
+POST {{host}}/students/4/excuses
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "absence_id": 1,
+    "excuse": "competition"
+}
+
+### // delete excuse for absence
+DELETE {{host}}/students/4/excuses/1
+Authorization: Bearer {{token}}
+
+### // get group by id
+GET {{host}}/groups/2
+Authorization: Bearer {{token}}
+
+### // get groups by user id
+GET {{host}}/users/5/groups
+Authorization: Bearer {{token}}
+
+### // create thread
+
+POST {{host}}/threads
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "title": "URGENT!",
+    "body": "Hello!\nWhatever...",
+    "user_ids": [1]
+}
+
+### // update thread
+PUT {{host}}/threads/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "title": "URGENT! Math Competition Final",
+    "body": "Hello!\nWhatever..."
+}
+
+### // add users to thread
+PUT {{host}}/threads/1/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "user_ids": [2,3]
+}
+
+### // remove users from threads
+DELETE {{host}}/threads/1/users
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "user_ids": [1]
+}
+
+### // create message
+POST {{host}}/threads/1/messages
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "body": "I also wanted to add that..."
+}
+
+### // delete message
+DELETE {{host}}/messages/1
+Authorization: Bearer {{token}}
+
+### // get threads for user
+GET {{host}}/users/5/threads
+Authorization: Bearer {{token}}
+
+### // get thread by id
+GET {{host}}/threads/1
+Authorization: Bearer {{token}}
+
+### // get all sessions for user
+GET {{host}}/users/5/sessions
+Authorization: Bearer {{token}}
