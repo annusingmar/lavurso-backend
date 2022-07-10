@@ -232,7 +232,7 @@ func (m JournalModel) DeleteUserFromJournal(userID, journalID int) error {
 }
 
 func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, active, version
+	query := `SELECT id, name, role
 	FROM users u
 	INNER JOIN users_journals uj
 	ON uj.user_id = u.id
@@ -256,12 +256,7 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 		err = rows.Scan(
 			&user.ID,
 			&user.Name,
-			&user.Email,
-			&user.Password.Hashed,
 			&user.Role,
-			&user.CreatedAt,
-			&user.Active,
-			&user.Version,
 		)
 		if err != nil {
 			return nil, err

@@ -1,0 +1,95 @@
+@host = http://localhost:8888
+@token = NITNSEOVBEL75ORBWLY2QHWNTY
+
+// authenticate
+POST {{host}}/authenticate
+Content-Type: application/json
+
+{
+    "email": "student1@example.com",
+    "password": "student1Password"
+}
+
+
+### // get user by id
+
+GET {{host}}/users/2
+Authorization: Bearer {{token}}
+
+### // get student's class
+
+GET {{host}}/students/2/class
+Authorization: Bearer {{token}}
+
+### // get students in class
+
+GET {{host}}/classes/1/students
+Authorization: Bearer {{token}}
+
+### // get journal by id
+
+GET {{host}}/journals/1
+Authorization: Bearer {{token}}
+
+###
+
+GET {{host}}/journals/3
+Authorization: Bearer {{token}}
+
+### // get journals for student ***
+
+GET {{host}}/students/2/journals
+Authorization: Bearer {{token}}
+
+### // get lesson by id
+
+GET {{host}}/lessons/1
+Authorization: Bearer {{token}}
+
+### // get lessons for journals
+GET {{host}}/journals/1/lessons
+Authorization: Bearer {{token}}
+
+### // get assignments for student
+GET {{host}}/students/2/assignments
+Authorization: Bearer {{token}}
+
+### // get all grades
+GET {{host}}/grades
+Authorization: Bearer {{token}}
+
+### // get marks for student
+GET {{host}}/students/2/marks
+Authorization: Bearer {{token}}
+
+### // get marks for student's journal
+GET {{host}}/students/2/journals/1/marks
+Authorization: Bearer {{token}}
+
+### // get previous marks for mark
+GET {{host}}/marks/2/previous
+Authorization: Bearer {{token}}
+
+### // get absences for student
+GET {{host}}/students/2/absences
+Authorization: Bearer {{token}}
+
+### // get group by id
+GET {{host}}/groups/3
+Authorization: Bearer {{token}}
+
+### // get groups by user id
+GET {{host}}/users/2/groups
+Authorization: Bearer {{token}}
+
+### // get threads for user
+GET {{host}}/users/2/threads
+Authorization: Bearer {{token}}
+
+### // get thread by id
+GET {{host}}/threads/1
+Authorization: Bearer {{token}}
+
+### // get all sessions for user
+GET {{host}}/users/2/sessions
+Authorization: Bearer {{token}}

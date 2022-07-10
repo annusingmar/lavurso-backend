@@ -532,6 +532,11 @@ func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *htt
 			return
 		}
 	case data.RoleTeacher:
+	case data.RoleStudent:
+		if userID != sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
 	default:
 		app.notAllowed(w, r)
 		return
