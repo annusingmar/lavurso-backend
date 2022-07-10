@@ -8,7 +8,7 @@
 [toml](https://github.com/BurntSushi/toml)
     
  ## running
- 1. create `.makerc`, set `MIGRATE_DSN` to database connection string
+ 1. copy `.makerc.example` to `.makerc`, edit `MIGRATE_DSN` to database connection string
  2. run `make db/migration_up`
  3. copy `config.toml.example` to `config.toml`, change values
  3. run `make api/run`
