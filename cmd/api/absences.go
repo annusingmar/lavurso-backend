@@ -22,7 +22,7 @@ func (app *application) getAbsencesForStudent(w http.ResponseWriter, r *http.Req
 
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
-	case data.RoleTeacher:
+	case data.RoleParent:
 		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
