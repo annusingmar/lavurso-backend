@@ -1,0 +1,111 @@
+@host = http://localhost:8888
+@token = EE53SLLZIWKOCH42GFS4IAL4WU
+
+// authenticate
+POST {{host}}/authenticate
+Content-Type: application/json
+
+{
+    "email": "student3@example.com",
+    "password": "student3Password"
+}
+
+
+### // get user by id
+
+GET {{host}}/users/4
+Authorization: Bearer {{token}}
+
+### // get student's class
+
+GET {{host}}/students/4/class
+Authorization: Bearer {{token}}
+
+### // get students in class
+
+GET {{host}}/classes/2/students
+Authorization: Bearer {{token}}
+
+### // get journal by id
+
+GET {{host}}/journals/2
+Authorization: Bearer {{token}}
+
+###
+
+GET {{host}}/journals/4
+Authorization: Bearer {{token}}
+
+### // get journals for student ***
+
+GET {{host}}/students/4/journals
+Authorization: Bearer {{token}}
+
+### // get lesson by id
+
+GET {{host}}/lessons/2
+Authorization: Bearer {{token}}
+
+### // get lessons for journals
+GET {{host}}/journals/2/lessons
+Authorization: Bearer {{token}}
+
+### // get assignments for student
+GET {{host}}/students/4/assignments
+Authorization: Bearer {{token}}
+
+### // get assignments for journal
+GET {{host}}/journals/2/assignments
+Authorization: Bearer {{token}}
+
+### // set assignment done for student
+PUT {{host}}/students/4/assignments/2/done
+Authorization: Bearer {{token}}
+
+### // remove assignment done for student
+DELETE {{host}}/students/4/assignments/2/done
+Authorization: Bearer {{token}}
+
+### // get assignment by id
+GET {{host}}/assignments/1
+Authorization: Bearer {{token}}
+
+### // get all grades
+GET {{host}}/grades
+Authorization: Bearer {{token}}
+
+### // get marks for student
+GET {{host}}/students/4/marks
+Authorization: Bearer {{token}}
+
+### // get marks for student's journal
+GET {{host}}/students/4/journals/2/marks
+Authorization: Bearer {{token}}
+
+### // get previous marks for mark
+GET {{host}}/marks/1/previous
+Authorization: Bearer {{token}}
+
+### // get absences for student
+GET {{host}}/students/4/absences
+Authorization: Bearer {{token}}
+
+### // get group by id
+GET {{host}}/groups/3
+Authorization: Bearer {{token}}
+
+### // get groups by user id
+GET {{host}}/users/4/groups
+Authorization: Bearer {{token}}
+
+### // get threads for user
+GET {{host}}/users/4/threads
+Authorization: Bearer {{token}}
+
+### // get all sessions for user
+GET {{host}}/users/4/sessions
+Authorization: Bearer {{token}}
+
+### // get parents for student
+GET {{host}}/students/4/parents
+Authorization: Bearer {{token}}
