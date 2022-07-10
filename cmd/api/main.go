@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 )
@@ -40,7 +45,25 @@ func main() {
 		Handler:  app.routes(),
 	}
 
-	app.infoLogger.Printf("starting HTTP server on %s", app.config.Web.Listen)
-	err := server.ListenAndServe()
-	log.Fatalln(err)
+	catchSignal := make(chan os.Signal, 1)
+	signal.Notify(catchSignal, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT)
+
+	go func() {
+		app.infoLogger.Printf("starting HTTP server on %s", app.config.Web.Listen)
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			app.errorLogger.Fatalln(err)
+		}
+	}()
+
+	<-catchSignal
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	app.infoLogger.Println("shutting down...")
+	err := server.Shutdown(ctx)
+	if err != nil {
+		app.errorLogger.Fatalln(err)
+	}
 }
