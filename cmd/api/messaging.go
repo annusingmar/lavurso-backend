@@ -494,6 +494,16 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	for _, thread := range threads {
+		count, err := app.models.Messaging.GetMessageCountForThread(thread.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		thread.MessageCount = count
+	}
+
 	err = app.outputJSON(w, http.StatusOK, envelope{"threads": threads})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -551,7 +561,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 
 	message := &data.Message{
 		ThreadID:  thread.ID,
-		User:      &data.User{ID: sessionUser.ID},
+		User:      &data.User{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
 		Body:      input.Body,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),

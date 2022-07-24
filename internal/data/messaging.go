@@ -29,12 +29,13 @@ const (
 type Thread struct {
 	ID int `json:"id"`
 	// UserID    int       `json:"user_id"`
-	User      *User     `json:"user"`
-	Title     string    `json:"title"`
-	Body      string    `json:"body"`
-	Locked    bool      `json:"locked"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	User         *User     `json:"user"`
+	Title        string    `json:"title"`
+	Body         string    `json:"body"`
+	Locked       bool      `json:"locked"`
+	MessageCount int       `json:"message_count"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Message struct {
@@ -528,4 +529,20 @@ func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {
 	}
 
 	return result == 1, nil
+}
+
+func (m MessagingModel) GetMessageCountForThread(threadID int) (int, error) {
+	query := `SELECT COUNT (*) FROM messages WHERE thread_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var count int
+
+	err := m.DB.QueryRow(ctx, query, threadID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
