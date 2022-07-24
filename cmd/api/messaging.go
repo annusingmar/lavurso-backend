@@ -32,7 +32,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	thread := &data.Thread{
-		UserID:    sessionUser.ID,
+		User:      &data.User{ID: sessionUser.ID},
 		Title:     input.Title,
 		Body:      input.Body,
 		Locked:    false,
@@ -105,7 +105,7 @@ func (app *application) updateThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.UserID != sessionUser.ID {
+	if thread.User.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -169,7 +169,7 @@ func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.UserID != sessionUser.ID {
+	if thread.User.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -206,7 +206,7 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.UserID != sessionUser.ID {
+	if thread.User.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -217,12 +217,12 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 	}
 	thread.Locked = true
 
-	log := &data.ThreadLog{
-		ThreadID: thread.ID,
-		Action:   data.ActionLocked,
-		By:       sessionUser.ID,
-		At:       time.Now().UTC(),
-	}
+	// log := &data.ThreadLog{
+	// 	ThreadID: thread.ID,
+	// 	Action:   data.ActionLocked,
+	// 	By:       sessionUser.ID,
+	// 	At:       time.Now().UTC(),
+	// }
 
 	err = app.models.Messaging.UpdateThread(thread)
 	if err != nil {
@@ -230,11 +230,11 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Messaging.InsertThreadLog(log)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+	// err = app.models.Messaging.InsertThreadLog(log)
+	// if err != nil {
+	// 	app.writeInternalServerError(w, r, err)
+	// 	return
+	// }
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread})
 	if err != nil {
@@ -262,7 +262,7 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.UserID != sessionUser.ID {
+	if thread.User.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -273,12 +273,12 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 	}
 	thread.Locked = false
 
-	log := &data.ThreadLog{
-		ThreadID: thread.ID,
-		Action:   data.ActionUnlocked,
-		By:       sessionUser.ID,
-		At:       time.Now().UTC(),
-	}
+	// log := &data.ThreadLog{
+	// 	ThreadID: thread.ID,
+	// 	Action:   data.ActionUnlocked,
+	// 	By:       sessionUser.ID,
+	// 	At:       time.Now().UTC(),
+	// }
 
 	err = app.models.Messaging.UpdateThread(thread)
 	if err != nil {
@@ -286,11 +286,11 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Messaging.InsertThreadLog(log)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+	// err = app.models.Messaging.InsertThreadLog(log)
+	// if err != nil {
+	// 	app.writeInternalServerError(w, r, err)
+	// 	return
+	// }
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread})
 	if err != nil {
@@ -318,7 +318,7 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if thread.UserID != sessionUser.ID {
+	if thread.User.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -345,7 +345,7 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var addedUsers []int
+	// var addedUsers []*data.User
 
 	for _, id := range input.UserIDs {
 		err = app.models.Messaging.AddUserToThread(id, thread.ID)
@@ -358,22 +358,22 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 				return
 			}
 		}
-		addedUsers = append(addedUsers, id)
+		// addedUsers = append(addedUsers, &data.User{ID: id})
 	}
-	if len(addedUsers) > 0 {
-		log := &data.ThreadLog{
-			ThreadID: thread.ID,
-			Action:   data.ActionAddedUser,
-			Targets:  addedUsers,
-			By:       sessionUser.ID,
-			At:       time.Now().UTC(),
-		}
-		err = app.models.Messaging.InsertThreadLog(log)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-	}
+	// if len(addedUsers) > 0 {
+	// 	log := &data.ThreadLog{
+	// 		ThreadID: thread.ID,
+	// 		Action:   data.ActionAddedUser,
+	// 		Targets:  addedUsers,
+	// 		By:       sessionUser.ID,
+	// 		At:       time.Now().UTC(),
+	// 	}
+	// 	err = app.models.Messaging.InsertThreadLog(log)
+	// 	if err != nil {
+	// 		app.writeInternalServerError(w, r, err)
+	// 		return
+	// 	}
+	// }
 
 	users, err := app.models.Messaging.GetUsersForThread(thread.ID)
 	if err != nil {
@@ -407,7 +407,7 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if thread.UserID != sessionUser.ID {
+	if thread.User.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -434,7 +434,7 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var removedUsers []int
+	// var removedUsers []*data.User
 
 	for _, id := range input.UserIDs {
 		if id == sessionUser.ID {
@@ -445,22 +445,22 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		removedUsers = append(removedUsers, id)
+		// removedUsers = append(removedUsers, &data.User{ID: id})
 	}
-	if len(removedUsers) > 0 {
-		log := &data.ThreadLog{
-			ThreadID: thread.ID,
-			Action:   data.ActionRemovedUser,
-			Targets:  removedUsers,
-			By:       sessionUser.ID,
-			At:       time.Now().UTC(),
-		}
-		err = app.models.Messaging.InsertThreadLog(log)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-	}
+	// if len(removedUsers) > 0 {
+	// 	log := &data.ThreadLog{
+	// 		ThreadID: thread.ID,
+	// 		Action:   data.ActionRemovedUser,
+	// 		Targets:  removedUsers,
+	// 		By:       sessionUser.ID,
+	// 		At:       time.Now().UTC(),
+	// 	}
+	// 	err = app.models.Messaging.InsertThreadLog(log)
+	// 	if err != nil {
+	// 		app.writeInternalServerError(w, r, err)
+	// 		return
+	// 	}
+	// }
 
 	users, err := app.models.Messaging.GetUsersForThread(thread.ID)
 	if err != nil {
@@ -551,7 +551,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 
 	message := &data.Message{
 		ThreadID:  thread.ID,
-		UserID:    sessionUser.ID,
+		User:      &data.User{ID: sessionUser.ID},
 		Body:      input.Body,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
@@ -596,7 +596,7 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if message.UserID != sessionUser.ID || !ok {
+	if message.User.ID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -668,7 +668,7 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if message.UserID != sessionUser.ID || !ok {
+	if message.User.ID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -714,11 +714,11 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs, err := app.models.Messaging.GetAllLogsByThreadID(thread.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+	// logs, err := app.models.Messaging.GetAllLogsByThreadID(thread.ID)
+	// if err != nil {
+	// 	app.writeInternalServerError(w, r, err)
+	// 	return
+	// }
 
 	messages, err := app.models.Messaging.GetAllMessagesByThreadID(thread.ID)
 	if err != nil {
@@ -726,7 +726,7 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread, "messages": messages, "logs": logs})
+	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread, "messages": messages})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

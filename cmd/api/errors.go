@@ -1,6 +1,9 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+	"runtime/debug"
+)
 
 func (app *application) writeErrorResponse(w http.ResponseWriter, r *http.Request, status int, data any) {
 	env := envelope{"error": data}
@@ -14,6 +17,7 @@ func (app *application) writeErrorResponse(w http.ResponseWriter, r *http.Reques
 
 func (app *application) writeInternalServerError(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorLogger.Println(r.Method, r.URL.String(), err)
+	debug.PrintStack()
 	app.writeErrorResponse(w, r, http.StatusInternalServerError, "internal server error")
 }
 

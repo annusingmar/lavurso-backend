@@ -27,8 +27,9 @@ const (
 )
 
 type Thread struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
+	ID int `json:"id"`
+	// UserID    int       `json:"user_id"`
+	User      *User     `json:"user"`
 	Title     string    `json:"title"`
 	Body      string    `json:"body"`
 	Locked    bool      `json:"locked"`
@@ -37,40 +38,47 @@ type Thread struct {
 }
 
 type Message struct {
-	ID        int       `json:"id"`
-	ThreadID  int       `json:"thread_id"`
-	UserID    int       `json:"user_id"`
+	ID       int `json:"id"`
+	ThreadID int `json:"thread_id"`
+	// UserID    int       `json:"user_id"`
+	User      *User     `json:"user"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Version   int       `json:"-"`
 }
 
-type ThreadLog struct {
-	ThreadID int       `json:"thread_id"`
-	Action   string    `json:"action"`
-	Targets  []int     `json:"target"`
-	By       int       `json:"by"`
-	At       time.Time `json:"at"`
-}
+// type ThreadLog struct {
+// 	ThreadID int    `json:"thread_id"`
+// 	Action   string `json:"action"`
+// 	// Targets  []int     `json:"target"`
+// 	Targets []*User   `json:"targets"`
+// 	By      int       `json:"by"`
+// 	At      time.Time `json:"at"`
+// }
 
 type MessagingModel struct {
 	DB *pgxpool.Pool
 }
 
 func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
-	query := `SELECT id, user_id, title, body, locked, created_at, updated_at
-	FROM threads
-	WHERE id = $1`
+	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.body, t.locked, t.created_at, t.updated_at
+	FROM threads t
+	INNER JOIN users u
+	ON t.user_id = u.id
+	WHERE t.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var thread Thread
+	thread.User = &User{}
 
 	err := m.DB.QueryRow(ctx, query, threadID).Scan(
 		&thread.ID,
-		&thread.UserID,
+		&thread.User.ID,
+		&thread.User.Name,
+		&thread.User.Role,
 		&thread.Title,
 		&thread.Body,
 		&thread.Locked,
@@ -98,7 +106,7 @@ func (m MessagingModel) InsertThread(t *Thread) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, t.UserID, t.Title, t.Body, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
+	err := m.DB.QueryRow(ctx, stmt, t.User.ID, t.Title, t.Body, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
 	if err != nil {
 		return err
 	}
@@ -172,37 +180,48 @@ func (m MessagingModel) RemoveUserFromThread(userID, threadID int) error {
 	return nil
 }
 
-func (m MessagingModel) InsertThreadLog(tl *ThreadLog) error {
-	stmt := `INSERT INTO thread_log
-	(thread_id, action, target, by, at)
-	VALUES
-	($1, $2, $3, $4, $5)`
+// func (m MessagingModel) InsertThreadLog(tl *ThreadLog) error {
+// 	stmt := `INSERT INTO thread_log
+// 	(thread_id, action, target, by, at)
+// 	VALUES
+// 	($1, $2, $3, $4, $5)`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, tl.ThreadID, tl.Action, tl.Targets, tl.By, tl.At)
-	if err != nil {
-		return err
-	}
+// 	var targets []int
 
-	return nil
-}
+// 	for _, u := range tl.Targets {
+// 		targets = append(targets, u.ID)
+// 	}
+
+// 	_, err := m.DB.Exec(ctx, stmt, tl.ThreadID, tl.Action, targets, tl.By, tl.At)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return nil
+// }
 
 func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
-	query := `SELECT id, thread_id, user_id, body, created_at, updated_at, version
-	FROM messages
+	query := `SELECT m.id, m.thread_id, u.name, u.role, m.user_id, m.body, m.created_at, m.updated_at, m.version
+	FROM messages m
+	INNER JOIN users u
+	ON m.user_id = u.id
 	WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var message Message
+	message.User = &User{}
 
 	err := m.DB.QueryRow(ctx, query, messageID).Scan(
 		&message.ID,
 		&message.ThreadID,
-		&message.UserID,
+		&message.User.ID,
+		&message.User.Name,
+		&message.User.Role,
 		&message.Body,
 		&message.CreatedAt,
 		&message.UpdatedAt,
@@ -230,7 +249,7 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.UserID, ms.Body, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
+	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, ms.Body, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
 	if err != nil {
 		return err
 	}
@@ -274,8 +293,10 @@ func (m MessagingModel) UpdateMessage(ms *Message) error {
 }
 
 func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, error) {
-	query := `SELECT id, thread_id, user_id, body, created_at, updated_at, version
-	FROM messages
+	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.created_at, m.updated_at, m.version
+	FROM messages m
+	INNER JOIN users u
+	ON m.user_id = u.id
 	WHERE thread_id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -292,11 +313,14 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 
 	for rows.Next() {
 		var message Message
+		message.User = &User{}
 
 		err = rows.Scan(
 			&message.ID,
 			&message.ThreadID,
-			&message.UserID,
+			&message.User.ID,
+			&message.User.Name,
+			&message.User.Role,
 			&message.Body,
 			&message.CreatedAt,
 			&message.UpdatedAt,
@@ -316,52 +340,59 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	return messages, nil
 }
 
-func (m MessagingModel) GetAllLogsByThreadID(threadID int) ([]*ThreadLog, error) {
-	query := `SELECT thread_id, action, target, by, at
-	FROM thread_log
-	WHERE thread_id = $1`
+// func (m MessagingModel) GetAllLogsByThreadID(threadID int) ([]*ThreadLog, error) {
+// 	query := `SELECT thread_id, action, target, by, at
+// 	FROM thread_log
+// 	WHERE thread_id = $1`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, threadID)
-	if err != nil {
-		return nil, err
-	}
+// 	rows, err := m.DB.Query(ctx, query, threadID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	var threadLogs []*ThreadLog
+// 	var threadLogs []*ThreadLog
 
-	for rows.Next() {
-		var tl ThreadLog
+// 	for rows.Next() {
+// 		var tl ThreadLog
+// 		var targets []int
 
-		err = rows.Scan(
-			&tl.ThreadID,
-			&tl.Action,
-			&tl.Targets,
-			&tl.By,
-			&tl.At,
-		)
-		if err != nil {
-			return nil, err
-		}
+// 		err = rows.Scan(
+// 			&tl.ThreadID,
+// 			&tl.Action,
+// 			&targets,
+// 			&tl.By,
+// 			&tl.At,
+// 		)
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		threadLogs = append(threadLogs, &tl)
-	}
+// 		for _, id := range targets {
+// 			tl.Targets = append(tl.Targets, &User{ID: id})
+// 		}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
+// 		threadLogs = append(threadLogs, &tl)
+// 	}
 
-	return threadLogs, nil
-}
+// 	if err = rows.Err(); err != nil {
+// 		return nil, err
+// 	}
+
+// 	return threadLogs, nil
+// }
 
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
-	query := `SELECT t.id, t.user_id, t.title, t.body, t.locked, t.created_at, t.updated_at
+	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.body, t.locked, t.created_at, t.updated_at
 	FROM threads t
 	INNER JOIN users_threads ut
 	ON t.id = ut.thread_id
+	INNER JOIN users u
+	on t.user_id = u.id
 	WHERE ut.user_id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -378,10 +409,13 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 
 	for rows.Next() {
 		var thread Thread
+		thread.User = &User{}
 
 		err = rows.Scan(
 			&thread.ID,
-			&thread.UserID,
+			&thread.User.ID,
+			&thread.User.Name,
+			&thread.User.Role,
 			&thread.Title,
 			&thread.Body,
 			&thread.Locked,
