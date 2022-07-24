@@ -283,10 +283,10 @@ func (m UserModel) GetAllUserIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
+func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, error) {
 	hash := sha256.Sum256([]byte(plaintextToken))
 
-	query := `SELECT u.id, u.name, u.email, u.password, u.role, u.created_at, u.active, u.version
+	query := `SELECT u.id, u.name, u.email, u.password, u.role, u.created_at, u.active, u.version, s.id
 	FROM users u
 	INNER JOIN sessions s
 	ON u.id = s.user_id
@@ -297,6 +297,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 	defer cancel()
 
 	var user User
+	var sessionID int
 
 	err := m.DB.QueryRow(ctx, query, hash[:], time.Now().UTC()).Scan(
 		&user.ID,
@@ -307,18 +308,19 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 		&user.CreatedAt,
 		&user.Active,
 		&user.Version,
+		&sessionID,
 	)
 
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrInvalidToken
+			return nil, nil, ErrInvalidToken
 		default:
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return &user, nil
+	return &user, &sessionID, nil
 }
 
 func (m UserModel) GetUserByEmail(email string) (*User, error) {

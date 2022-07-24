@@ -65,15 +65,15 @@ func (m SessionModel) InsertSession(session *Session) error {
 	return nil
 }
 
-func (m SessionModel) UpdateLastSeen(userID int) error {
+func (m SessionModel) UpdateLastSeen(sessionID int) error {
 	stmt := `UPDATE sessions
 	SET last_seen = $1
-	WHERE user_id = $2`
+	WHERE id = $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), userID)
+	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), sessionID)
 	if err != nil {
 		return err
 	}
