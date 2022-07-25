@@ -78,6 +78,8 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	thread.Body = ""
+
 	err = app.outputJSON(w, http.StatusCreated, envelope{"thread": thread})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -142,6 +144,8 @@ func (app *application) updateThread(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	thread.Body = ""
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread})
 	if err != nil {
@@ -574,6 +578,8 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	message.Body = ""
+
 	err = app.outputJSON(w, http.StatusCreated, envelope{"message": message})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -645,6 +651,8 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	message.Body = ""
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": message})
 	if err != nil {
