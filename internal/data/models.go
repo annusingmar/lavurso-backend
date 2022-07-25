@@ -1,6 +1,9 @@
 package data
 
-import "github.com/jackc/pgx/v4/pgxpool"
+import (
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/microcosm-cc/bluemonday"
+)
 
 type Models struct {
 	Users       UserModel
@@ -29,7 +32,7 @@ func NewModel(db *pgxpool.Pool) Models {
 		Marks:       MarkModel{DB: db},
 		Absences:    AbsenceModel{DB: db},
 		Groups:      GroupModel{DB: db},
-		Messaging:   MessagingModel{DB: db},
+		Messaging:   MessagingModel{DB: db, XSSpolicy: bluemonday.NewPolicy()},
 		Sessions:    SessionModel{DB: db},
 	}
 }

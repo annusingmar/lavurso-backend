@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 var (
@@ -59,7 +60,8 @@ type Message struct {
 // }
 
 type MessagingModel struct {
-	DB *pgxpool.Pool
+	DB        *pgxpool.Pool
+	XSSpolicy *bluemonday.Policy
 }
 
 func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
@@ -104,10 +106,12 @@ func (m MessagingModel) InsertThread(t *Thread) error {
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
+	sanitizedHTML := m.XSSpolicy.Sanitize(t.Body)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, t.User.ID, t.Title, t.Body, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
+	err := m.DB.QueryRow(ctx, stmt, t.User.ID, t.Title, sanitizedHTML, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
 	if err != nil {
 		return err
 	}
@@ -134,10 +138,12 @@ func (m MessagingModel) UpdateThread(t *Thread) error {
 	= ($1, $2, $3, $4)
 	WHERE id = $5`
 
+	sanitizedHTML := m.XSSpolicy.Sanitize(t.Body)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, t.Title, t.Body, t.Locked, t.UpdatedAt, t.ID)
+	_, err := m.DB.Exec(ctx, stmt, t.Title, sanitizedHTML, t.Locked, t.UpdatedAt, t.ID)
 	if err != nil {
 		return err
 	}
@@ -247,10 +253,12 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
+	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, ms.Body, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
+	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, sanitizedHTML, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
 	if err != nil {
 		return err
 	}
@@ -278,10 +286,12 @@ func (m MessagingModel) UpdateMessage(ms *Message) error {
 	WHERE id = $3 and version = $4
 	RETURNING version`
 
+	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.Body, ms.UpdatedAt, ms.ID, ms.Version).Scan(&ms.Version)
+	err := m.DB.QueryRow(ctx, stmt, sanitizedHTML, ms.UpdatedAt, ms.ID, ms.Version).Scan(&ms.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):

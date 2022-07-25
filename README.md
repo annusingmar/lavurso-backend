@@ -6,6 +6,8 @@
 [chi](https://github.com/go-chi/chi)
 
 [toml](https://github.com/BurntSushi/toml)
+
+[bluemonday](https://github.com/microcosm-cc/bluemonday) (XSS protection)
     
  ## running
  1. copy `.makerc.example` to `.makerc`, edit `MIGRATE_DSN` to database connection string
