@@ -211,7 +211,7 @@ func (m MessagingModel) RemoveUserFromThread(userID, threadID int) error {
 // }
 
 func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
-	query := `SELECT m.id, m.thread_id, u.name, u.role, m.user_id, m.body, m.created_at, m.updated_at, m.version
+	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.created_at, m.updated_at, m.version
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
