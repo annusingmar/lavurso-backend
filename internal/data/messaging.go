@@ -215,7 +215,7 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
-	WHERE id = $1`
+	WHERE m.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
