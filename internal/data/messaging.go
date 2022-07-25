@@ -100,7 +100,7 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 func (m MessagingModel) InsertThread(t *Thread) error {
 	stmt := `INSERT INTO threads
 	(user_id, title, locked, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6)
+	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -130,8 +130,8 @@ func (m MessagingModel) DeleteThread(threadID int) error {
 func (m MessagingModel) UpdateThread(t *Thread) error {
 	stmt := `UPDATE threads
 	SET (title, locked, updated_at)
-	= ($1, $2, $3, $4)
-	WHERE id = $5`
+	= ($1, $2, $3)
+	WHERE id = $4`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
