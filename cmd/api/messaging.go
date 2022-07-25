@@ -81,6 +81,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		ThreadID:  thread.ID,
 		User:      &data.User{ID: sessionUser.ID},
 		Body:      input.Body,
+		Type:      data.MsgTypeThreadStart,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Version:   1,
@@ -513,6 +514,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		ThreadID:  thread.ID,
 		User:      &data.User{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
 		Body:      input.Body,
+		Type:      data.MsgTypeNormal,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Version:   1,
@@ -634,6 +636,11 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 
 	if message.User.ID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
+		return
+	}
+
+	if message.Type == data.MsgTypeThreadStart {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrCantDeleteFirstMessage.Error())
 		return
 	}
 

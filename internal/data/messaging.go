@@ -11,13 +11,14 @@ import (
 )
 
 var (
-	ErrUserAlreadyInThread   = errors.New("user already in thread")
-	ErrUserNotInThread       = errors.New("user not in thread")
-	ErrUsersNotInThread      = errors.New("users not in thread")
-	ErrNoSuchThread          = errors.New("no such thread")
-	ErrNoSuchMessage         = errors.New("no such message")
-	ErrThreadAlreadyLocked   = errors.New("thread already locked")
-	ErrThreadAlreadyUnlocked = errors.New("thread already unlocked")
+	ErrUserAlreadyInThread    = errors.New("user already in thread")
+	ErrUserNotInThread        = errors.New("user not in thread")
+	ErrUsersNotInThread       = errors.New("users not in thread")
+	ErrNoSuchThread           = errors.New("no such thread")
+	ErrNoSuchMessage          = errors.New("no such message")
+	ErrThreadAlreadyLocked    = errors.New("thread already locked")
+	ErrThreadAlreadyUnlocked  = errors.New("thread already unlocked")
+	ErrCantDeleteFirstMessage = errors.New("can't delete first message of thread")
 )
 
 const (
@@ -25,6 +26,11 @@ const (
 	ActionRemovedUser = "removed_user"
 	ActionLocked      = "locked"
 	ActionUnlocked    = "unlocked"
+)
+
+const (
+	MsgTypeNormal      = "normal"
+	MsgTypeThreadStart = "thread_start"
 )
 
 type Thread struct {
@@ -43,6 +49,7 @@ type Message struct {
 	ThreadID  int       `json:"thread_id"`
 	User      *User     `json:"user"`
 	Body      string    `json:"body"`
+	Type      string    `json:"type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Version   int       `json:"-"`
@@ -204,7 +211,7 @@ func (m MessagingModel) RemoveUserFromThread(userID, threadID int) error {
 // }
 
 func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
-	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.created_at, m.updated_at, m.version
+	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at, m.version
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
@@ -223,6 +230,7 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 		&message.User.Name,
 		&message.User.Role,
 		&message.Body,
+		&message.Type,
 		&message.CreatedAt,
 		&message.UpdatedAt,
 		&message.Version,
@@ -241,9 +249,9 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 
 func (m MessagingModel) InsertMessage(ms *Message) error {
 	stmt := `INSERT INTO messages
-	(thread_id, user_id, body, created_at, updated_at, version)
+	(thread_id, user_id, body, type, created_at, updated_at, version)
 	VALUES
-	($1, $2, $3, $4, $5, $6)
+	($1, $2, $3, $4, $5, $6, $7)
 	RETURNING id`
 
 	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
@@ -251,7 +259,7 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, sanitizedHTML, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
+	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, sanitizedHTML, ms.Type, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
 	if err != nil {
 		return err
 	}
@@ -297,7 +305,7 @@ func (m MessagingModel) UpdateMessage(ms *Message) error {
 }
 
 func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, error) {
-	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.created_at, m.updated_at, m.version
+	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at, m.version
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
@@ -326,6 +334,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 			&message.User.Name,
 			&message.User.Role,
 			&message.Body,
+			&message.Type,
 			&message.CreatedAt,
 			&message.UpdatedAt,
 			&message.Version,

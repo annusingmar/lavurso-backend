@@ -4,6 +4,7 @@ create table if not exists
     "thread_id" INTEGER not null,
     "user_id" INTEGER not null,
     "body" TEXT not null,
+    "type" TEXT not null,
     "created_at" TIMESTAMP not null default NOW(),
     "updated_at" TIMESTAMP not null default NOW(),
     "version" INTEGER not null default 1
