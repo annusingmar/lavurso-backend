@@ -3,7 +3,6 @@ create table if not exists
     "id" serial primary key,
     "user_id" INTEGER not null,
     "title" TEXT not null,
-    "body" TEXT not null,
     "locked" BOOLEAN not null default false,
     "created_at" TIMESTAMP not null,
     "updated_at" TIMESTAMP not null

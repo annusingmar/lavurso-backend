@@ -31,21 +31,20 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	thread := &data.Thread{
-		User:      &data.User{ID: sessionUser.ID},
-		Title:     input.Title,
-		Body:      input.Body,
-		Locked:    false,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
-
-	v.Check(thread.Title != "", "title", "must be present")
-	v.Check(thread.Body != "", "body", "must be present")
+	v.Check(input.Title != "", "title", "must be present")
+	v.Check(input.Body != "", "body", "must be present")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
+	}
+
+	thread := &data.Thread{
+		User:      &data.User{ID: sessionUser.ID},
+		Title:     input.Title,
+		Locked:    false,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
 	}
 
 	allUserIDs, err := app.models.Users.GetAllUserIDs()
@@ -78,79 +77,26 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	thread.Body = ""
+	threadMessage := &data.Message{
+		ThreadID:  thread.ID,
+		User:      &data.User{ID: sessionUser.ID},
+		Body:      input.Body,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		Version:   1,
+	}
+
+	err = app.models.Messaging.InsertMessage(threadMessage)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
 
 	err = app.outputJSON(w, http.StatusCreated, envelope{"thread": thread})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
 
-}
-
-func (app *application) updateThread(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if threadID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
-		return
-	}
-
-	thread, err := app.models.Messaging.GetThreadByID(threadID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchThread):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	if thread.User.ID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
-
-	var input struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
-	}
-
-	err = app.inputJSON(w, r, &input)
-	if err != nil {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	v := validator.NewValidator()
-
-	v.Check(input.Title != "", "title", "must be present")
-	v.Check(input.Body != "", "body", "must be present")
-
-	if !v.Valid() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-		return
-	}
-
-	if input.Title != thread.Title || input.Body != thread.Body {
-		thread.Title = input.Title
-		thread.Body = input.Body
-		thread.UpdatedAt = time.Now().UTC()
-
-		err = app.models.Messaging.UpdateThread(thread)
-		if err != nil {
-			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
-			return
-		}
-	}
-
-	thread.Body = ""
-
-	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
 }
 
 func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {

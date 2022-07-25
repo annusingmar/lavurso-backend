@@ -231,9 +231,6 @@ func (app *application) routes() http.Handler {
 		// create thread
 		mux.Post("/threads", app.createThread)
 
-		// update thread
-		mux.Put("/threads/{id}", app.updateThread)
-
 		// lock thread
 		mux.Put("/threads/{id}/lock", app.lockThread)
 

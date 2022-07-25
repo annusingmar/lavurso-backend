@@ -28,11 +28,10 @@ const (
 )
 
 type Thread struct {
-	ID int `json:"id"`
-	// UserID    int       `json:"user_id"`
-	User         *User     `json:"user"`
-	Title        string    `json:"title"`
-	Body         string    `json:"body"`
+	ID    int    `json:"id"`
+	User  *User  `json:"user"`
+	Title string `json:"title"`
+	// Body         string    `json:"body"`
 	Locked       bool      `json:"locked"`
 	MessageCount int       `json:"message_count"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -40,9 +39,8 @@ type Thread struct {
 }
 
 type Message struct {
-	ID       int `json:"id"`
-	ThreadID int `json:"thread_id"`
-	// UserID    int       `json:"user_id"`
+	ID        int       `json:"id"`
+	ThreadID  int       `json:"thread_id"`
 	User      *User     `json:"user"`
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
@@ -65,7 +63,7 @@ type MessagingModel struct {
 }
 
 func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
-	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.body, t.locked, t.created_at, t.updated_at
+	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, t.created_at, t.updated_at
 	FROM threads t
 	INNER JOIN users u
 	ON t.user_id = u.id
@@ -83,7 +81,6 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 		&thread.User.Name,
 		&thread.User.Role,
 		&thread.Title,
-		&thread.Body,
 		&thread.Locked,
 		&thread.CreatedAt,
 		&thread.UpdatedAt,
@@ -102,16 +99,14 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 
 func (m MessagingModel) InsertThread(t *Thread) error {
 	stmt := `INSERT INTO threads
-	(user_id, title, body, locked, created_at, updated_at)
+	(user_id, title, locked, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING id`
-
-	sanitizedHTML := m.XSSpolicy.Sanitize(t.Body)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, t.User.ID, t.Title, sanitizedHTML, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
+	err := m.DB.QueryRow(ctx, stmt, t.User.ID, t.Title, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
 	if err != nil {
 		return err
 	}
@@ -134,16 +129,14 @@ func (m MessagingModel) DeleteThread(threadID int) error {
 
 func (m MessagingModel) UpdateThread(t *Thread) error {
 	stmt := `UPDATE threads
-	SET (title, body, locked, updated_at)
+	SET (title, locked, updated_at)
 	= ($1, $2, $3, $4)
 	WHERE id = $5`
-
-	sanitizedHTML := m.XSSpolicy.Sanitize(t.Body)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, t.Title, sanitizedHTML, t.Locked, t.UpdatedAt, t.ID)
+	_, err := m.DB.Exec(ctx, stmt, t.Title, t.Locked, t.UpdatedAt, t.ID)
 	if err != nil {
 		return err
 	}
@@ -398,7 +391,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 // }
 
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
-	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.body, t.locked, t.created_at, t.updated_at
+	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, t.created_at, t.updated_at
 	FROM threads t
 	INNER JOIN users_threads ut
 	ON t.id = ut.thread_id
@@ -428,7 +421,6 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 			&thread.User.Name,
 			&thread.User.Role,
 			&thread.Title,
-			&thread.Body,
 			&thread.Locked,
 			&thread.CreatedAt,
 			&thread.UpdatedAt,
