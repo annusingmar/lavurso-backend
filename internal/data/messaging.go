@@ -150,36 +150,18 @@ func (m MessagingModel) UpdateThread(t *Thread) error {
 	return nil
 }
 
-func (m MessagingModel) AddUserToThread(userID, threadID int) error {
-	stmt := `INSERT INTO users_threads
-	(user_id, thread_id)
+func (m MessagingModel) AddUserToThread(threadID, userID int) error {
+	stmt := `INSERT INTO threads_recipients
+	(thread_id, user_id)
 	VALUES
-	($1, $2)`
+	($1, $2)
+	ON CONFLICT ON CONSTRAINT threads_recipients_pkey
+	DO UPDATE SET group_id = NULL`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, threadID)
-	if err != nil {
-		switch {
-		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_threads_pkey" (SQLSTATE 23505)`:
-			return ErrUserAlreadyInThread
-		default:
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m MessagingModel) RemoveUserFromThread(userID, threadID int) error {
-	stmt := `DELETE FROM users_threads
-	WHERE user_id = $1 and thread_id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.Exec(ctx, stmt, userID, threadID)
+	_, err := m.DB.Exec(ctx, stmt, threadID, userID)
 	if err != nil {
 		return err
 	}
@@ -187,28 +169,55 @@ func (m MessagingModel) RemoveUserFromThread(userID, threadID int) error {
 	return nil
 }
 
-// func (m MessagingModel) InsertThreadLog(tl *ThreadLog) error {
-// 	stmt := `INSERT INTO thread_log
-// 	(thread_id, action, target, by, at)
-// 	VALUES
-// 	($1, $2, $3, $4, $5)`
+func (m MessagingModel) RemoveUserFromThread(threadID, userID int) error {
+	stmt := `DELETE FROM threads_recipients
+	WHERE thread_id = $1 and user_id = $2 and group_id is NULL`
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-// 	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-// 	var targets []int
+	_, err := m.DB.Exec(ctx, stmt, threadID, userID)
+	if err != nil {
+		return err
+	}
 
-// 	for _, u := range tl.Targets {
-// 		targets = append(targets, u.ID)
-// 	}
+	return nil
+}
 
-// 	_, err := m.DB.Exec(ctx, stmt, tl.ThreadID, tl.Action, targets, tl.By, tl.At)
-// 	if err != nil {
-// 		return err
-// 	}
+func (m MessagingModel) AddGroupToThread(threadID, groupID int) error {
+	stmt := `INSERT INTO threads_recipients (thread_id, user_id, group_id)
+	( SELECT $1, ug.user_id, ug.group_id
+	FROM users_groups ug
+	WHERE ug.group_id = $2 )
+	ON CONFLICT ON CONSTRAINT threads_recipients_pkey
+	DO UPDATE SET group_id = excluded.group_id
+    WHERE threads_recipients.group_id IS NOT NULL`
 
-// 	return nil
-// }
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, threadID, groupID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MessagingModel) RemoveGroupFromThread(threadID, groupID int) error {
+	stmt := `DELETE FROM threads_recipients
+	WHERE thread_id = $1 and group_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, threadID, groupID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at, m.version
@@ -354,60 +363,14 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	return messages, nil
 }
 
-// func (m MessagingModel) GetAllLogsByThreadID(threadID int) ([]*ThreadLog, error) {
-// 	query := `SELECT thread_id, action, target, by, at
-// 	FROM thread_log
-// 	WHERE thread_id = $1`
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-// 	defer cancel()
-
-// 	rows, err := m.DB.Query(ctx, query, threadID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer rows.Close()
-
-// 	var threadLogs []*ThreadLog
-
-// 	for rows.Next() {
-// 		var tl ThreadLog
-// 		var targets []int
-
-// 		err = rows.Scan(
-// 			&tl.ThreadID,
-// 			&tl.Action,
-// 			&targets,
-// 			&tl.By,
-// 			&tl.At,
-// 		)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		for _, id := range targets {
-// 			tl.Targets = append(tl.Targets, &User{ID: id})
-// 		}
-
-// 		threadLogs = append(threadLogs, &tl)
-// 	}
-
-// 	if err = rows.Err(); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return threadLogs, nil
-// }
-
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, t.created_at, t.updated_at
 	FROM threads t
-	INNER JOIN users_threads ut
-	ON t.id = ut.thread_id
+	INNER JOIN threads_recipients tr
+	ON t.id = tr.thread_id
 	INNER JOIN users u
 	on t.user_id = u.id
-	WHERE ut.user_id = $1
+	WHERE tr.user_id = $1
 	ORDER BY created_at DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -450,93 +413,16 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 	return threads, nil
 }
 
-func (m MessagingModel) GetThreadIDsForUser(userID int) ([]int, error) {
-	query := `SELECT
-	array(SELECT thread_id
-		FROM users_threads
-		WHERE user_id = $1)`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var ids []int
-
-	err := m.DB.QueryRow(ctx, query, userID).Scan(&ids)
-	if err != nil {
-		return nil, err
-	}
-
-	return ids, nil
-}
-
-func (m MessagingModel) GetUserIDsForThread(threadID int) ([]int, error) {
-	query := `SELECT
-	array(SELECT user_id
-		FROM users_threads
-		WHERE thread_id = $1)`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var ids []int
-
-	err := m.DB.QueryRow(ctx, query, threadID).Scan(&ids)
-	if err != nil {
-		return nil, err
-	}
-
-	return ids, nil
-}
-
-func (m MessagingModel) GetUsersForThread(threadID int) ([]*User, error) {
-	query := `SELECT id, name, role
-	FROM users u
-	INNER JOIN users_threads ut
-	ON u.id = ut.user_id
-	WHERE ut.thread_id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := m.DB.Query(ctx, query, threadID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return users, nil
-}
-
 func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {
-	query := `SELECT COUNT(1) FROM users_threads
-	WHERE user_id = $1 and thread_id = $2`
+	query := `SELECT COUNT(1) FROM threads_recipients
+	WHERE thread_id = $1 and user_id = $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, userID, threadID).Scan(&result)
+	err := m.DB.QueryRow(ctx, query, threadID, userID).Scan(&result)
 	if err != nil {
 		return false, err
 	}

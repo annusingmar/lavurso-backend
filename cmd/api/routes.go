@@ -242,11 +242,11 @@ func (app *application) routes() http.Handler {
 		// delete thread
 		mux.Delete("/threads/{id}", app.deleteThread)
 
-		// add users to thread
-		mux.Put("/threads/{id}/users", app.addNewUsersToThread)
+		// add members to thread
+		mux.Put("/threads/{id}/members", app.addNewMembersToThread)
 
-		// remove users from thread
-		mux.Delete("/threads/{id}/users", app.removeUsersFromThread)
+		// remove members from thread
+		mux.Delete("/threads/{id}/members", app.removeMembersFromThread)
 
 		// create message
 		mux.Post("/threads/{id}/messages", app.createMessage)

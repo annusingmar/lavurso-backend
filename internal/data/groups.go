@@ -11,6 +11,7 @@ import (
 
 var (
 	ErrNoSuchGroup        = errors.New("no such group")
+	ErrNoSuchGroups       = errors.New("no such groups")
 	ErrUserAlreadyInGroup = errors.New("user already in group")
 	ErrUserNotInGroup     = errors.New("user not in group")
 )
@@ -88,6 +89,23 @@ func (m GroupModel) GetAllGroups() ([]*Group, error) {
 	}
 
 	return groups, nil
+}
+
+func (m GroupModel) GetAllGroupIDs() ([]int, error) {
+	query := `SELECT
+	array(SELECT id	FROM groups)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var ids []int
+
+	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
 }
 
 func (m GroupModel) GetUsersByGroupID(groupID int) ([]*User, error) {

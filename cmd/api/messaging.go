@@ -14,13 +14,42 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int) ([]int, error) {
+	if len(userIDs) > 0 {
+		allUserIDs, err := app.models.Users.GetAllUserIDs()
+		if err != nil {
+			return nil, err
+		}
+
+		badUserIDs := helpers.VerifyExistsInSlice(userIDs, allUserIDs)
+		if badUserIDs != nil {
+			return badUserIDs, data.ErrNoSuchUsers
+		}
+	}
+
+	if len(groupIDs) > 0 {
+		allGroupIDs, err := app.models.Groups.GetAllGroupIDs()
+		if err != nil {
+			return nil, err
+		}
+
+		badGroupIDs := helpers.VerifyExistsInSlice(groupIDs, allGroupIDs)
+		if badGroupIDs != nil {
+			return badGroupIDs, data.ErrNoSuchGroups
+		}
+	}
+
+	return nil, nil
+}
+
 func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	var input struct {
-		Title   string `json:"title"`
-		Body    string `json:"body"`
-		UserIDs []int  `json:"user_ids"`
+		Title    string `json:"title"`
+		Body     string `json:"body"`
+		UserIDs  []int  `json:"user_ids"`
+		GroupIDs []int  `json:"group_ids"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -47,34 +76,26 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: time.Now().UTC(),
 	}
 
-	allUserIDs, err := app.models.Users.GetAllUserIDs()
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
 	if !slices.Contains(input.UserIDs, sessionUser.ID) {
 		input.UserIDs = append(input.UserIDs, sessionUser.ID)
 	}
 
-	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allUserIDs)
-	if badIDs != nil {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
-		return
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
+			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
+			return
+		default:
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	err = app.models.Messaging.InsertThread(thread)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
-	}
-
-	for _, id := range input.UserIDs {
-		err = app.models.Messaging.AddUserToThread(id, thread.ID)
-		if err != nil && !errors.Is(err, data.ErrUserAlreadyInThread) {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
 	}
 
 	threadMessage := &data.Message{
@@ -91,6 +112,22 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
+	}
+
+	for _, id := range input.UserIDs {
+		err = app.models.Messaging.AddUserToThread(thread.ID, id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	for _, id := range input.GroupIDs {
+		err = app.models.Messaging.AddGroupToThread(thread.ID, id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusCreated, envelope{"thread": thread})
@@ -168,24 +205,11 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 	}
 	thread.Locked = true
 
-	// log := &data.ThreadLog{
-	// 	ThreadID: thread.ID,
-	// 	Action:   data.ActionLocked,
-	// 	By:       sessionUser.ID,
-	// 	At:       time.Now().UTC(),
-	// }
-
 	err = app.models.Messaging.UpdateThread(thread)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	// err = app.models.Messaging.InsertThreadLog(log)
-	// if err != nil {
-	// 	app.writeInternalServerError(w, r, err)
-	// 	return
-	// }
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread})
 	if err != nil {
@@ -224,24 +248,11 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 	}
 	thread.Locked = false
 
-	// log := &data.ThreadLog{
-	// 	ThreadID: thread.ID,
-	// 	Action:   data.ActionUnlocked,
-	// 	By:       sessionUser.ID,
-	// 	At:       time.Now().UTC(),
-	// }
-
 	err = app.models.Messaging.UpdateThread(thread)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	// err = app.models.Messaging.InsertThreadLog(log)
-	// if err != nil {
-	// 	app.writeInternalServerError(w, r, err)
-	// 	return
-	// }
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread})
 	if err != nil {
@@ -249,7 +260,7 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Request) {
+func (app *application) addNewMembersToThread(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -275,7 +286,8 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 	}
 
 	var input struct {
-		UserIDs []int `json:"user_ids"`
+		UserIDs  []int `json:"user_ids"`
+		GroupIDs []int `json:"group_ids"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -284,61 +296,41 @@ func (app *application) addNewUsersToThread(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	allUserIDs, err := app.models.Users.GetAllUserIDs()
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
 	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
+		switch {
+		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
+			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
+			return
+		default:
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
-
-	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allUserIDs)
-	if badIDs != nil {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
-		return
-	}
-
-	// var addedUsers []*data.User
 
 	for _, id := range input.UserIDs {
-		err = app.models.Messaging.AddUserToThread(id, thread.ID)
+		err = app.models.Messaging.AddUserToThread(thread.ID, id)
 		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrUserAlreadyInThread):
-				continue
-			default:
-				app.writeInternalServerError(w, r, err)
-				return
-			}
+			app.writeInternalServerError(w, r, err)
+			return
 		}
-		// addedUsers = append(addedUsers, &data.User{ID: id})
-	}
-	// if len(addedUsers) > 0 {
-	// 	log := &data.ThreadLog{
-	// 		ThreadID: thread.ID,
-	// 		Action:   data.ActionAddedUser,
-	// 		Targets:  addedUsers,
-	// 		By:       sessionUser.ID,
-	// 		At:       time.Now().UTC(),
-	// 	}
-	// 	err = app.models.Messaging.InsertThreadLog(log)
-	// 	if err != nil {
-	// 		app.writeInternalServerError(w, r, err)
-	// 		return
-	// 	}
-	// }
-
-	users, err := app.models.Messaging.GetUsersForThread(thread.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"users": users})
+	for _, id := range input.GroupIDs {
+		err = app.models.Messaging.AddGroupToThread(thread.ID, id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
 }
 
-func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Request) {
+func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -364,7 +356,8 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 	}
 
 	var input struct {
-		UserIDs []int `json:"user_ids"`
+		UserIDs  []int `json:"user_ids"`
+		GroupIDs []int `json:"group_ids"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -373,53 +366,38 @@ func (app *application) removeUsersFromThread(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	allThreadUserIDs, err := app.models.Messaging.GetUserIDsForThread(thread.ID)
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
 	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
+		switch {
+		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
+			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
+			return
+		default:
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
-
-	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allThreadUserIDs)
-	if badIDs != nil {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrUsersNotInThread.Error(), badIDs))
-		return
-	}
-
-	// var removedUsers []*data.User
 
 	for _, id := range input.UserIDs {
 		if id == sessionUser.ID {
 			continue
 		}
-		err = app.models.Messaging.RemoveUserFromThread(id, thread.ID)
+		err = app.models.Messaging.RemoveUserFromThread(thread.ID, id)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		// removedUsers = append(removedUsers, &data.User{ID: id})
-	}
-	// if len(removedUsers) > 0 {
-	// 	log := &data.ThreadLog{
-	// 		ThreadID: thread.ID,
-	// 		Action:   data.ActionRemovedUser,
-	// 		Targets:  removedUsers,
-	// 		By:       sessionUser.ID,
-	// 		At:       time.Now().UTC(),
-	// 	}
-	// 	err = app.models.Messaging.InsertThreadLog(log)
-	// 	if err != nil {
-	// 		app.writeInternalServerError(w, r, err)
-	// 		return
-	// 	}
-	// }
-
-	users, err := app.models.Messaging.GetUsersForThread(thread.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"users": users})
+	for _, id := range input.GroupIDs {
+		err = app.models.Messaging.RemoveGroupFromThread(thread.ID, id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

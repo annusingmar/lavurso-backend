@@ -35,10 +35,10 @@ var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\
 
 type User struct {
 	ID        int        `json:"id"`
-	Name      string     `json:"name"`
+	Name      string     `json:"name,omitempty"`
 	Email     string     `json:"email,omitempty"`
 	Password  Password   `json:"-"`
-	Role      string     `json:"role"`
+	Role      string     `json:"role,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	Active    bool       `json:"active,omitempty"`
 	Version   int        `json:"-"`
