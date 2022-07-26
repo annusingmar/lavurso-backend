@@ -309,7 +309,8 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
-	WHERE thread_id = $1`
+	WHERE thread_id = $1
+	ORDER BY created_at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -406,7 +407,8 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 	ON t.id = ut.thread_id
 	INNER JOIN users u
 	on t.user_id = u.id
-	WHERE ut.user_id = $1`
+	WHERE ut.user_id = $1
+	ORDER BY created_at DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

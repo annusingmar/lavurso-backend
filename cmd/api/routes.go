@@ -144,6 +144,8 @@ func (app *application) routes() http.Handler {
 			mux.Patch("/marks/{id}", app.updateMark)
 		})
 
+		mux.Get("/users/search", app.searchUser)
+
 		// get user by id
 		mux.Get("/users/{id}", app.getUser)
 

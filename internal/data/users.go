@@ -122,6 +122,44 @@ func (m UserModel) AllUsers() ([]*User, error) {
 
 }
 
+func (m UserModel) SearchUser(name string) ([]*User, error) {
+	query := `SELECT id, name, role
+	FROM users
+	WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1))
+	ORDER BY name ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, name)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*User
+
+	for rows.Next() {
+		var user User
+		err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Role,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
 func (m UserModel) GetUserByID(userID int) (*User, error) {
 	query := `SELECT id, name, email, password, role, created_at, active, version
 	FROM users

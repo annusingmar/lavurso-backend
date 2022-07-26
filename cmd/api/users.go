@@ -4,7 +4,9 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -15,9 +17,30 @@ func (app *application) listAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := app.models.Users.AllUsers()
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
+		return
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"users": users})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) searchUser(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+
+	if utf8.RuneCountInString(name) < 4 {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "not enough characters provided")
+		return
+	}
+
+	result, err := app.models.Users.SearchUser(name)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"result": result})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

@@ -9,3 +9,5 @@ CREATE TABLE IF NOT EXISTS
     "active" BOOLEAN not null default true,
     "version" INTEGER not null default 1
   );
+
+CREATE INDEX IF NOT EXISTS users_name_idx ON users USING GIN (to_tsvector('simple', name));
