@@ -34,12 +34,12 @@ const (
 )
 
 type Thread struct {
-	ID    int    `json:"id"`
-	User  *User  `json:"user"`
-	Title string `json:"title"`
-	// Body         string    `json:"body"`
+	ID           int       `json:"id"`
+	User         *User     `json:"user"`
+	Title        string    `json:"title"`
 	Locked       bool      `json:"locked"`
-	MessageCount int       `json:"message_count"`
+	MessageCount *int      `json:"message_count"`
+	Read         *bool     `json:"read"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -48,21 +48,12 @@ type Message struct {
 	ID        int       `json:"id"`
 	ThreadID  int       `json:"thread_id"`
 	User      *User     `json:"user"`
-	Body      string    `json:"body"`
+	Body      string    `json:"body,omitempty"`
 	Type      string    `json:"type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Version   int       `json:"-"`
 }
-
-// type ThreadLog struct {
-// 	ThreadID int    `json:"thread_id"`
-// 	Action   string `json:"action"`
-// 	// Targets  []int     `json:"target"`
-// 	Targets []*User   `json:"targets"`
-// 	By      int       `json:"by"`
-// 	At      time.Time `json:"at"`
-// }
 
 type MessagingModel struct {
 	DB        *pgxpool.Pool
@@ -128,22 +119,6 @@ func (m MessagingModel) DeleteThread(threadID int) error {
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, threadID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m MessagingModel) UpdateThread(t *Thread) error {
-	stmt := `UPDATE threads
-	SET (title, locked, updated_at)
-	= ($1, $2, $3)
-	WHERE id = $4`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.Exec(ctx, stmt, t.Title, t.Locked, t.UpdatedAt, t.ID)
 	if err != nil {
 		return err
 	}
@@ -364,14 +339,14 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 }
 
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
-	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, t.created_at, t.updated_at
+	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, tr.read, t.created_at, t.updated_at
 	FROM threads t
 	INNER JOIN threads_recipients tr
 	ON t.id = tr.thread_id
 	INNER JOIN users u
 	on t.user_id = u.id
 	WHERE tr.user_id = $1
-	ORDER BY created_at DESC`
+	ORDER BY updated_at DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -396,6 +371,7 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 			&thread.User.Role,
 			&thread.Title,
 			&thread.Locked,
+			&thread.Read,
 			&thread.CreatedAt,
 			&thread.UpdatedAt,
 		)
@@ -444,4 +420,68 @@ func (m MessagingModel) GetMessageCountForThread(threadID int) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (m MessagingModel) SetThreadAsReadForUser(threadID, userID int) error {
+	stmt := `UPDATE threads_recipients
+	SET read = true
+	WHERE thread_id = $1 and user_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, threadID, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MessagingModel) SetThreadAsUnreadForAll(threadID int) error {
+	stmt := `UPDATE threads_recipients
+	SET read = false
+	WHERE thread_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, threadID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MessagingModel) SetThreadLocked(threadID int, locked bool) error {
+	stmt := `UPDATE threads
+	SET locked = $1
+	WHERE id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, locked, threadID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MessagingModel) SetThreadUpdatedAt(threadID int) error {
+	stmt := `UPDATE threads
+	SET updated_at = $1
+	WHERE id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), threadID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

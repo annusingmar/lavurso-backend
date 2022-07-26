@@ -203,9 +203,8 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrThreadAlreadyLocked.Error())
 		return
 	}
-	thread.Locked = true
 
-	err = app.models.Messaging.UpdateThread(thread)
+	err = app.models.Messaging.SetThreadLocked(thread.ID, true)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -246,9 +245,8 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrThreadAlreadyUnlocked.Error())
 		return
 	}
-	thread.Locked = false
 
-	err = app.models.Messaging.UpdateThread(thread)
+	err = app.models.Messaging.SetThreadLocked(thread.ID, false)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -430,7 +428,7 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		thread.MessageCount = count
+		thread.MessageCount = &count
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"threads": threads})
@@ -499,6 +497,18 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.models.Messaging.InsertMessage(message)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Messaging.SetThreadUpdatedAt(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Messaging.SetThreadAsUnreadForAll(thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -663,13 +673,13 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// logs, err := app.models.Messaging.GetAllLogsByThreadID(thread.ID)
-	// if err != nil {
-	// 	app.writeInternalServerError(w, r, err)
-	// 	return
-	// }
-
 	messages, err := app.models.Messaging.GetAllMessagesByThreadID(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Messaging.SetThreadAsReadForUser(thread.ID, sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
