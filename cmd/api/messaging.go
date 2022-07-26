@@ -514,6 +514,12 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = app.models.Messaging.SetThreadAsReadForUser(thread.ID, sessionUser.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	message.Body = ""
 
 	err = app.outputJSON(w, http.StatusCreated, envelope{"message": message})
