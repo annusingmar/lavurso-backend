@@ -696,3 +696,51 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		app.writeInternalServerError(w, r, err)
 	}
 }
+
+func (app *application) getThreadMembers(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if threadID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchThread.Error())
+		return
+	}
+
+	thread, err := app.models.Messaging.GetThreadByID(threadID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchThread):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	if !ok {
+		app.notAllowed(w, r)
+		return
+	}
+
+	users, err := app.models.Messaging.GetUsersInThread(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	groups, err := app.models.Messaging.GetGroupsInThread(thread.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"users": users, "groups": groups})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}

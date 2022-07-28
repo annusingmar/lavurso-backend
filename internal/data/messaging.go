@@ -38,8 +38,8 @@ type Thread struct {
 	User         *User     `json:"user"`
 	Title        string    `json:"title"`
 	Locked       bool      `json:"locked"`
-	MessageCount *int      `json:"message_count"`
-	Read         *bool     `json:"read"`
+	MessageCount *int      `json:"message_count,omitempty"`
+	Read         *bool     `json:"read,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -192,6 +192,85 @@ func (m MessagingModel) RemoveGroupFromThread(threadID, groupID int) error {
 	}
 
 	return nil
+}
+
+func (m MessagingModel) GetUsersInThread(threadID int) ([]*User, error) {
+	query := `SELECT tr.user_id, u.name, u.role
+	FROM threads_recipients tr
+	INNER JOIN users u
+	ON tr.user_id = u.id
+	WHERE tr.thread_id = $1 and tr.group_id is NULL
+	ORDER BY u.name ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*User
+
+	for rows.Next() {
+		var user User
+		err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Role,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func (m MessagingModel) GetGroupsInThread(threadID int) ([]*Group, error) {
+	query := `SELECT DISTINCT tr.group_id, g.name
+	FROM threads_recipients tr
+	INNER JOIN groups g
+	ON tr.group_id = g.id
+	WHERE tr.thread_id = $1 and tr.group_id is NOT NULL
+	ORDER BY g.name ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, threadID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var groups []*Group
+
+	for rows.Next() {
+		var group Group
+		err := rows.Scan(
+			&group.ID,
+			&group.Name,
+		)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, &group)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return groups, nil
 }
 
 func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
