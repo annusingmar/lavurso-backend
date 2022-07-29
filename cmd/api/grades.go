@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -124,7 +125,7 @@ func (app *application) updateGrade(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	v.Check(grade.Identifier != "", "identifier", "must be provided")
+	v.Check(grade.Identifier != "" && utf8.RuneCountInString(grade.Identifier) < 4, "identifier", "must be provided and less 4 characters")
 	v.Check(grade.Value > 0, "value", "must be provided and valid")
 
 	if !v.Valid() {
