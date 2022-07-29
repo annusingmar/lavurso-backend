@@ -739,7 +739,7 @@ func (app *application) getThreadMembers(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"users": users, "groups": groups})
+	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread, "users": users, "groups": groups})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
