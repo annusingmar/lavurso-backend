@@ -128,12 +128,13 @@ func (m GroupModel) GetUsersByGroupID(groupID int) ([]*User, error) {
 	FROM users_groups ug
 	INNER JOIN users u
 	ON ug.user_id = u.id
+	WHERE ug.group_id = $1
 	ORDER BY id ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.Query(ctx, query, groupID)
 	if err != nil {
 		return nil, err
 	}
