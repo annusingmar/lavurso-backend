@@ -55,6 +55,15 @@ func (app *application) getAllGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for _, group := range groups {
+		count, err := app.models.Groups.GetUserCountForGroup(group.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		group.MemberCount = count
+	}
+
 	err = app.outputJSON(w, http.StatusOK, envelope{"groups": groups})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -372,7 +381,7 @@ func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"users": users})
+	err = app.outputJSON(w, http.StatusOK, envelope{"group": group, "users": users})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

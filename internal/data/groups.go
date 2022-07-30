@@ -17,15 +17,14 @@ var (
 )
 
 type Group struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	MemberCount *int   `json:"member_count,omitempty"`
 }
 
 type GroupModel struct {
 	DB *pgxpool.Pool
 }
-
-// todo: insert, delete, update, add user to group, remove user from group
 
 func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 	query := `SELECT id, name
@@ -52,6 +51,22 @@ func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 	}
 
 	return &group, nil
+}
+
+func (m GroupModel) GetUserCountForGroup(groupID int) (*int, error) {
+	query := `SELECT COUNT (*) FROM users_groups WHERE group_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var count int
+
+	err := m.DB.QueryRow(ctx, query, groupID).Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+
+	return &count, nil
 }
 
 func (m GroupModel) GetAllGroups() ([]*Group, error) {
