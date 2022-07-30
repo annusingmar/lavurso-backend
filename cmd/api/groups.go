@@ -206,7 +206,9 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var input struct {
-		UserIDs []int `json:"user_ids"`
+		UserIDs  []int    `json:"user_ids"`
+		Roles    []string `json:"roles"`
+		ClassIDs []int    `json:"class_ids"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -220,23 +222,67 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
 	badIDs := helpers.VerifyExistsInSlice(input.UserIDs, allUserIDs)
 	if badIDs != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
 		return
 	}
 
+	allClassIDs, err := app.models.Classes.GetAllClassIDs()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	badIDs = helpers.VerifyExistsInSlice(input.ClassIDs, allClassIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchClass.Error(), badIDs))
+		return
+	}
+
+	for _, role := range input.Roles {
+		if role != data.RoleAdministrator && role != data.RoleTeacher && role != data.RoleParent && role != data.RoleStudent {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("no such role: %s", role))
+			return
+		}
+	}
+
 	for _, id := range input.UserIDs {
 		err = app.models.Groups.InsertUserIntoGroup(id, group.ID)
-		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrUserAlreadyInGroup):
-				app.writeErrorResponse(w, r, http.StatusConflict, fmt.Sprintf("%s: id %d", err.Error(), id))
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
+		if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+			app.writeInternalServerError(w, r, err)
 			return
+		}
+	}
+
+	for _, id := range input.ClassIDs {
+		users, err := app.models.Classes.GetUsersForClassID(id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		for _, u := range users {
+			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
+			if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+				app.writeInternalServerError(w, r, err)
+				return
+			}
+		}
+	}
+
+	for _, role := range input.Roles {
+		users, err := app.models.Users.GetUsersByRole(role)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		for _, u := range users {
+			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
+			if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+				app.writeInternalServerError(w, r, err)
+				return
+			}
 		}
 	}
 

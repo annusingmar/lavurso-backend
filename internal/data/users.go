@@ -231,6 +231,45 @@ func (m UserModel) AllUsersMinimal() ([]*User, error) {
 
 }
 
+func (m UserModel) GetUsersByRole(role string) ([]*User, error) {
+	query := `SELECT id, name, role
+	FROM users
+	WHERE role = $1
+	ORDER BY id ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, role)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*User
+
+	for rows.Next() {
+		var user User
+		err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Role,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+
+}
+
 func (m UserModel) GetUserByIDMinimal(userID int) (*User, error) {
 	query := `SELECT id, name, role
 	FROM users

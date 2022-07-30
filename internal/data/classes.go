@@ -86,6 +86,23 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 	return classes, nil
 }
 
+func (m ClassModel) GetAllClassIDs() ([]int, error) {
+	query := `SELECT
+	array(SELECT id	FROM classes)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var ids []int
+
+	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
 func (m ClassModel) UpdateClass(c *Class) error {
 	stmt := `UPDATE classes SET (name, teacher_id) =
 	($1, $2)
