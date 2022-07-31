@@ -338,6 +338,11 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 			app.writeInternalServerError(w, r, err)
 			return
 		}
+		err = app.models.Messaging.RemoveUserGroupFromAllThreads(id, group.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})

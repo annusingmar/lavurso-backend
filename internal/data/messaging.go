@@ -194,6 +194,21 @@ func (m MessagingModel) RemoveGroupFromThread(threadID, groupID int) error {
 	return nil
 }
 
+func (m MessagingModel) RemoveUserGroupFromAllThreads(groupID, userID int) error {
+	stmt := `DELETE FROM threads_recipients
+	WHERE group_id = $1 and user_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, groupID, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m MessagingModel) GetUsersInThread(threadID int) ([]*User, error) {
 	query := `SELECT tr.user_id, u.name, u.role
 	FROM threads_recipients tr
