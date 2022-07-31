@@ -209,11 +209,12 @@ func (app *application) getClassForStudent(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoClassForUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+			class = nil
 		default:
 			app.writeInternalServerError(w, r, err)
+			return
 		}
-		return
+
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"class": class})
