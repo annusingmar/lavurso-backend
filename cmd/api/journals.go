@@ -155,6 +155,11 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
 	var input struct {
 		Name      *string `json:"name"`
 		TeacherID *int    `json:"teacher_id"`
