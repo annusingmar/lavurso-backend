@@ -16,10 +16,10 @@ var (
 )
 
 type Class struct {
-	ID        int    `json:"id"`
-	Name      string `json:"name"`
-	TeacherID int    `json:"teacher_id"`
-	Archived  bool   `json:"archived"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Teacher  *User  `json:"teacher"`
+	Archived bool   `json:"archived"`
 }
 
 type ClassModel struct {
@@ -38,7 +38,7 @@ func (m ClassModel) InsertClass(c *Class) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, c.Name, c.TeacherID, c.Archived).Scan(&c.ID)
+	err := m.DB.QueryRow(ctx, stmt, c.Name, c.Teacher.ID, c.Archived).Scan(&c.ID)
 	if err != nil {
 		return err
 	}
@@ -46,8 +46,10 @@ func (m ClassModel) InsertClass(c *Class) error {
 }
 
 func (m ClassModel) AllClasses() ([]*Class, error) {
-	query := `SELECT id, name, teacher_id, archived
-	FROM classes`
+	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
+	FROM classes c
+	INNER JOIN users u
+	ON c.teacher_id = u.id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -64,11 +66,14 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 
 	for rows.Next() {
 		var class Class
+		class.Teacher = &User{}
 
 		err = rows.Scan(
 			&class.ID,
 			&class.Name,
-			&class.TeacherID,
+			&class.Teacher.ID,
+			&class.Teacher.Name,
+			&class.Teacher.Role,
 			&class.Archived,
 		)
 
@@ -111,7 +116,7 @@ func (m ClassModel) UpdateClass(c *Class) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, c.Name, c.TeacherID, c.ID)
+	_, err := m.DB.Exec(ctx, stmt, c.Name, c.Teacher.ID, c.ID)
 	if err != nil {
 		return err
 	}
@@ -121,19 +126,24 @@ func (m ClassModel) UpdateClass(c *Class) error {
 }
 
 func (m ClassModel) GetClassByID(classID int) (*Class, error) {
-	query := `SELECT id, name, teacher_id, archived
-	FROM classes
-	WHERE id = $1`
+	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
+	FROM classes c
+	INNER JOIN users u
+	ON c.teacher_id = u.id
+	WHERE c.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var class Class
+	class.Teacher = &User{}
 
 	err := m.DB.QueryRow(ctx, query, classID).Scan(
 		&class.ID,
 		&class.Name,
-		&class.TeacherID,
+		&class.Teacher.ID,
+		&class.Teacher.Name,
+		&class.Teacher.Role,
 		&class.Archived,
 	)
 
@@ -151,21 +161,26 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 }
 
 func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
-	query := `SELECT id, name, teacher_id, archived
+	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
 	FROM classes c
 	INNER JOIN users_classes uc
 	ON uc.class_id = c.id
+	INNER JOIN users u
+	ON c.teacher_id = u.id
 	WHERE uc.user_id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var class Class
+	class.Teacher = &User{}
 
 	err := m.DB.QueryRow(ctx, query, userID).Scan(
 		&class.ID,
 		&class.Name,
-		&class.TeacherID,
+		&class.Teacher.ID,
+		&class.Teacher.Name,
+		&class.Teacher.Role,
 		&class.Archived,
 	)
 

@@ -37,21 +37,21 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	class := &data.Class{
-		Name:      input.Name,
-		TeacherID: input.TeacherID,
-		Archived:  false,
-	}
-
-	v.Check(class.Name != "", "name", "must be provided")
-	v.Check(class.TeacherID > 0, "teacher_id", "must be provided and valid")
+	v.Check(input.Name != "", "name", "must be provided")
+	v.Check(input.TeacherID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(class.TeacherID)
+	class := &data.Class{
+		Name:     input.Name,
+		Teacher:  &data.User{ID: input.TeacherID},
+		Archived: false,
+	}
+
+	teacher, err := app.models.Users.GetUserByID(class.Teacher.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -138,7 +138,7 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 		class.Name = *input.Name
 	}
 	if input.TeacherID != nil {
-		class.TeacherID = *input.TeacherID
+		class.Teacher.ID = *input.TeacherID
 	}
 	if input.Archived != nil {
 		class.Archived = *input.Archived
@@ -146,14 +146,14 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 	v.Check(class.Name != "", "name", "must be provided")
-	v.Check(class.TeacherID > 0, "teacher_id", "must be provided and valid")
+	v.Check(class.Teacher.ID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(class.TeacherID)
+	teacher, err := app.models.Users.GetUserByID(class.Teacher.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -245,7 +245,7 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if class.TeacherID != sessionUser.ID {
+		if class.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
