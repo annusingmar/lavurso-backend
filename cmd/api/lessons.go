@@ -62,7 +62,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -119,7 +119,7 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.TeacherID != sessionUser.ID {
+		if journal.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -186,7 +186,7 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -251,7 +251,7 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.TeacherID != sessionUser.ID {
+		if journal.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}

@@ -160,7 +160,7 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		if sessionUser.ID != journal.TeacherID {
+		if sessionUser.ID != journal.Teacher.ID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -261,7 +261,7 @@ func (app *application) deleteAbsenceExcuseForStudent(w http.ResponseWriter, r *
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		if sessionUser.ID != journal.TeacherID {
+		if sessionUser.ID != journal.Teacher.ID {
 			app.notAllowed(w, r)
 			return
 		}

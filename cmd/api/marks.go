@@ -150,7 +150,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -167,7 +167,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subject, err := app.models.Subjects.GetSubjectByID(journal.SubjectID)
+	subject, err := app.models.Subjects.GetSubjectByID(journal.Subject.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
@@ -226,7 +226,7 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -274,7 +274,7 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -384,7 +384,7 @@ func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		if sessionUser.ID != journal.TeacherID {
+		if sessionUser.ID != journal.Teacher.ID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -493,7 +493,7 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -575,7 +575,7 @@ func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if sessionUser.Role == data.RoleTeacher && journal.TeacherID != sessionUser.ID {
+	if sessionUser.Role == data.RoleTeacher && journal.Teacher.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -630,7 +630,7 @@ func (app *application) getPreviousMarksForMark(w http.ResponseWriter, r *http.R
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		if sessionUser.ID != journal.TeacherID {
+		if sessionUser.ID != journal.Teacher.ID {
 			app.notAllowed(w, r)
 			return
 		}

@@ -45,7 +45,7 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.TeacherID != sessionUser.ID {
+		if journal.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -97,21 +97,21 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	journal := &data.Journal{
-		Name:      input.Name,
-		TeacherID: sessionUser.ID,
-		SubjectID: input.SubjectID,
-		Archived:  false,
+		Name:     input.Name,
+		Teacher:  &data.User{ID: sessionUser.ID},
+		Subject:  &data.Subject{ID: input.SubjectID},
+		Archived: false,
 	}
 
 	v.Check(journal.Name != "", "name", "must be provided")
-	v.Check(journal.SubjectID > 0, "subject_id", "must be provided and valid")
+	v.Check(journal.Subject.ID > 0, "subject_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	_, err = app.models.Subjects.GetSubjectByID(journal.SubjectID)
+	_, err = app.models.Subjects.GetSubjectByID(journal.Subject.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
@@ -155,7 +155,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -181,10 +181,10 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 			app.notAllowed(w, r)
 			return
 		}
-		journal.TeacherID = *input.TeacherID
+		journal.Teacher.ID = *input.TeacherID
 	}
 	if input.SubjectID != nil {
-		journal.SubjectID = *input.SubjectID
+		journal.Subject.ID = *input.SubjectID
 	}
 	if input.Archived != nil {
 		journal.Archived = *input.Archived
@@ -193,15 +193,15 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	v.Check(journal.Name != "", "name", "must be provided")
-	v.Check(journal.TeacherID > 0, "teacher_id", "must be provided and valid")
-	v.Check(journal.SubjectID > 0, "subject_id", "must be provided and valid")
+	v.Check(journal.Teacher.ID > 0, "teacher_id", "must be provided and valid")
+	v.Check(journal.Subject.ID > 0, "subject_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(journal.TeacherID)
+	teacher, err := app.models.Users.GetUserByID(journal.Teacher.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -217,7 +217,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.models.Subjects.GetSubjectByID(journal.SubjectID)
+	_, err = app.models.Subjects.GetSubjectByID(journal.Subject.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
@@ -260,7 +260,7 @@ func (app *application) deleteJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -339,7 +339,7 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -419,7 +419,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -499,7 +499,7 @@ func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if journal.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
