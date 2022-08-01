@@ -78,6 +78,12 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	err = app.outputJSON(w, http.StatusCreated, envelope{"lesson": lesson})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -219,6 +225,12 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
 		return
 	}
 

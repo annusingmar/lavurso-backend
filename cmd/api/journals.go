@@ -234,6 +234,12 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	err = app.outputJSON(w, http.StatusOK, envelope{"journal": journal})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)

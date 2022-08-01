@@ -189,6 +189,12 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	err = app.outputJSON(w, http.StatusOK, envelope{"mark": mark})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -232,6 +238,12 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.models.Marks.DeleteMark(mark.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -331,10 +343,8 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if updated {
-		app.infoLogger.Println("updating!")
-
 		mark.At = time.Now().UTC()
-		mark.By = 1 // temporary
+		mark.By = sessionUser.ID
 
 		err = app.models.Marks.UpdateMark(mark)
 		if err != nil {
@@ -343,6 +353,12 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 		}
 
 		err = app.models.Marks.InsertOldMark(&oldMark)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		err = app.models.Journals.SetJournalLastUpdated(journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

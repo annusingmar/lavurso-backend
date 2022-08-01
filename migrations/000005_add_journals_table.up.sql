@@ -4,6 +4,7 @@ create table if not exists
     "name" TEXT not null,
     "teacher_id" INTEGER not null,
     "subject_id" INTEGER not null,
+    "last_updated" TIMESTAMP not null DEFAULT NOW(),
     "archived" BOOLEAN not null DEFAULT false
   );
 

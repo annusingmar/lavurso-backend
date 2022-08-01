@@ -17,13 +17,12 @@ var (
 )
 
 type Journal struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	// TeacherID int    `json:"teacher_id"`
-	// SubjectID int    `json:"subject_id"`
-	Teacher  *User    `json:"teacher"`
-	Subject  *Subject `json:"subject"`
-	Archived bool     `json:"archived"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Teacher     *User     `json:"teacher"`
+	Subject     *Subject  `json:"subject"`
+	LastUpdated time.Time `json:"last_updated"`
+	Archived    bool      `json:"archived"`
 }
 
 type JournalModel struct {
@@ -31,13 +30,13 @@ type JournalModel struct {
 }
 
 func (m JournalModel) AllJournals() ([]*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.archived
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	ORDER BY id ASC`
+	ORDER BY j.last_updated DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -63,6 +62,7 @@ func (m JournalModel) AllJournals() ([]*Journal, error) {
 			&journal.Teacher.Role,
 			&journal.Subject.ID,
 			&journal.Subject.Name,
+			&journal.LastUpdated,
 			&journal.Archived,
 		)
 		if err != nil {
@@ -80,7 +80,7 @@ func (m JournalModel) AllJournals() ([]*Journal, error) {
 }
 
 func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.archived
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
@@ -103,6 +103,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 		&journal.Teacher.Role,
 		&journal.Subject.ID,
 		&journal.Subject.Name,
+		&journal.LastUpdated,
 		&journal.Archived,
 	)
 
@@ -137,14 +138,14 @@ func (m JournalModel) InsertJournal(j *Journal) error {
 
 func (m JournalModel) UpdateJournal(j *Journal) error {
 	stmt := `UPDATE journals
-	SET (name, teacher_id, subject_id, archived)
-	= ($1, $2, $3, $4)
-	WHERE id = $5`
+	SET (name, teacher_id, subject_id, last_updated, archived)
+	= ($1, $2, $3, $4, $5)
+	WHERE id = $6`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, j.Archived, j.ID)
+	_, err := m.DB.Exec(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, time.Now().UTC(), j.Archived, j.ID)
 	if err != nil {
 		return err
 	}
@@ -166,14 +167,14 @@ func (m JournalModel) DeleteJournal(journalID int) error {
 }
 
 func (m JournalModel) GetJournalsForTeacher(teacherID int) ([]*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.archived
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	WHERE teacher_id = $1
-	ORDER BY id ASC`
+	WHERE j.teacher_id = $1 and j.archived is FALSE
+	ORDER BY j.last_updated DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -200,6 +201,7 @@ func (m JournalModel) GetJournalsForTeacher(teacherID int) ([]*Journal, error) {
 			&journal.Teacher.Role,
 			&journal.Subject.ID,
 			&journal.Subject.Name,
+			&journal.LastUpdated,
 			&journal.Archived,
 		)
 		if err != nil {
@@ -302,7 +304,7 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 }
 
 func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.archived
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
@@ -338,6 +340,7 @@ func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
 			&journal.Teacher.Role,
 			&journal.Subject.ID,
 			&journal.Subject.Name,
+			&journal.LastUpdated,
 			&journal.Archived,
 		)
 		if err != nil {
@@ -390,4 +393,20 @@ func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (boo
 	}
 
 	return result > 0, nil
+}
+
+func (m JournalModel) SetJournalLastUpdated(journalID int) error {
+	stmt := `UPDATE journals
+	SET last_updated = $1
+	WHERE id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), journalID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

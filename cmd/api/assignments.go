@@ -149,6 +149,12 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	err = app.outputJSON(w, http.StatusCreated, envelope{"assignment": assignment})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -236,6 +242,12 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	err = app.outputJSON(w, http.StatusOK, envelope{"assignment": assignment})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -280,6 +292,12 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 	}
 
 	err = app.models.Assignments.DeleteAssignment(assignment.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
