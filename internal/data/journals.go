@@ -86,7 +86,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	WHERE id = $1`
+	WHERE j.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

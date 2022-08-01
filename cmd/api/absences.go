@@ -182,7 +182,7 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"excuse": excuse})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

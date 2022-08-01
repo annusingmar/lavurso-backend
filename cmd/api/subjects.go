@@ -53,7 +53,7 @@ func (app *application) createSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"subject": subject})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -130,7 +130,7 @@ func (app *application) updateSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"subject": subject})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

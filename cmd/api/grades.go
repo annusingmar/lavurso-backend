@@ -81,7 +81,7 @@ func (app *application) createGrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"grade": grade})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -139,7 +139,7 @@ func (app *application) updateGrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"grade": grade})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

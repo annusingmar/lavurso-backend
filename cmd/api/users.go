@@ -207,7 +207,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"user": user})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

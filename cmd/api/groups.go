@@ -100,7 +100,7 @@ func (app *application) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"group": group})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -151,7 +151,7 @@ func (app *application) updateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"group": group})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

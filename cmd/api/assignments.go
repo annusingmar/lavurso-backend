@@ -155,7 +155,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"assignment": assignment})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -248,7 +248,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"assignment": assignment})
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
