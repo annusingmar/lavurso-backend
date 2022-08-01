@@ -98,7 +98,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"user": user})
+	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

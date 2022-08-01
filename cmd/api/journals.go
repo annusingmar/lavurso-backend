@@ -128,7 +128,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
