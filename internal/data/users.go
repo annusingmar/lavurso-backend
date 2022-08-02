@@ -24,6 +24,7 @@ var (
 	ErrEmailAlreadyExists   = errors.New("an user with specified email already exists")
 	ErrNoSuchUser           = errors.New("no such user")
 	ErrNoSuchUsers          = errors.New("no such users")
+	ErrNoSuchStudents       = errors.New("no such students")
 	ErrEditConflict         = errors.New("edit conflict, try again")
 	ErrNotAStudent          = errors.New("not a student")
 	ErrSuchParentAlreadySet = errors.New("such parent already set for child")
@@ -346,6 +347,23 @@ func (m UserModel) UpdateUser(u *User) error {
 func (m UserModel) GetAllUserIDs() ([]int, error) {
 	query := `SELECT
 	array(SELECT id	FROM users)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var ids []int
+
+	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
+func (m UserModel) GetAllStudentIDs() ([]int, error) {
+	query := `SELECT
+	array(SELECT id	FROM users WHERE role = 'student')`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

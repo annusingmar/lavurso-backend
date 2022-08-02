@@ -2,10 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -71,6 +73,12 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		app.notAllowed(w, r)
+		return
+	}
+
+	journal.CurrentCourse, err = app.models.Journals.GetCurrentCourseForJournal(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
 		return
 	}
 
@@ -163,8 +171,6 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name      *string `json:"name"`
 		TeacherID *int    `json:"teacher_id"`
-		SubjectID *int    `json:"subject_id"`
-		Archived  *bool   `json:"archived"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -183,18 +189,11 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		}
 		journal.Teacher.ID = *input.TeacherID
 	}
-	if input.SubjectID != nil {
-		journal.Subject.ID = *input.SubjectID
-	}
-	if input.Archived != nil {
-		journal.Archived = *input.Archived
-	}
 
 	v := validator.NewValidator()
 
 	v.Check(journal.Name != "", "name", "must be provided")
 	v.Check(journal.Teacher.ID > 0, "teacher_id", "must be provided and valid")
-	v.Check(journal.Subject.ID > 0, "subject_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -214,17 +213,6 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 
 	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not a teacher")
-		return
-	}
-
-	_, err = app.models.Subjects.GetSubjectByID(journal.Subject.ID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchSubject):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
 		return
 	}
 
@@ -325,7 +313,7 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Request) {
+func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -356,7 +344,8 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 	}
 
 	var input struct {
-		StudentID int `json:"student_id"`
+		StudentIDs []int `json:"student_ids"`
+		ClassIDs   []int `json:"class_ids"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -365,38 +354,50 @@ func (app *application) addStudentToJournal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	v := validator.NewValidator()
-	v.Check(input.StudentID > 0, "student_id", "must be provided and valid")
-	if !v.Valid() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(input.StudentID)
+	allStudentIDs, err := app.models.Users.GetAllStudentIDs()
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	badIDs := helpers.VerifyExistsInSlice(input.StudentIDs, allStudentIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchStudents.Error(), badIDs))
 		return
 	}
 
-	if user.Role != data.RoleStudent {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-		return
-	}
-
-	err = app.models.Journals.InsertUserIntoJournal(user.ID, journal.ID)
+	allClassIDs, err := app.models.Classes.GetAllClassIDs()
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrUserAlreadyInJournal):
-			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
 		return
+	}
+	badIDs = helpers.VerifyExistsInSlice(input.ClassIDs, allClassIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchClass.Error(), badIDs))
+		return
+	}
+
+	for _, id := range input.StudentIDs {
+		err = app.models.Journals.InsertUserIntoJournal(id, journal.ID)
+		if err != nil && !errors.Is(err, data.ErrUserAlreadyInJournal) {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	for _, id := range input.ClassIDs {
+		users, err := app.models.Classes.GetUsersForClassID(id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		for _, u := range users {
+			err = app.models.Journals.InsertUserIntoJournal(u.ID, journal.ID)
+			if err != nil && !errors.Is(err, data.ErrUserAlreadyInJournal) {
+				app.writeInternalServerError(w, r, err)
+				return
+			}
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})

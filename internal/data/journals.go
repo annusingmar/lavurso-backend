@@ -17,12 +17,13 @@ var (
 )
 
 type Journal struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Teacher     *User     `json:"teacher"`
-	Subject     *Subject  `json:"subject"`
-	LastUpdated time.Time `json:"last_updated"`
-	Archived    bool      `json:"archived"`
+	ID            int       `json:"id"`
+	Name          string    `json:"name"`
+	Teacher       *User     `json:"teacher"`
+	Subject       *Subject  `json:"subject"`
+	LastUpdated   time.Time `json:"last_updated"`
+	CurrentCourse *int      `json:"current_course,omitempty"`
+	Archived      bool      `json:"archived"`
 }
 
 type JournalModel struct {
@@ -409,4 +410,24 @@ func (m JournalModel) SetJournalLastUpdated(journalID int) error {
 	}
 
 	return nil
+}
+
+func (m JournalModel) GetCurrentCourseForJournal(journalID int) (*int, error) {
+	query := `SELECT coalesce(max(l.course),1) AS course
+	FROM lessons l
+	INNER JOIN journals j
+	ON l.journal_id = j.id
+	WHERE l.journal_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var course *int
+
+	err := m.DB.QueryRow(ctx, query, journalID).Scan(&course)
+	if err != nil {
+		return nil, err
+	}
+
+	return course, nil
 }

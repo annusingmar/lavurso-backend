@@ -105,16 +105,16 @@ func (m LessonModel) UpdateLesson(l *Lesson) error {
 	return nil
 }
 
-func (m LessonModel) GetLessonsByJournalID(journalID int) ([]*Lesson, error) {
+func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson, error) {
 	query := `SELECT id, journal_id, description, date, course, created_at, updated_at, version
 	FROM lessons
-	WHERE journal_id = $1
-	ORDER BY id ASC`
+	WHERE journal_id = $1 and course = $2
+	ORDER BY date DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
+	rows, err := m.DB.Query(ctx, query, journalID, course)
 	if err != nil {
 		return nil, err
 	}

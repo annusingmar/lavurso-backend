@@ -249,6 +249,11 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	course, err := strconv.Atoi(r.URL.Query().Get("course"))
+	if course < 0 || err != nil {
+		course = 1
+	}
+
 	journal, err := app.models.Journals.GetJournalByID(journalID)
 	if err != nil {
 		switch {
@@ -292,7 +297,7 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	lessons, err := app.models.Lessons.GetLessonsByJournalID(journal.ID)
+	lessons, err := app.models.Lessons.GetLessonsByJournalID(journal.ID, course)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
