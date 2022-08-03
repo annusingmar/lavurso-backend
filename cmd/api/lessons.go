@@ -240,6 +240,54 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) deleteLesson(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if lessonID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchLesson.Error())
+		return
+	}
+
+	lesson, err := app.models.Lessons.GetLessonByID(lessonID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchLesson):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	err = app.models.Lessons.DeleteLesson(lesson.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
 func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 

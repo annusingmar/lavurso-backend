@@ -105,6 +105,21 @@ func (m LessonModel) UpdateLesson(l *Lesson) error {
 	return nil
 }
 
+func (m LessonModel) DeleteLesson(lessonID int) error {
+	stmt := `DELETE FROM lessons
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, lessonID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson, error) {
 	query := `SELECT id, journal_id, description, date, course, created_at, updated_at, version
 	FROM lessons

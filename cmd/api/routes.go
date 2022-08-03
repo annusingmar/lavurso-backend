@@ -122,6 +122,9 @@ func (app *application) routes() http.Handler {
 			// update lesson
 			mux.Patch("/lessons/{id}", app.updateLesson)
 
+			// delete lesson
+			mux.Delete("/lessons/{id}", app.deleteLesson)
+
 			// create assignment
 			mux.Post("/assignments", app.createAssignment)
 
