@@ -1,13 +1,13 @@
 # lavurso-backend
 
 ## depencencies
-[pgx](https://github.com/jackc/pgx)
+[pgx](https://github.com/jackc/pgx) => PostgreSQL database driver
 
-[chi](https://github.com/go-chi/chi)
+[chi](https://github.com/go-chi/chi) => routing HTTP requests
 
-[toml](https://github.com/BurntSushi/toml)
+[toml](https://github.com/BurntSushi/toml) => parsing config file
 
-[bluemonday](https://github.com/microcosm-cc/bluemonday) (XSS protection)
+[bluemonday](https://github.com/microcosm-cc/bluemonday) => cross-site scripting (XSS) protection
     
  ## running
  1. copy `.makerc.example` to `.makerc`, edit `MIGRATE_DSN` to database connection string
