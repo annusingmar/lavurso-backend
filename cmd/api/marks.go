@@ -107,7 +107,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		mark.LessonID = &lesson.ID
 
 		mark.Course = &lesson.Course
-		mark.JournalID = &lesson.JournalID
+		mark.JournalID = &lesson.Journal.ID
 	case data.MarkCourseGrade, data.MarkSubjectGrade:
 		if mark.Type == data.MarkCourseGrade {
 			v.Check(input.Course != nil && *input.Course > 0, "course", "must be provided and valid")
@@ -521,6 +521,70 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"marks": marks})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getStudentsForLesson(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if lessonID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchLesson.Error())
+		return
+	}
+
+	lesson, err := app.models.Lessons.GetLessonByID(lessonID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchLesson):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(lesson.Journal.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	students, err := app.models.Journals.GetUsersByJournalID(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	marks, err := app.models.Marks.GetMarksByLessonID(lesson.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	for _, mark := range marks {
+		if *mark.LessonID == lesson.ID {
+			for _, student := range students {
+				if student.ID == mark.UserID {
+					student.Marks = append(student.Marks, mark)
+				}
+			}
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

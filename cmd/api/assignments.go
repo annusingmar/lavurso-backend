@@ -138,7 +138,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if journal.Archived {
+	if *journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}

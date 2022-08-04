@@ -108,7 +108,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 		Name:     input.Name,
 		Teacher:  &data.User{ID: sessionUser.ID},
 		Subject:  &data.Subject{ID: input.SubjectID},
-		Archived: false,
+		Archived: helpers.ToPtr(false),
 	}
 
 	v.Check(journal.Name != "", "name", "must be provided")
@@ -338,7 +338,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if journal.Archived {
+	if *journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
@@ -431,7 +431,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if journal.Archived {
+	if *journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}

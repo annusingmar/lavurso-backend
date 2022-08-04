@@ -137,6 +137,9 @@ func (app *application) routes() http.Handler {
 			// get current marks for journal
 			mux.Get("/journals/{id}/marks", app.getMarksForJournal)
 
+			// get students for lesson
+			mux.Get("/lessons/{id}/students", app.getStudentsForLesson)
+
 			// add mark
 			mux.Post("/marks", app.addMark)
 

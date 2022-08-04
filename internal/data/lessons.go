@@ -14,8 +14,9 @@ var (
 )
 
 type Lesson struct {
-	ID          int       `json:"id"`
-	JournalID   int       `json:"journal_id"`
+	ID int `json:"id"`
+	// JournalID   int       `json:"journal_id"`
+	Journal     *Journal  `json:"journal"`
 	Description string    `json:"description"`
 	Date        Date      `json:"date"`
 	Course      int       `json:"course"`
@@ -40,7 +41,7 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, l.JournalID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt, l.Version).Scan(&l.ID)
+	err := m.DB.QueryRow(ctx, stmt, l.Journal.ID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt, l.Version).Scan(&l.ID)
 	if err != nil {
 		return err
 	}
@@ -50,18 +51,22 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 }
 
 func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
-	query := `SELECT id, journal_id, description, date, course, created_at, updated_at, version
-	FROM lessons
-	WHERE id = $1`
+	query := `SELECT l.id, l.journal_id, j.name, l.description, l.date, l.course, l.created_at, l.updated_at, l.version
+	FROM lessons l
+	INNER JOIN journals j
+	ON j.id = l.journal_id
+	WHERE l.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var lesson Lesson
+	lesson.Journal = &Journal{}
 
 	err := m.DB.QueryRow(ctx, query, lessonID).Scan(
 		&lesson.ID,
-		&lesson.JournalID,
+		&lesson.Journal.ID,
+		&lesson.Journal.Name,
 		&lesson.Description,
 		&lesson.Date.Time,
 		&lesson.Course,
@@ -140,9 +145,11 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 
 	for rows.Next() {
 		var lesson Lesson
+		lesson.Journal = &Journal{}
+
 		err := rows.Scan(
 			&lesson.ID,
-			&lesson.JournalID,
+			&lesson.Journal.ID,
 			&lesson.Description,
 			&lesson.Date.Time,
 			&lesson.Course,

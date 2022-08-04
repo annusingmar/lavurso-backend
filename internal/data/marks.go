@@ -164,6 +164,30 @@ func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
 	return marks, nil
 }
 
+func (m MarkModel) GetMarksByLessonID(lessonID int) ([]*Mark, error) {
+	query := `SELECT
+	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at
+	FROM marks
+	WHERE lesson_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, lessonID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	marks, err := scanMarks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
 func (m MarkModel) GetMarksByUserIDAndJournalID(userID, journalID int) ([]*Mark, error) {
 	query := `SELECT
 	id, user_id, lesson_id, course, journal_id, grade_id, subject_id, comment, type, by, at

@@ -43,6 +43,7 @@ type User struct {
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	Active    bool       `json:"active,omitempty"`
 	Version   int        `json:"-"`
+	Marks     []*Mark    `json:"marks,omitempty"`
 }
 
 type Password struct {

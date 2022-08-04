@@ -28,7 +28,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lesson := &data.Lesson{
-		JournalID:   input.JournalID,
+		Journal:     &data.Journal{ID: input.JournalID},
 		Description: input.Description,
 		Date:        input.Date,
 		Course:      input.Course,
@@ -51,7 +51,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(lesson.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -67,7 +67,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.Archived {
+	if *journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
@@ -111,7 +111,7 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(lesson.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -181,7 +181,7 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(lesson.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -260,7 +260,7 @@ func (app *application) deleteLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(lesson.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(lesson.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):

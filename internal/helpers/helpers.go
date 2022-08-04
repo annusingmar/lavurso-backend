@@ -14,3 +14,7 @@ func VerifyExistsInSlice(toCheck, checkFrom []int) []int {
 
 	return notFound
 }
+
+func ToPtr[T any](v T) *T {
+	return &v
+}

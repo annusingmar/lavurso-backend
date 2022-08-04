@@ -17,13 +17,13 @@ var (
 )
 
 type Journal struct {
-	ID            int       `json:"id"`
-	Name          string    `json:"name"`
-	Teacher       *User     `json:"teacher"`
-	Subject       *Subject  `json:"subject"`
-	LastUpdated   time.Time `json:"last_updated"`
-	CurrentCourse *int      `json:"current_course,omitempty"`
-	Archived      bool      `json:"archived"`
+	ID            int        `json:"id"`
+	Name          string     `json:"name"`
+	Teacher       *User      `json:"teacher,omitempty"`
+	Subject       *Subject   `json:"subject,omitempty"`
+	LastUpdated   *time.Time `json:"last_updated,omitempty"`
+	CurrentCourse *int       `json:"current_course,omitempty"`
+	Archived      *bool      `json:"archived,omitempty"`
 }
 
 type JournalModel struct {
