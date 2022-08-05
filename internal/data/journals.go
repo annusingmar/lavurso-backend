@@ -270,7 +270,7 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 	INNER JOIN users_journals uj
 	ON uj.user_id = u.id
 	WHERE uj.journal_id = $1
-	ORDER BY id ASC`
+	ORDER BY name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

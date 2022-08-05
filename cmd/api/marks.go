@@ -58,6 +58,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mark := &data.Mark{}
+	mark.Grade = &data.Grade{}
 
 	mark.UserID = user.ID
 	mark.Type = input.Type
@@ -90,7 +91,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			mark.GradeID = &grade.ID
+			mark.Grade.ID = grade.ID
 		}
 
 		// lesson check
@@ -131,7 +132,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		mark.GradeID = &grade.ID
+		mark.Grade.ID = grade.ID
 
 		mark.JournalID = input.JournalID
 	default:
@@ -330,9 +331,9 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if *mark.GradeID != grade.ID {
+			if mark.Grade.ID != grade.ID {
 				updated = true
-				mark.GradeID = &grade.ID
+				mark.Grade.ID = grade.ID
 			}
 		}
 	}

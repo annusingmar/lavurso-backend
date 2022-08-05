@@ -14,9 +14,9 @@ var (
 )
 
 type Grade struct {
-	ID         int    `json:"id"`
-	Identifier string `json:"identifier"`
-	Value      int    `json:"value"`
+	ID         *int    `json:"id,omitempty"`
+	Identifier *string `json:"identifier,omitempty"`
+	Value      *int    `json:"value,omitempty"`
 }
 
 type GradeModel struct {

@@ -61,14 +61,14 @@ func (app *application) createGrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	grade := &data.Grade{
-		Identifier: input.Identifier,
-		Value:      input.Value,
+		Identifier: &input.Identifier,
+		Value:      &input.Value,
 	}
 
 	v := validator.NewValidator()
 
-	v.Check(grade.Identifier != "", "identifier", "must be provided")
-	v.Check(grade.Value > 0, "value", "must be provided and valid")
+	v.Check(*grade.Identifier != "", "identifier", "must be provided")
+	v.Check(*grade.Value > 0, "value", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -117,16 +117,16 @@ func (app *application) updateGrade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Identifier != nil {
-		grade.Identifier = *input.Identifier
+		grade.Identifier = input.Identifier
 	}
 	if input.Value != nil {
-		grade.Value = *input.Value
+		grade.Value = input.Value
 	}
 
 	v := validator.NewValidator()
 
-	v.Check(grade.Identifier != "" && utf8.RuneCountInString(grade.Identifier) < 4, "identifier", "must be provided and less 4 characters")
-	v.Check(grade.Value > 0, "value", "must be provided and valid")
+	v.Check(*grade.Identifier != "" && utf8.RuneCountInString(*grade.Identifier) < 4, "identifier", "must be provided and less 4 characters")
+	v.Check(*grade.Value > 0, "value", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
