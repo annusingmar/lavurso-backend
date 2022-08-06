@@ -93,6 +93,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	defer cancel()
 
 	var mark Mark
+	mark.Grade = &Grade{}
 
 	err := m.DB.QueryRow(ctx, query, markID).Scan(
 		&mark.ID,

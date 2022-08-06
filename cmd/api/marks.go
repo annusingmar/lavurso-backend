@@ -331,16 +331,18 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			if mark.Grade.ID != grade.ID {
+			if *mark.Grade.ID != *grade.ID {
 				updated = true
 				mark.Grade.ID = grade.ID
 			}
 		}
 	}
 
-	if mark.Comment != nil && *mark.Comment != *input.Comment {
-		updated = true
-		mark.Comment = input.Comment
+	if input.Comment != nil {
+		if mark.Comment == nil || *mark.Comment != *input.Comment {
+			updated = true
+			mark.Comment = input.Comment
+		}
 	}
 
 	if updated {
