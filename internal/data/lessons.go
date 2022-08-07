@@ -51,7 +51,7 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 }
 
 func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
-	query := `SELECT l.id, l.journal_id, j.name, l.description, l.date, l.course, l.created_at, l.updated_at, l.version
+	query := `SELECT l.id, l.journal_id, j.name, j.archived, l.description, l.date, l.course, l.created_at, l.updated_at, l.version
 	FROM lessons l
 	INNER JOIN journals j
 	ON j.id = l.journal_id
@@ -67,6 +67,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 		&lesson.ID,
 		&lesson.Journal.ID,
 		&lesson.Journal.Name,
+		&lesson.Journal.Archived,
 		&lesson.Description,
 		&lesson.Date.Time,
 		&lesson.Course,
