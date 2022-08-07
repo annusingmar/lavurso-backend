@@ -80,6 +80,12 @@ func (app *application) routes() http.Handler {
 			// get all journals
 			mux.Get("/journals", app.listAllJournals)
 
+			// unarchive journal
+			mux.Put("/journals/{id}/unarchive", app.unarchiveJournal)
+
+			// delete journal
+			mux.Delete("/journals/{id}", app.deleteJournal)
+
 			// add parent to student
 			mux.Put("/students/{id}/parents", app.addParentToStudent)
 
@@ -101,8 +107,8 @@ func (app *application) routes() http.Handler {
 			// update journal
 			mux.Patch("/journals/{id}", app.updateJournal)
 
-			// delete journal
-			mux.Delete("/journals/{id}", app.deleteJournal)
+			// archive journal
+			mux.Put("/journals/{id}/archive", app.archiveJournal)
 
 			// get journals for teacher
 			mux.Get("/teachers/{id}/journals", app.getJournalsForTeacher)

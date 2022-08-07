@@ -156,6 +156,11 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if *journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
+		return
+	}
+
 	mark.JournalID = &journal.ID
 
 	ok, err := app.models.Journals.IsUserInJournal(mark.UserID, *mark.JournalID)
@@ -238,6 +243,11 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if *journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
+		return
+	}
+
 	err = app.models.Marks.DeleteMark(mark.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -289,6 +299,11 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 
 	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
+		return
+	}
+
+	if *journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
 

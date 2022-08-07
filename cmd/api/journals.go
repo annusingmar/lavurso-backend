@@ -13,7 +13,17 @@ import (
 )
 
 func (app *application) listAllJournals(w http.ResponseWriter, r *http.Request) {
-	journals, err := app.models.Journals.AllJournals()
+	var archived bool
+
+	archivedParam := r.URL.Query().Get("archived")
+
+	if archivedParam == "true" {
+		archived = true
+	} else {
+		archived = false
+	}
+
+	journals, err := app.models.Journals.AllJournals(archived)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -168,6 +178,11 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if *journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
+		return
+	}
+
 	var input struct {
 		Name      *string `json:"name"`
 		TeacherID *int    `json:"teacher_id"`
@@ -235,8 +250,6 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) deleteJournal(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if journalID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
@@ -254,8 +267,8 @@ func (app *application) deleteJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
-		app.notAllowed(w, r)
+	if !*journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalNotArchived.Error())
 		return
 	}
 
@@ -581,4 +594,71 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		app.writeInternalServerError(w, r, err)
 	}
 
+}
+
+func (app *application) archiveJournal(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	err = app.models.Journals.SetJournalArchived(journal.ID, true)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) unarchiveJournal(w http.ResponseWriter, r *http.Request) {
+	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.models.Journals.SetJournalArchived(journal.ID, false)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
 }

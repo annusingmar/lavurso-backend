@@ -198,6 +198,11 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if *journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
+		return
+	}
+
 	var input struct {
 		Description *string    `json:"description"`
 		Deadline    *data.Date `json:"deadline"`
@@ -288,6 +293,11 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 
 	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
+		return
+	}
+
+	if *journal.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
 

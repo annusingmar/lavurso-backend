@@ -13,6 +13,7 @@ var (
 	ErrNoSuchJournal        = errors.New("no such journal")
 	ErrUserAlreadyInJournal = errors.New("user is already part of journal")
 	ErrJournalArchived      = errors.New("journal is archived")
+	ErrJournalNotArchived   = errors.New("journal is not archived")
 	ErrUserNotInJournal     = errors.New("user not in journal")
 )
 
@@ -30,19 +31,20 @@ type JournalModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m JournalModel) AllJournals() ([]*Journal, error) {
+func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
 	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
+	WHERE j.archived = $1
 	ORDER BY j.last_updated DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.Query(ctx, query, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -430,4 +432,20 @@ func (m JournalModel) GetCurrentCourseForJournal(journalID int) (*int, error) {
 	}
 
 	return course, nil
+}
+
+func (m JournalModel) SetJournalArchived(journalID int, archived bool) error {
+	stmt := `UPDATE journals
+	SET archived = $1
+	WHERE id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, archived, journalID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
