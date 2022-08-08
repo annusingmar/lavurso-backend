@@ -169,20 +169,20 @@ func (m JournalModel) DeleteJournal(journalID int) error {
 	return nil
 }
 
-func (m JournalModel) GetJournalsForTeacher(teacherID int) ([]*Journal, error) {
+func (m JournalModel) GetJournalsForTeacher(teacherID int, archived bool) ([]*Journal, error) {
 	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	WHERE j.teacher_id = $1 and j.archived is FALSE
+	WHERE j.teacher_id = $1 and j.archived = $2
 	ORDER BY j.last_updated DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, teacherID)
+	rows, err := m.DB.Query(ctx, query, teacherID, archived)
 	if err != nil {
 		return nil, err
 	}

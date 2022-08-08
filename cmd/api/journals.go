@@ -298,6 +298,16 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	var archived bool
+
+	archivedParam := r.URL.Query().Get("archived")
+
+	if archivedParam == "true" {
+		archived = true
+	} else {
+		archived = false
+	}
+
 	teacher, err := app.models.Users.GetUserByID(teacherID)
 	if err != nil {
 		switch {
@@ -314,7 +324,7 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	journals, err := app.models.Journals.GetJournalsForTeacher(teacher.ID)
+	journals, err := app.models.Journals.GetJournalsForTeacher(teacher.ID, archived)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
