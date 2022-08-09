@@ -140,11 +140,14 @@ func (app *application) routes() http.Handler {
 			// delete assignment
 			mux.Delete("/assignments/{id}", app.deleteAssignment)
 
-			// get current marks for journal
-			mux.Get("/journals/{id}/marks", app.getMarksForJournal)
+			// get current grades for journal's course
+			mux.Get("/journals/{jid}/course/{cid}/grades", app.getCourseGradesForJournal)
 
-			// get students for lesson
-			mux.Get("/lessons/{id}/students", app.getStudentsForLesson)
+			// get subject grades for journal
+			mux.Get("/journals/{id}/grades", app.getSubjectGradesForJournal)
+
+			// get students and marks for lesson
+			mux.Get("/lessons/{id}/marks", app.getMarksForLesson)
 
 			// add mark
 			mux.Post("/marks", app.addMark)
@@ -156,6 +159,7 @@ func (app *application) routes() http.Handler {
 			mux.Patch("/marks/{id}", app.updateMark)
 		})
 
+		// search for user with query param 'name' (minimum 4 characters)
 		mux.Get("/users/search", app.searchUser)
 
 		// get user by id

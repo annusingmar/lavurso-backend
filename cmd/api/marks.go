@@ -507,7 +507,63 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Request) {
+func (app *application) getCourseGradesForJournal(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	course, err := strconv.Atoi(chi.URLParam(r, "cid"))
+	if course < 0 || err != nil {
+		course = 1
+	}
+
+	students, err := app.models.Journals.GetUsersByJournalID(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	marks, err := app.models.Marks.GetCourseGradesByJournalID(journal.ID, course)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	for _, mark := range marks {
+		for _, student := range students {
+			if student.ID == mark.UserID {
+				student.Marks = append(student.Marks, mark)
+			}
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getSubjectGradesForJournal(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -532,19 +588,33 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	marks, err := app.models.Marks.GetMarksByJournalID(journal.ID)
+	students, err := app.models.Journals.GetUsersByJournalID(journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"marks": marks})
+	marks, err := app.models.Marks.GetSubjectGradesByJournalID(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	for _, mark := range marks {
+		for _, student := range students {
+			if student.ID == mark.UserID {
+				student.Marks = append(student.Marks, mark)
+			}
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
 }
 
-func (app *application) getStudentsForLesson(w http.ResponseWriter, r *http.Request) {
+func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	lessonID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -593,11 +663,9 @@ func (app *application) getStudentsForLesson(w http.ResponseWriter, r *http.Requ
 	}
 
 	for _, mark := range marks {
-		if *mark.LessonID == lesson.ID {
-			for _, student := range students {
-				if student.ID == mark.UserID {
-					student.Marks = append(student.Marks, mark)
-				}
+		for _, student := range students {
+			if student.ID == mark.UserID {
+				student.Marks = append(student.Marks, mark)
 			}
 		}
 	}

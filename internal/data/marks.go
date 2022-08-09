@@ -177,13 +177,67 @@ func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
 	return marks, nil
 }
 
+func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
+	query := `SELECT
+	m.id, m.user_id, m.lesson_id, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	FROM marks m
+	LEFT JOIN grades g
+	ON m.grade_id = g.id
+	WHERE m.journal_id = $1 and m.type = 'subject_grade'
+	ORDER BY at ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, journalID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	marks, err := scanMarks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
+func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, error) {
+	query := `SELECT
+	m.id, m.user_id, m.lesson_id, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	FROM marks m
+	LEFT JOIN grades g
+	ON m.grade_id = g.id
+	WHERE m.journal_id = $1 and m.course = $2 and m.type = 'course_grade'
+	ORDER BY at ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, journalID, course)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	marks, err := scanMarks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
 func (m MarkModel) GetMarksByLessonID(lessonID int) ([]*Mark, error) {
 	query := `SELECT
 	m.id, m.user_id, m.lesson_id, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
-	WHERE lesson_id = $1
+	WHERE m.lesson_id = $1
 	ORDER BY at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

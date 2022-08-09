@@ -31,7 +31,7 @@ ADD
 ALTER TABLE
   "public"."marks"
 ADD
-  CONSTRAINT "marks_relation_4" FOREIGN KEY ("journal_id") REFERENCES "public"."journals" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+  CONSTRAINT "marks_relation_4" FOREIGN KEY ("journal_id") REFERENCES "public"."journals" ("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE
   "public"."marks"
