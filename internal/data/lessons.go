@@ -14,15 +14,14 @@ var (
 )
 
 type Lesson struct {
-	ID int `json:"id"`
-	// JournalID   int       `json:"journal_id"`
-	Journal     *Journal  `json:"journal"`
-	Description string    `json:"description"`
-	Date        Date      `json:"date"`
-	Course      int       `json:"course"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Version     int       `json:"-"`
+	ID          *int       `json:"id"`
+	Journal     *Journal   `json:"journal,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Date        *Date      `json:"date,omitempty"`
+	Course      *int       `json:"course,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	Version     int        `json:"-"`
 }
 
 type LessonModel struct {
@@ -62,6 +61,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 
 	var lesson Lesson
 	lesson.Journal = &Journal{}
+	lesson.Date = &Date{}
 
 	err := m.DB.QueryRow(ctx, query, lessonID).Scan(
 		&lesson.ID,
@@ -147,6 +147,7 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 	for rows.Next() {
 		var lesson Lesson
 		lesson.Journal = &Journal{}
+		lesson.Date = &Date{}
 
 		err := rows.Scan(
 			&lesson.ID,

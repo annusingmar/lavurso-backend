@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -29,11 +30,11 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 
 	lesson := &data.Lesson{
 		Journal:     &data.Journal{ID: input.JournalID},
-		Description: input.Description,
-		Date:        input.Date,
-		Course:      input.Course,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+		Description: &input.Description,
+		Date:        &input.Date,
+		Course:      &input.Course,
+		CreatedAt:   helpers.ToPtr(time.Now().UTC()),
+		UpdatedAt:   helpers.ToPtr(time.Now().UTC()),
 		Version:     1,
 	}
 
@@ -44,7 +45,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	v.Check(lesson.Course > 0, "course", "must be provided and valid")
+	v.Check(*lesson.Course > 0, "course", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -214,13 +215,13 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Description != nil {
-		lesson.Description = *input.Description
+		lesson.Description = input.Description
 	}
 	if input.Date != nil {
-		lesson.Date = *input.Date
+		lesson.Date = input.Date
 	}
 
-	lesson.UpdatedAt = time.Now().UTC()
+	lesson.UpdatedAt = helpers.ToPtr(time.Now().UTC())
 
 	err = app.models.Lessons.UpdateLesson(lesson)
 	if err != nil {
@@ -286,7 +287,7 @@ func (app *application) deleteLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Lessons.DeleteLesson(lesson.ID)
+	err = app.models.Lessons.DeleteLesson(*lesson.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

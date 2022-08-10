@@ -448,7 +448,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 	}
 
 	sort.SliceStable(assignments, func(i, j int) bool {
-		return assignments[i].Deadline.Time.After(assignments[j].Deadline.Time)
+		return assignments[i].Deadline.Time.After(*assignments[j].Deadline.Time)
 	})
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignments})

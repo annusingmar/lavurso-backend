@@ -11,7 +11,7 @@ var (
 )
 
 type Date struct {
-	time.Time
+	*time.Time
 }
 
 func (d *Date) UnmarshalJSON(b []byte) error {
@@ -26,11 +26,18 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 		return ErrInvalidDateFormat
 	}
 
-	d.Time = t
+	d.Time = &t
 	return nil
 }
 
-func (d Date) MarshalJSON() ([]byte, error) {
-	fd := d.Time.Format("2006-01-02")
+func (d *Date) MarshalJSON() ([]byte, error) {
+	var fd string
+
+	if d.Time != nil {
+		fd = d.Time.Format("2006-01-02")
+	} else {
+		return []byte("null"), nil
+	}
+
 	return []byte(strconv.Quote(fd)), nil
 }

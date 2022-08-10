@@ -30,10 +30,12 @@ type AbsenceModel struct {
 
 func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
 	FROM marks m
 	LEFT JOIN absences_excuses exc
 	ON m.id = exc.absence_mark_id
+	LEFT JOIN lessons l
+	ON m.lesson_id = l.id
 	WHERE m.user_id = $1 and m.type = 'absent'`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -51,11 +53,14 @@ func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 	for rows.Next() {
 		var mark Mark
 		mark.AbsenceExcuses = new(AbsenceExcuse)
+		mark.Lesson = &Lesson{Date: &Date{}}
 
 		err := rows.Scan(
 			&mark.ID,
 			&mark.UserID,
-			&mark.LessonID,
+			&mark.Lesson.ID,
+			&mark.Lesson.Date.Time,
+			&mark.Lesson.Description,
 			&mark.Course,
 			&mark.JournalID,
 			&mark.Grade.ID,
@@ -89,10 +94,12 @@ func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 
 func (m AbsenceModel) GetAbsenceByMarkID(markID int) (*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
 	FROM marks m
 	LEFT JOIN absences_excuses exc
 	ON m.id = exc.absence_mark_id
+	LEFT JOIN lessons l
+	ON m.lesson_id = l.id
 	WHERE m.id = $1 and m.type = 'absent'`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -104,7 +111,9 @@ func (m AbsenceModel) GetAbsenceByMarkID(markID int) (*Mark, error) {
 	err := m.DB.QueryRow(ctx, query, markID).Scan(
 		&mark.ID,
 		&mark.UserID,
-		&mark.LessonID,
+		&mark.Lesson.ID,
+		&mark.Lesson.Date.Time,
+		&mark.Lesson.Description,
 		&mark.Course,
 		&mark.JournalID,
 		&mark.Grade.ID,
