@@ -559,20 +559,6 @@ func (app *application) getCourseGradesForJournal(w http.ResponseWriter, r *http
 		}
 	}
 
-	marks, err = app.models.Marks.GetLessonGradesByJournalID(journal.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
-	for _, mark := range marks {
-		for _, student := range students {
-			if student.ID == mark.UserID {
-				student.Marks = append(student.Marks, mark)
-			}
-		}
-	}
-
 	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)

@@ -247,7 +247,7 @@ func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, e
 	return marks, nil
 }
 
-func (m MarkModel) GetLessonGradesByJournalID(journalID int) ([]*Mark, error) {
+func (m MarkModel) GetLessonGradesByCourseAndJournalID(journalID, course int) ([]*Mark, error) {
 	query := `SELECT
 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
 	FROM marks m
@@ -255,13 +255,13 @@ func (m MarkModel) GetLessonGradesByJournalID(journalID int) ([]*Mark, error) {
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
-	WHERE m.journal_id = $1 and m.type = 'lesson_grade'
+	WHERE m.journal_id = $1 and m.course = $2 and m.type = 'lesson_grade'
 	ORDER BY at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
+	rows, err := m.DB.Query(ctx, query, journalID, course)
 	if err != nil {
 		return nil, err
 	}
