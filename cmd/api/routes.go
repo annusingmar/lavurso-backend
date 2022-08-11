@@ -140,11 +140,9 @@ func (app *application) routes() http.Handler {
 			// delete assignment
 			mux.Delete("/assignments/{id}", app.deleteAssignment)
 
-			// get current grades for journal's course
-			mux.Get("/journals/{jid}/course/{cid}/grades", app.getCourseGradesForJournal)
-
-			// get subject grades for journal
-			mux.Get("/journals/{id}/grades", app.getSubjectGradesForJournal)
+			// get grades for journal
+			// ?grade_type=(&course=)
+			mux.Get("/journals/{id}/grades", app.getGradesForJournal)
 
 			// get students and marks for lesson
 			mux.Get("/lessons/{id}/marks", app.getMarksForLesson)
