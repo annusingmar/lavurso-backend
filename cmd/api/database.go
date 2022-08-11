@@ -5,11 +5,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func openDBConnection(connectionString string) *pgxpool.Pool {
-	pool, err := pgxpool.Connect(context.Background(), connectionString)
+	pool, err := pgxpool.New(context.Background(), connectionString)
 	if err != nil {
 		log.Fatalln(err)
 	}
