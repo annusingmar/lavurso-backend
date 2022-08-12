@@ -252,6 +252,11 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 			app.writeInternalServerError(w, r, err)
 			return
 		}
+		err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	for _, id := range input.ClassIDs {
@@ -264,6 +269,11 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		for _, u := range users {
 			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
 			if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+				app.writeInternalServerError(w, r, err)
+				return
+			}
+			err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, u.ID)
+			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}
@@ -280,6 +290,11 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		for _, u := range users {
 			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
 			if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+				app.writeInternalServerError(w, r, err)
+				return
+			}
+			err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, u.ID)
+			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}
@@ -338,7 +353,7 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 			app.writeInternalServerError(w, r, err)
 			return
 		}
-		err = app.models.Messaging.RemoveUserGroupFromAllThreads(id, group.ID)
+		err = app.models.Messaging.RemoveUserGroupFromAllThreads(group.ID, id)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

@@ -2,14 +2,10 @@ create table if not exists
   "public"."threads_recipients" (
     "thread_id" INTEGER not null,
     "user_id" INTEGER not null,
-    "group_id" INTEGER null,
-    "read" BOOLEAN not null default FALSE
+    "group_id" INTEGER,
+    "read" BOOLEAN not null default FALSE,
+    unique NULLS NOT DISTINCT (thread_id, user_id, group_id)
   );
-
-alter table
-  "public"."threads_recipients"
-add
-  constraint "threads_recipients_pkey" primary key ("thread_id", "user_id");
 
 ALTER TABLE
   "public"."threads_recipients"

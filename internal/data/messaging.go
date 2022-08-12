@@ -125,13 +125,29 @@ func (m MessagingModel) DeleteThread(threadID int) error {
 	return nil
 }
 
+// the sql statements for adding users and groups to threads
+// may seem a bit insane, so let's break them down
+
+// AddUserToThread statement will insert to 'threads_recipients' ONE row:
+// 'thread_id', 'user_id' will be provided by arguments to the prepared statement;
+// for 'read' we use SELECT DISTINCT to get one value from 'threads_recipients' table
+// and thanks to coalesce it will return 'false' if the user wasn't on the thread before
+// (i.e. thanks to being in a group). even though every 'read' column value should be the same
+// because we set all 'read' columns for a user_id to true when the user opens a thread,
+// and we also use similar logic in AddGroupToThread to use existing 'read' value,
+// so DISTINCT should take care of only providing one value,
+// we still use LIMIT 1 to force the return of the SELECT DISTINCT statement to only be ONE row,
+// just as a final sanity check
 func (m MessagingModel) AddUserToThread(threadID, userID int) error {
 	stmt := `INSERT INTO threads_recipients
-	(thread_id, user_id)
+	(thread_id, user_id, read)
 	VALUES
-	($1, $2)
-	ON CONFLICT ON CONSTRAINT threads_recipients_pkey
-	DO UPDATE SET group_id = NULL`
+	($1, $2, coalesce((SELECT DISTINCT read
+	FROM threads_recipients
+	WHERE user_id = $2
+	LIMIT 1), false))
+	ON CONFLICT (thread_id, user_id, group_id)
+	DO NOTHING`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -159,14 +175,23 @@ func (m MessagingModel) RemoveUserFromThread(threadID, userID int) error {
 	return nil
 }
 
+// AddGroupToThread uses the 'users_groups' table to add all users part of the group
+// to the thread, and it left joins 'threads_recipients' to get an existing 'read' column value
+// for the user. SELECT DISTINCT is used to prevent multiple rows being added,
+// that would happen for example when the user was already in the thread as part of a group
+// and added separately as a user. the only chance of multiple rows being added if
+// the user somehow had multiple entries to their 'user_id' with different 'read' values
+// in 'threads_recipients', but that should never happen, because we set all 'read' columns
+// for a user_id to true when the user opens a thread, and AddUserToThread also reuses existing 'read' values
 func (m MessagingModel) AddGroupToThread(threadID, groupID int) error {
-	stmt := `INSERT INTO threads_recipients (thread_id, user_id, group_id)
-	( SELECT $1, ug.user_id, ug.group_id
+	stmt := `INSERT INTO threads_recipients (thread_id, user_id, group_id, read)
+	(SELECT DISTINCT $1::integer, ug.user_id, ug.group_id, coalesce(tr.read, false)
 	FROM users_groups ug
-	WHERE ug.group_id = $2 )
-	ON CONFLICT ON CONSTRAINT threads_recipients_pkey
-	DO UPDATE SET group_id = excluded.group_id
-    WHERE threads_recipients.group_id IS NOT NULL`
+	LEFT JOIN threads_recipients tr
+	ON ug.user_id = tr.user_id
+	WHERE ug.group_id = $2)
+	ON CONFLICT (thread_id, user_id, group_id)
+	DO NOTHING`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -187,6 +212,28 @@ func (m MessagingModel) RemoveGroupFromThread(threadID, groupID int) error {
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, threadID, groupID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MessagingModel) AddUserGroupToAllThreads(groupID, userID int) error {
+	stmt := `INSERT INTO threads_recipients
+	(thread_id, user_id, group_id, read)
+	(SELECT DISTINCT
+	tr.thread_id, $2::integer, tr.group_id,
+	(coalesce((SELECT DISTINCT read FROM threads_recipients WHERE user_id = $2::integer), false))
+	FROM threads_recipients tr
+	WHERE tr.group_id = $1::integer)
+	ON CONFLICT (thread_id, user_id, group_id)
+	DO NOTHING`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, groupID, userID)
 	if err != nil {
 		return err
 	}
@@ -433,7 +480,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 }
 
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
-	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, tr.read, t.created_at, t.updated_at
+	query := `SELECT DISTINCT t.id, t.user_id, u.name, u.role, t.title, t.locked, tr.read, t.created_at, t.updated_at
 	FROM threads t
 	INNER JOIN threads_recipients tr
 	ON t.id = tr.thread_id
@@ -497,7 +544,7 @@ func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {
 		return false, err
 	}
 
-	return result == 1, nil
+	return result > 0, nil
 }
 
 func (m MessagingModel) GetMessageCountForThread(threadID int) (int, error) {

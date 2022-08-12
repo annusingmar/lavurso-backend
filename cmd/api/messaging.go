@@ -258,7 +258,7 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) addNewMembersToThread(w http.ResponseWriter, r *http.Request) {
+func (app *application) addMembersToThread(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	threadID, err := strconv.Atoi(chi.URLParam(r, "id"))
