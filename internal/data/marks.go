@@ -218,6 +218,35 @@ func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
 	return marks, nil
 }
 
+func (m MarkModel) GetAllCoursesGradesByJournalID(journalID int) ([]*Mark, error) {
+	query := `SELECT
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	FROM marks m
+	LEFT JOIN grades g
+	ON m.grade_id = g.id
+	LEFT JOIN lessons l
+	ON m.lesson_id = l.id
+	WHERE m.journal_id = $1 and m.type = 'course_grade'
+	ORDER BY at ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, journalID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	marks, err := scanMarks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
 func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, error) {
 	query := `SELECT
 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
