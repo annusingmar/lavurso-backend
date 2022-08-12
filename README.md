@@ -3,6 +3,7 @@
 ## requirements
 
 [Go](https://go.dev)
+
 [PostgreSQL 15 (in beta)](https://www.postgresql.org)
 
 ## depencencies
