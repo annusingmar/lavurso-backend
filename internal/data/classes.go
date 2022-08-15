@@ -160,6 +160,53 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 
 }
 
+func (m ClassModel) GetClassesForTeacher(teacherID int) ([]*Class, error) {
+	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
+	FROM classes c
+	INNER JOIN users u
+	ON c.teacher_id = u.id
+	WHERE c.teacher_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var classes []*Class
+
+	rows, err := m.DB.Query(ctx, query, teacherID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var class Class
+		class.Teacher = &User{}
+
+		err = rows.Scan(
+			&class.ID,
+			&class.Name,
+			&class.Teacher.ID,
+			&class.Teacher.Name,
+			&class.Teacher.Role,
+			&class.Archived,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		classes = append(classes, &class)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return classes, nil
+}
+
 func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
 	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
 	FROM classes c

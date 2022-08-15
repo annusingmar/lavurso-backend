@@ -38,6 +38,9 @@ func (app *application) routes() http.Handler {
 			// update user
 			mux.Patch("/users/{id}", app.updateUser)
 
+			// list all classes
+			mux.Get("/classes", app.listAllClasses)
+
 			// create new class
 			mux.Post("/classes", app.createClass)
 
@@ -98,9 +101,6 @@ func (app *application) routes() http.Handler {
 		mux.Group(func(mux chi.Router) {
 			mux.Use(app.requireTeacher)
 
-			// list all classes
-			mux.Get("/classes", app.listAllClasses)
-
 			// create journal
 			mux.Post("/journals", app.createJournal)
 
@@ -112,6 +112,9 @@ func (app *application) routes() http.Handler {
 
 			// get journals for teacher
 			mux.Get("/teachers/{id}/journals", app.getJournalsForTeacher)
+
+			// get classes for teacher
+			mux.Get("/teachers/{id}/classes", app.getClassesForTeacher)
 
 			// get users for journal
 			mux.Get("/journals/{id}/students", app.getStudentsForJournal)

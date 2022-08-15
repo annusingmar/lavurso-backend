@@ -32,7 +32,7 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -97,8 +97,17 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	v := validator.NewValidator()
+	v.Check(input.JournalID > 0, "journal_id", "must be provided and valid")
+	v.Check(input.Type == data.AssignmentHomework || input.Type == data.AssignmentTest, "type", "must be provided and valid")
+
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
 	assignment := &data.Assignment{
-		JournalID:   input.JournalID,
+		Journal:     &data.Journal{ID: input.JournalID},
 		Description: input.Description,
 		Deadline:    input.Deadline,
 		Type:        input.Type,
@@ -112,17 +121,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	v := validator.NewValidator()
-
-	v.Check(assignment.JournalID > 0, "journal_id", "must be provided and valid")
-	v.Check(assignment.Type == data.AssignmentHomework || assignment.Type == data.AssignmentTest, "type", "must be provided and valid")
-
-	if !v.Valid() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-		return
-	}
-
-	journal, err := app.models.Journals.GetJournalByID(assignment.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -182,7 +181,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -280,7 +279,7 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.JournalID)
+	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -493,7 +492,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -551,7 +550,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.JournalID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

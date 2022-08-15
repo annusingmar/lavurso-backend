@@ -21,7 +21,7 @@ var (
 
 type Assignment struct {
 	ID          int       `json:"id"`
-	JournalID   int       `json:"journal_id"`
+	Journal     *Journal  `json:"journal"`
 	Description string    `json:"description"`
 	Deadline    Date      `json:"deadline"`
 	Type        string    `json:"type"`
@@ -35,18 +35,22 @@ type AssignmentModel struct {
 }
 
 func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error) {
-	query := `SELECT id, journal_id, description, deadline, type, created_at, updated_at, version
-	FROM assignments
-	WHERE id = $1`
+	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at, a.version
+	FROM assignments a
+	INNER JOIN journals j
+	ON a.journal_id = j.id
+	WHERE a.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var assignment Assignment
+	assignment.Journal = &Journal{}
 
 	err := m.DB.QueryRow(ctx, query, assignmentID).Scan(
 		&assignment.ID,
-		&assignment.JournalID,
+		&assignment.Journal.ID,
+		&assignment.Journal.Name,
 		&assignment.Description,
 		&assignment.Deadline.Time,
 		&assignment.Type,
@@ -77,7 +81,7 @@ func (m AssignmentModel) InsertAssignment(a *Assignment) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, a.JournalID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt, a.Version).Scan(&a.ID)
+	err := m.DB.QueryRow(ctx, stmt, a.Journal.ID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt, a.Version).Scan(&a.ID)
 	if err != nil {
 		return err
 	}
@@ -124,9 +128,11 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 }
 
 func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment, error) {
-	query := `SELECT id, journal_id, description, deadline, type, created_at, updated_at, version
-	FROM assignments
-	WHERE journal_id = $1
+	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at, a.version
+	FROM assignments a
+	INNER JOIN journals j
+	ON a.journal_id = j.id
+	WHERE a.journal_id = $1
 	ORDER BY deadline DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -143,9 +149,12 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 
 	for rows.Next() {
 		var assignment Assignment
+		assignment.Journal = &Journal{}
+
 		err = rows.Scan(
 			&assignment.ID,
-			&assignment.JournalID,
+			&assignment.Journal.ID,
+			&assignment.Journal.Name,
 			&assignment.Description,
 			&assignment.Deadline.Time,
 			&assignment.Type,

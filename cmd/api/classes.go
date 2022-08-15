@@ -23,6 +23,58 @@ func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	teacherID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if teacherID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if teacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	// var archived bool
+
+	// archivedParam := r.URL.Query().Get("archived")
+
+	// if archivedParam == "true" {
+	// 	archived = true
+	// } else {
+	// 	archived = false
+	// }
+
+	teacher, err := app.models.Users.GetUserByID(teacherID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
+		return
+	}
+
+	classes, err := app.models.Classes.GetClassesForTeacher(teacher.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"classes": classes})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
 func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name      string `json:"name"`
