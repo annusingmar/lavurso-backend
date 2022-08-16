@@ -71,7 +71,7 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 	defer cancel()
 
 	var thread Thread
-	thread.User = &User{}
+	thread.User = new(User)
 
 	err := m.DB.QueryRow(ctx, query, threadID).Scan(
 		&thread.ID,
@@ -346,7 +346,7 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	defer cancel()
 
 	var message Message
-	message.User = &User{}
+	message.User = new(User)
 
 	err := m.DB.QueryRow(ctx, query, messageID).Scan(
 		&message.ID,
@@ -451,7 +451,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 
 	for rows.Next() {
 		var message Message
-		message.User = &User{}
+		message.User = new(User)
 
 		err = rows.Scan(
 			&message.ID,
@@ -503,7 +503,7 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 
 	for rows.Next() {
 		var thread Thread
-		thread.User = &User{}
+		thread.User = new(User)
 
 		err = rows.Scan(
 			&thread.ID,

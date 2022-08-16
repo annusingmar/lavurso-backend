@@ -45,7 +45,7 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 	defer cancel()
 
 	var assignment Assignment
-	assignment.Journal = &Journal{}
+	assignment.Journal = new(Journal)
 
 	err := m.DB.QueryRow(ctx, query, assignmentID).Scan(
 		&assignment.ID,
@@ -149,7 +149,7 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 
 	for rows.Next() {
 		var assignment Assignment
-		assignment.Journal = &Journal{}
+		assignment.Journal = new(Journal)
 
 		err = rows.Scan(
 			&assignment.ID,

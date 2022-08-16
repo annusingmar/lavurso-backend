@@ -53,7 +53,7 @@ func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 	for rows.Next() {
 		var mark Mark
 		mark.AbsenceExcuses = new(AbsenceExcuse)
-		mark.Lesson = &Lesson{Date: &Date{}}
+		mark.Lesson = &Lesson{Date: new(Date)}
 
 		err := rows.Scan(
 			&mark.ID,

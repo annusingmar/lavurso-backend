@@ -115,13 +115,13 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	journal := &data.Journal{
-		Name:     input.Name,
+		Name:     &input.Name,
 		Teacher:  &data.User{ID: sessionUser.ID},
 		Subject:  &data.Subject{ID: input.SubjectID},
 		Archived: helpers.ToPtr(false),
 	}
 
-	v.Check(journal.Name != "", "name", "must be provided")
+	v.Check(*journal.Name != "", "name", "must be provided")
 	v.Check(journal.Subject.ID > 0, "subject_id", "must be provided and valid")
 
 	if !v.Valid() {
@@ -195,7 +195,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Name != nil {
-		journal.Name = *input.Name
+		journal.Name = input.Name
 	}
 	if input.TeacherID != nil {
 		if *input.TeacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
@@ -207,7 +207,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	v.Check(journal.Name != "", "name", "must be provided")
+	v.Check(*journal.Name != "", "name", "must be provided")
 	v.Check(journal.Teacher.ID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {

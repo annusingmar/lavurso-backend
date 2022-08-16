@@ -57,9 +57,10 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mark := &data.Mark{}
-	mark.Grade = &data.Grade{}
-	mark.Lesson = &data.Lesson{Date: &data.Date{}}
+	mark := new(data.Mark)
+	mark.Grade = new(data.Grade)
+	mark.By = new(data.User)
+	mark.Lesson = &data.Lesson{Date: new(data.Date)}
 
 	mark.UserID = user.ID
 	mark.Type = input.Type
@@ -187,7 +188,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	mark.SubjectID = &subject.ID
 
 	mark.Comment = input.Comment
-	mark.By = sessionUser.ID
+	mark.By.ID = sessionUser.ID
 	mark.At = time.Now().UTC()
 
 	err = app.models.Marks.InsertMark(mark)
@@ -363,7 +364,7 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 
 	if updated {
 		mark.At = time.Now().UTC()
-		mark.By = sessionUser.ID
+		mark.By.ID = sessionUser.ID
 
 		err = app.models.Marks.UpdateMark(mark)
 		if err != nil {

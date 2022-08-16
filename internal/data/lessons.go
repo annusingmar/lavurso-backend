@@ -14,7 +14,7 @@ var (
 )
 
 type Lesson struct {
-	ID          *int       `json:"id"`
+	ID          *int       `json:"id,omitempty"`
 	Journal     *Journal   `json:"journal,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	Date        *Date      `json:"date,omitempty"`
@@ -60,8 +60,8 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 	defer cancel()
 
 	var lesson Lesson
-	lesson.Journal = &Journal{}
-	lesson.Date = &Date{}
+	lesson.Journal = new(Journal)
+	lesson.Date = new(Date)
 
 	err := m.DB.QueryRow(ctx, query, lessonID).Scan(
 		&lesson.ID,
@@ -146,8 +146,8 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 
 	for rows.Next() {
 		var lesson Lesson
-		lesson.Journal = &Journal{}
-		lesson.Date = &Date{}
+		lesson.Journal = new(Journal)
+		lesson.Date = new(Date)
 
 		err := rows.Scan(
 			&lesson.ID,

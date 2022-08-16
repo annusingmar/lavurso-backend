@@ -19,7 +19,7 @@ var (
 
 type Journal struct {
 	ID            int        `json:"id"`
-	Name          string     `json:"name"`
+	Name          *string    `json:"name,omitempty"`
 	Teacher       *User      `json:"teacher,omitempty"`
 	Subject       *Subject   `json:"subject,omitempty"`
 	LastUpdated   *time.Time `json:"last_updated,omitempty"`
@@ -55,8 +55,8 @@ func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
 
 	for rows.Next() {
 		var journal Journal
-		journal.Teacher = &User{}
-		journal.Subject = &Subject{}
+		journal.Teacher = new(User)
+		journal.Subject = new(Subject)
 		err = rows.Scan(
 			&journal.ID,
 			&journal.Name,
@@ -95,8 +95,8 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 	defer cancel()
 
 	var journal Journal
-	journal.Teacher = &User{}
-	journal.Subject = &Subject{}
+	journal.Teacher = new(User)
+	journal.Subject = new(Subject)
 
 	err := m.DB.QueryRow(ctx, query, journalID).Scan(
 		&journal.ID,
@@ -193,8 +193,8 @@ func (m JournalModel) GetJournalsForTeacher(teacherID int, archived bool) ([]*Jo
 
 	for rows.Next() {
 		var journal Journal
-		journal.Teacher = &User{}
-		journal.Subject = &Subject{}
+		journal.Teacher = new(User)
+		journal.Subject = new(Subject)
 
 		err = rows.Scan(
 			&journal.ID,
@@ -332,8 +332,8 @@ func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
 
 	for rows.Next() {
 		var journal Journal
-		journal.Teacher = &User{}
-		journal.Subject = &Subject{}
+		journal.Teacher = new(User)
+		journal.Subject = new(Subject)
 
 		err = rows.Scan(
 			&journal.ID,

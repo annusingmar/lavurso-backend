@@ -66,7 +66,7 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 
 	for rows.Next() {
 		var class Class
-		class.Teacher = &User{}
+		class.Teacher = new(User)
 
 		err = rows.Scan(
 			&class.ID,
@@ -136,7 +136,7 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 	defer cancel()
 
 	var class Class
-	class.Teacher = &User{}
+	class.Teacher = new(User)
 
 	err := m.DB.QueryRow(ctx, query, classID).Scan(
 		&class.ID,
@@ -182,7 +182,7 @@ func (m ClassModel) GetClassesForTeacher(teacherID int) ([]*Class, error) {
 
 	for rows.Next() {
 		var class Class
-		class.Teacher = &User{}
+		class.Teacher = new(User)
 
 		err = rows.Scan(
 			&class.ID,
@@ -220,7 +220,7 @@ func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
 	defer cancel()
 
 	var class Class
-	class.Teacher = &User{}
+	class.Teacher = new(User)
 
 	err := m.DB.QueryRow(ctx, query, userID).Scan(
 		&class.ID,

@@ -26,7 +26,7 @@ type Mark struct {
 	Comment        *string        `json:"comment,omitempty"`
 	Type           string         `json:"type"`
 	AbsenceExcuses *AbsenceExcuse `json:"absence_excuses,omitempty"`
-	By             int            `json:"by"`
+	By             *User          `json:"by"`
 	At             time.Time      `json:"at"`
 }
 
@@ -51,8 +51,9 @@ func scanMarks(rows pgx.Rows) ([]*Mark, error) {
 
 	for rows.Next() {
 		var mark Mark
-		mark.Grade = &Grade{}
-		mark.Lesson = &Lesson{Date: &Date{}}
+		mark.Grade = new(Grade)
+		mark.By = new(User)
+		mark.Lesson = &Lesson{Date: new(Date)}
 
 		err := rows.Scan(
 			&mark.ID,
@@ -68,7 +69,9 @@ func scanMarks(rows pgx.Rows) ([]*Mark, error) {
 			&mark.SubjectID,
 			&mark.Comment,
 			&mark.Type,
-			&mark.By,
+			&mark.By.ID,
+			&mark.By.Name,
+			&mark.By.Role,
 			&mark.At,
 		)
 		if err != nil {
@@ -86,20 +89,23 @@ func scanMarks(rows pgx.Rows) ([]*Mark, error) {
 
 func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE m.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var mark Mark
-	mark.Grade = &Grade{}
-	mark.Lesson = &Lesson{Date: &Date{}}
+	mark.Grade = new(Grade)
+	mark.By = new(User)
+	mark.Lesson = &Lesson{Date: new(Date)}
 
 	err := m.DB.QueryRow(ctx, query, markID).Scan(
 		&mark.ID,
@@ -115,7 +121,9 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 		&mark.SubjectID,
 		&mark.Comment,
 		&mark.Type,
-		&mark.By,
+		&mark.By.ID,
+		&mark.By.Name,
+		&mark.By.Role,
 		&mark.At,
 	)
 
@@ -133,13 +141,15 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 
 func (m MarkModel) GetMarksByUserID(userID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
-	WHERE user_id = $1
+	INNER JOIN users u
+	ON m.by = u.id
+	WHERE m.user_id = $1
 	ORDER BY at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -162,13 +172,15 @@ func (m MarkModel) GetMarksByUserID(userID int) ([]*Mark, error) {
 
 func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
-	WHERE journal_id = $1
+	INNER JOIN users u
+	ON m.by = u.id
+	WHERE m.journal_id = $1
 	ORDER BY at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -191,12 +203,14 @@ func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
 
 func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE m.journal_id = $1 and m.type = 'subject_grade'
 	ORDER BY at ASC`
 
@@ -220,12 +234,14 @@ func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
 
 func (m MarkModel) GetAllCoursesGradesByJournalID(journalID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE m.journal_id = $1 and m.type = 'course_grade'
 	ORDER BY at ASC`
 
@@ -249,12 +265,14 @@ func (m MarkModel) GetAllCoursesGradesByJournalID(journalID int) ([]*Mark, error
 
 func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE m.journal_id = $1 and m.course = $2 and m.type = 'course_grade'
 	ORDER BY at ASC`
 
@@ -278,12 +296,14 @@ func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, e
 
 func (m MarkModel) GetLessonGradesByCourseAndJournalID(journalID, course int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE m.journal_id = $1 and m.course = $2 and m.type = 'lesson_grade'
 	ORDER BY at ASC`
 
@@ -307,12 +327,14 @@ func (m MarkModel) GetLessonGradesByCourseAndJournalID(journalID, course int) ([
 
 func (m MarkModel) GetMarksByLessonID(lessonID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE m.lesson_id = $1
 	ORDER BY at ASC`
 
@@ -336,12 +358,14 @@ func (m MarkModel) GetMarksByLessonID(lessonID int) ([]*Mark, error) {
 
 func (m MarkModel) GetMarksByUserIDAndJournalID(userID, journalID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE user_id = $1 and journal_id = $2
 	ORDER BY at ASC`
 
@@ -374,7 +398,7 @@ func (m MarkModel) InsertMark(mark *Mark) error {
 	defer cancel()
 
 	err := m.DB.QueryRow(ctx, stmt, mark.UserID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
-		mark.SubjectID, mark.Comment, mark.Type, mark.By, mark.At).Scan(&mark.ID)
+		mark.SubjectID, mark.Comment, mark.Type, mark.By.ID, mark.At).Scan(&mark.ID)
 
 	if err != nil {
 		return err
@@ -393,7 +417,7 @@ func (m MarkModel) UpdateMark(mark *Mark) error {
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, mark.UserID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
-		mark.SubjectID, mark.Comment, mark.Type, mark.By, mark.At, mark.ID)
+		mark.SubjectID, mark.Comment, mark.Type, mark.By.ID, mark.At, mark.ID)
 
 	if err != nil {
 		return err
@@ -428,7 +452,7 @@ func (m MarkModel) InsertOldMark(mark *Mark) error {
 	defer cancel()
 
 	err := m.DB.QueryRow(ctx, stmt, mark.UserID, mark.MarkID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
-		mark.SubjectID, mark.Comment, mark.Type, mark.By, mark.At).Scan(&mark.ID)
+		mark.SubjectID, mark.Comment, mark.Type, mark.By.ID, mark.At).Scan(&mark.ID)
 
 	if err != nil {
 		return err
@@ -439,12 +463,14 @@ func (m MarkModel) InsertOldMark(mark *Mark) error {
 
 func (m MarkModel) GetOldMarksByMarkID(markID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, m.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.subject_id, m.comment, m.type, m.by, u.name, u.role, m.at
 	FROM mark_history m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
 	WHERE mark_id = $1
 	ORDER BY at ASC`
 
