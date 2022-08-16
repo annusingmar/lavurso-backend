@@ -13,7 +13,6 @@ var (
 	ErrNoSuchGroup        = errors.New("no such group")
 	ErrNoSuchGroups       = errors.New("no such groups")
 	ErrUserAlreadyInGroup = errors.New("user already in group")
-	ErrUserNotInGroup     = errors.New("user not in group")
 )
 
 type Group struct {

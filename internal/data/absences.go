@@ -30,7 +30,7 @@ type AbsenceModel struct {
 
 func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
 	FROM marks m
 	LEFT JOIN absences_excuses exc
 	ON m.id = exc.absence_mark_id
@@ -64,7 +64,6 @@ func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 			&mark.Course,
 			&mark.JournalID,
 			&mark.Grade.ID,
-			&mark.Subject.ID,
 			&mark.Comment,
 			&mark.Type,
 			&mark.By,
@@ -94,7 +93,7 @@ func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
 
 func (m AbsenceModel) GetAbsenceByMarkID(markID int) (*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.subject_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.comment, m.type, m.by, m.at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
 	FROM marks m
 	LEFT JOIN absences_excuses exc
 	ON m.id = exc.absence_mark_id
@@ -117,7 +116,6 @@ func (m AbsenceModel) GetAbsenceByMarkID(markID int) (*Mark, error) {
 		&mark.Course,
 		&mark.JournalID,
 		&mark.Grade.ID,
-		&mark.Subject.ID,
 		&mark.Comment,
 		&mark.Type,
 		&mark.By,

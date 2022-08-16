@@ -20,7 +20,6 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		Course    *int    `json:"course"`
 		JournalID *int    `json:"journal_id"`
 		GradeID   *int    `json:"grade_id"`
-		SubjectID *int    `json:"subject_id"`
 		Comment   *string `json:"comment"`
 		Type      string  `json:"type"`
 	}
@@ -59,7 +58,6 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 
 	mark := new(data.Mark)
 	mark.Grade = new(data.Grade)
-	mark.Subject = new(data.Subject)
 	mark.By = new(data.User)
 	mark.Lesson = &data.Lesson{Date: new(data.Date)}
 
@@ -175,18 +173,6 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		app.writeErrorResponse(w, r, http.StatusTeapot, "user not in journal")
 		return
 	}
-
-	subject, err := app.models.Subjects.GetSubjectByID(*journal.Subject.ID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchSubject):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-	mark.Subject.ID = subject.ID
 
 	mark.Comment = input.Comment
 	mark.By.ID = sessionUser.ID
@@ -498,7 +484,7 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	marks, err := app.models.Marks.GetMarksByUserID(user.ID)
+	marks, err := app.models.Marks.GetMarksByStudent(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -659,97 +645,97 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
+// func (app *application) getMarksForStudentsJournal(w http.ResponseWriter, r *http.Request) {
+// 	sessionUser := app.getUserFromContext(r)
 
-	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
+// 	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
+// 	if userID < 0 || err != nil {
+// 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+// 		return
+// 	}
 
-	switch sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleTeacher:
-	case data.RoleStudent:
-		if userID != sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
-	}
+// 	switch sessionUser.Role {
+// 	case data.RoleAdministrator:
+// 	case data.RoleParent:
+// 		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+// 		if err != nil {
+// 			app.writeInternalServerError(w, r, err)
+// 			return
+// 		}
+// 		if !ok {
+// 			app.notAllowed(w, r)
+// 			return
+// 		}
+// 	case data.RoleTeacher:
+// 	case data.RoleStudent:
+// 		if userID != sessionUser.ID {
+// 			app.notAllowed(w, r)
+// 			return
+// 		}
+// 	default:
+// 		app.notAllowed(w, r)
+// 		return
+// 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
+// 	user, err := app.models.Users.GetUserByID(userID)
+// 	if err != nil {
+// 		switch {
+// 		case errors.Is(err, data.ErrNoSuchUser):
+// 			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+// 		default:
+// 			app.writeInternalServerError(w, r, err)
+// 		}
+// 		return
+// 	}
 
-	if user.Role != data.RoleStudent {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-		return
-	}
+// 	if user.Role != data.RoleStudent {
+// 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+// 		return
+// 	}
 
-	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
-	if journalID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
-		return
-	}
+// 	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
+// 	if journalID < 0 || err != nil {
+// 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+// 		return
+// 	}
 
-	journal, err := app.models.Journals.GetJournalByID(journalID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchJournal):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
+// 	journal, err := app.models.Journals.GetJournalByID(journalID)
+// 	if err != nil {
+// 		switch {
+// 		case errors.Is(err, data.ErrNoSuchJournal):
+// 			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+// 		default:
+// 			app.writeInternalServerError(w, r, err)
+// 		}
+// 		return
+// 	}
 
-	if sessionUser.Role == data.RoleTeacher && journal.Teacher.ID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
+// 	if sessionUser.Role == data.RoleTeacher && journal.Teacher.ID != sessionUser.ID {
+// 		app.notAllowed(w, r)
+// 		return
+// 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(user.ID, journal.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-	if !ok {
-		app.writeErrorResponse(w, r, http.StatusTeapot, "user not in journal")
-		return
-	}
+// 	ok, err := app.models.Journals.IsUserInJournal(user.ID, journal.ID)
+// 	if err != nil {
+// 		app.writeInternalServerError(w, r, err)
+// 		return
+// 	}
+// 	if !ok {
+// 		app.writeErrorResponse(w, r, http.StatusTeapot, "user not in journal")
+// 		return
+// 	}
 
-	marks, err := app.models.Marks.GetMarksByUserIDAndJournalID(user.ID, journal.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+// 	marks, err := app.models.Marks.GetMarksByUserIDAndJournalID(user.ID, journal.ID)
+// 	if err != nil {
+// 		app.writeInternalServerError(w, r, err)
+// 		return
+// 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"marks": marks})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-}
+// 	err = app.outputJSON(w, http.StatusOK, envelope{"marks": marks})
+// 	if err != nil {
+// 		app.writeInternalServerError(w, r, err)
+// 	}
+// }
 
 func (app *application) getPreviousMarksForMark(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)

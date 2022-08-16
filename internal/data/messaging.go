@@ -11,21 +11,11 @@ import (
 )
 
 var (
-	ErrUserAlreadyInThread    = errors.New("user already in thread")
-	ErrUserNotInThread        = errors.New("user not in thread")
-	ErrUsersNotInThread       = errors.New("users not in thread")
 	ErrNoSuchThread           = errors.New("no such thread")
 	ErrNoSuchMessage          = errors.New("no such message")
 	ErrThreadAlreadyLocked    = errors.New("thread already locked")
 	ErrThreadAlreadyUnlocked  = errors.New("thread already unlocked")
 	ErrCantDeleteFirstMessage = errors.New("can't delete first message of thread")
-)
-
-const (
-	ActionAddedUser   = "added_user"
-	ActionRemovedUser = "removed_user"
-	ActionLocked      = "locked"
-	ActionUnlocked    = "unlocked"
 )
 
 const (
