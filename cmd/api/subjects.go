@@ -37,10 +37,10 @@ func (app *application) createSubject(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	subject := &data.Subject{
-		Name: input.Name,
+		Name: &input.Name,
 	}
 
-	v.Check(subject.Name != "", "name", "must be provided")
+	v.Check(*subject.Name != "", "name", "must be provided")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -113,12 +113,12 @@ func (app *application) updateSubject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Name != nil {
-		subject.Name = *input.Name
+		subject.Name = input.Name
 	}
 
 	v := validator.NewValidator()
 
-	v.Check(subject.Name != "", "name", "must be provided")
+	v.Check(*subject.Name != "", "name", "must be provided")
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return

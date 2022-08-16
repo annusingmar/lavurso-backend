@@ -117,19 +117,19 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 	journal := &data.Journal{
 		Name:     &input.Name,
 		Teacher:  &data.User{ID: sessionUser.ID},
-		Subject:  &data.Subject{ID: input.SubjectID},
+		Subject:  &data.Subject{ID: &input.SubjectID},
 		Archived: helpers.ToPtr(false),
 	}
 
 	v.Check(*journal.Name != "", "name", "must be provided")
-	v.Check(journal.Subject.ID > 0, "subject_id", "must be provided and valid")
+	v.Check(*journal.Subject.ID > 0, "subject_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	_, err = app.models.Subjects.GetSubjectByID(journal.Subject.ID)
+	_, err = app.models.Subjects.GetSubjectByID(*journal.Subject.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):

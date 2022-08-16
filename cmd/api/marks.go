@@ -59,6 +59,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 
 	mark := new(data.Mark)
 	mark.Grade = new(data.Grade)
+	mark.Subject = new(data.Subject)
 	mark.By = new(data.User)
 	mark.Lesson = &data.Lesson{Date: new(data.Date)}
 
@@ -175,7 +176,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subject, err := app.models.Subjects.GetSubjectByID(journal.Subject.ID)
+	subject, err := app.models.Subjects.GetSubjectByID(*journal.Subject.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
@@ -185,7 +186,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	mark.SubjectID = &subject.ID
+	mark.Subject.ID = subject.ID
 
 	mark.Comment = input.Comment
 	mark.By.ID = sessionUser.ID
