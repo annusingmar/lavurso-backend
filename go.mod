@@ -3,9 +3,9 @@ module github.com/annusingmar/lavurso-backend
 go 1.19
 
 require (
-	github.com/BurntSushi/toml v1.1.0
+	github.com/BurntSushi/toml v1.2.0
 	github.com/go-chi/chi/v5 v5.0.7
-	github.com/jackc/pgx/v5 v5.0.0-beta.1
+	github.com/jackc/pgx/v5 v5.0.0-beta.2
 	github.com/microcosm-cc/bluemonday v1.0.19
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
