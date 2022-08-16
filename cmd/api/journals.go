@@ -593,7 +593,7 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	journals, err := app.models.Journals.GetJournalsByUserID(user.ID)
+	journals, err := app.models.Journals.GetJournalsByStudent(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

@@ -18,13 +18,14 @@ var (
 )
 
 type Journal struct {
-	ID            int        `json:"id"`
-	Name          *string    `json:"name,omitempty"`
-	Teacher       *User      `json:"teacher,omitempty"`
-	Subject       *Subject   `json:"subject,omitempty"`
-	LastUpdated   *time.Time `json:"last_updated,omitempty"`
-	CurrentCourse *int       `json:"current_course,omitempty"`
-	Archived      *bool      `json:"archived,omitempty"`
+	ID            int             `json:"id"`
+	Name          *string         `json:"name,omitempty"`
+	Teacher       *User           `json:"teacher,omitempty"`
+	Subject       *Subject        `json:"subject,omitempty"`
+	LastUpdated   *time.Time      `json:"last_updated,omitempty"`
+	CurrentCourse *int            `json:"current_course,omitempty"`
+	Archived      *bool           `json:"archived,omitempty"`
+	Marks         map[int][]*Mark `json:"marks,omitempty"`
 }
 
 type JournalModel struct {
@@ -306,8 +307,8 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 	return users, nil
 }
 
-func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
+func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
+	query := `SELECT j.id, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
@@ -337,7 +338,6 @@ func (m JournalModel) GetJournalsByUserID(userID int) ([]*Journal, error) {
 
 		err = rows.Scan(
 			&journal.ID,
-			&journal.Name,
 			&journal.Teacher.ID,
 			&journal.Teacher.Name,
 			&journal.Teacher.Role,

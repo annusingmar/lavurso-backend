@@ -167,36 +167,36 @@ func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
 	return marks, nil
 }
 
-func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
-	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.at
-	FROM marks m
-	LEFT JOIN grades g
-	ON m.grade_id = g.id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	INNER JOIN users u
-	ON m.by = u.id
-	WHERE m.journal_id = $1
-	ORDER BY at ASC`
+// func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
+// 	query := `SELECT
+// 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.at
+// 	FROM marks m
+// 	LEFT JOIN grades g
+// 	ON m.grade_id = g.id
+// 	LEFT JOIN lessons l
+// 	ON m.lesson_id = l.id
+// 	INNER JOIN users u
+// 	ON m.by = u.id
+// 	WHERE m.journal_id = $1
+// 	ORDER BY at ASC`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
-	if err != nil {
-		return nil, err
-	}
+// 	rows, err := m.DB.Query(ctx, query, journalID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	defer rows.Close()
+// 	defer rows.Close()
 
-	marks, err := scanMarks(rows)
-	if err != nil {
-		return nil, err
-	}
+// 	marks, err := scanMarks(rows)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return marks, nil
-}
+// 	return marks, nil
+// }
 
 func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
 	query := `SELECT
@@ -301,7 +301,7 @@ func (m MarkModel) GetLessonGradesByCourseAndJournalID(journalID, course int) ([
 	ON m.lesson_id = l.id
 	INNER JOIN users u
 	ON m.by = u.id
-	WHERE m.journal_id = $1 and m.course = $2 and m.type = 'lesson_grade'
+	WHERE m.journal_id = $1 and m.course = $2 and m.lesson_id is not NULL
 	ORDER BY at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -410,7 +410,7 @@ func (m MarkModel) UpdateMark(mark *Mark) error {
 	stmt := `UPDATE marks
 	SET (user_id, lesson_id, course, journal_id, grade_id, comment, type, by, at)
 	= ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	WHERE id = $11`
+	WHERE id = $10`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

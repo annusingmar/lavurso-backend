@@ -484,19 +484,38 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	journals, err := app.models.Journals.GetJournalsByStudent(user.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
 	marks, err := app.models.Marks.GetMarksByStudent(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"marks": marks})
+	for _, j := range journals {
+		j.Marks = make(map[int][]*data.Mark)
+		for _, m := range marks {
+			if j.ID == *m.JournalID {
+				if m.Course != nil {
+					j.Marks[*m.Course] = append(j.Marks[*m.Course], m)
+				} else {
+					j.Marks[-1] = append(j.Marks[-1], m)
+				}
+			}
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"journals": journals})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
 }
 
-func (app *application) getGradesForJournal(w http.ResponseWriter, r *http.Request) {
+func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	journalID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -521,9 +540,9 @@ func (app *application) getGradesForJournal(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	gradeType := r.URL.Query().Get("grade_type")
-	if gradeType == "" {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, "missing grade type")
+	markType := r.URL.Query().Get("mark_type")
+	if markType == "" {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "missing mark type")
 		return
 	}
 
@@ -535,7 +554,7 @@ func (app *application) getGradesForJournal(w http.ResponseWriter, r *http.Reque
 
 	var marks []*data.Mark
 
-	switch gradeType {
+	switch markType {
 	case data.MarkSubjectGrade:
 		marks, err = app.models.Marks.GetSubjectGradesByJournalID(journal.ID)
 		if err != nil {
