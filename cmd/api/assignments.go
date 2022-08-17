@@ -100,6 +100,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 	v := validator.NewValidator()
 	v.Check(input.JournalID > 0, "journal_id", "must be provided and valid")
 	v.Check(input.Type == data.AssignmentHomework || input.Type == data.AssignmentTest, "type", "must be provided and valid")
+	v.Check(input.Deadline.After(time.Now().UTC()), "deadline", "must not be in the past")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -202,6 +203,11 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if assignment.Deadline.Before(time.Now().UTC()) {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "can't edit past assignment")
+		return
+	}
+
 	var input struct {
 		Description *string    `json:"description"`
 		Deadline    *data.Date `json:"deadline"`
@@ -227,6 +233,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 	v := validator.NewValidator()
 
 	v.Check(assignment.Type == data.AssignmentHomework || assignment.Type == data.AssignmentTest, "type", "must be provided and valid")
+	v.Check(assignment.Deadline.After(time.Now().UTC()), "deadline", "must not be in the past")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -297,6 +304,11 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 
 	if *journal.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
+		return
+	}
+
+	if assignment.Deadline.Before(time.Now().UTC()) {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "can't edit past assignment")
 		return
 	}
 
