@@ -223,9 +223,6 @@ func (app *application) routes() http.Handler {
 		// get current marks for student's journal
 		// mux.Get("/students/{sid}/journals/{jid}/marks", app.getMarksForStudentsJournal)
 
-		// get previous marks for mark
-		mux.Get("/marks/{id}/previous", app.getPreviousMarksForMark)
-
 		// get absences for student
 		mux.Get("/students/{id}/absences", app.getAbsencesForStudent)
 

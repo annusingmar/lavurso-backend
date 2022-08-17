@@ -4,7 +4,7 @@
 
 [Go](https://go.dev)
 
-[PostgreSQL 15 (in beta)](https://www.postgresql.org)
+[PostgreSQL 15 (in beta)](https://www.postgresql.org) => data storage; the database must have extension `citext`
 
 ## depencencies
 
@@ -18,7 +18,9 @@
 
 ## running
 
-1.  copy `.makerc.example` to `.makerc`, edit `MIGRATE_DSN` to database connection string
-2.  run `make db/migration_up`
-3.  copy `config.toml.example` to `config.toml`, change values
-4.  run `make api/run`
+1.  clone this git repository: `git clone https://github.com/annusingmar/lavurso-backend.git`
+2.  install the [`migrate`](https://github.com/golang-migrate/migrate) tool
+3.  copy `.makerc.example` to `.makerc`, edit `MIGRATE_DSN` to database connection string
+4.  run `make db/migration_up`
+5.  copy `config.toml.example` to `config.toml`, change values
+6.  run `make api/run`

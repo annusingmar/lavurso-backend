@@ -309,9 +309,6 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 
 	var updated bool
 
-	oldMark := *mark
-	oldMark.MarkID = &oldMark.ID
-
 	switch mark.Type {
 	case data.MarkLessonGrade, data.MarkCourseGrade, data.MarkSubjectGrade:
 		if input.GradeID != nil {
@@ -354,12 +351,6 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 		mark.By.ID = sessionUser.ID
 
 		err = app.models.Marks.UpdateMark(mark)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-
-		err = app.models.Marks.InsertOldMark(&oldMark)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -755,67 +746,3 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 // 		app.writeInternalServerError(w, r, err)
 // 	}
 // }
-
-func (app *application) getPreviousMarksForMark(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if markID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
-		return
-	}
-
-	mark, err := app.models.Marks.GetMarkByID(markID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchMark):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	switch sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		journal, err := app.models.Journals.GetJournalByID(*mark.JournalID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if sessionUser.ID != journal.Teacher.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, mark.UserID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleStudent:
-		if sessionUser.ID != mark.UserID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
-	}
-
-	previousMarks, err := app.models.Marks.GetOldMarksByMarkID(mark.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
-	err = app.outputJSON(w, http.StatusOK, envelope{"marks": previousMarks})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-}
