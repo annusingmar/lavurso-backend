@@ -659,7 +659,7 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (app *application) getLessonMarksForStudentsJournalsCourse(w http.ResponseWriter, r *http.Request) {
+func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
