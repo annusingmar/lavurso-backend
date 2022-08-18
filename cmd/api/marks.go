@@ -490,6 +490,9 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 
 	for _, j := range journals {
 		j.Marks = make(map[int][]*data.Mark)
+		for _, c := range j.Courses {
+			j.Marks[c] = make([]*data.Mark, 0)
+		}
 		for _, m := range marks {
 			if j.ID == *m.JournalID {
 				if m.Course != nil {

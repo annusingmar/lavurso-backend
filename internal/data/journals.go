@@ -18,14 +18,14 @@ var (
 )
 
 type Journal struct {
-	ID            int             `json:"id"`
-	Name          *string         `json:"name,omitempty"`
-	Teacher       *User           `json:"teacher,omitempty"`
-	Subject       *Subject        `json:"subject,omitempty"`
-	LastUpdated   *time.Time      `json:"last_updated,omitempty"`
-	CurrentCourse *int            `json:"current_course,omitempty"`
-	Archived      *bool           `json:"archived,omitempty"`
-	Marks         map[int][]*Mark `json:"marks,omitempty"`
+	ID          int             `json:"id"`
+	Name        *string         `json:"name,omitempty"`
+	Teacher     *User           `json:"teacher,omitempty"`
+	Subject     *Subject        `json:"subject,omitempty"`
+	LastUpdated *time.Time      `json:"last_updated,omitempty"`
+	Archived    *bool           `json:"archived,omitempty"`
+	Courses     []int           `json:"courses,omitempty"`
+	Marks       map[int][]*Mark `json:"marks,omitempty"`
 }
 
 type JournalModel struct {
@@ -84,7 +84,7 @@ func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
 }
 
 func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
@@ -109,6 +109,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 		&journal.Subject.Name,
 		&journal.LastUpdated,
 		&journal.Archived,
+		&journal.Courses,
 	)
 
 	if err != nil {
@@ -308,7 +309,7 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 }
 
 func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
-	query := `SELECT j.id, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
+	query := `SELECT j.id, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
@@ -317,7 +318,7 @@ func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
 	INNER JOIN users_journals uj
 	ON uj.journal_id = j.id
 	WHERE uj.user_id = $1
-	ORDER BY id ASC`
+	ORDER BY s.name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -345,6 +346,7 @@ func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
 			&journal.Subject.Name,
 			&journal.LastUpdated,
 			&journal.Archived,
+			&journal.Courses,
 		)
 		if err != nil {
 			return nil, err
@@ -412,26 +414,6 @@ func (m JournalModel) SetJournalLastUpdated(journalID int) error {
 	}
 
 	return nil
-}
-
-func (m JournalModel) GetCurrentCourseForJournal(journalID int) (*int, error) {
-	query := `SELECT coalesce(max(l.course),1) AS course
-	FROM lessons l
-	INNER JOIN journals j
-	ON l.journal_id = j.id
-	WHERE l.journal_id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var course *int
-
-	err := m.DB.QueryRow(ctx, query, journalID).Scan(&course)
-	if err != nil {
-		return nil, err
-	}
-
-	return course, nil
 }
 
 func (m JournalModel) SetJournalArchived(journalID int, archived bool) error {

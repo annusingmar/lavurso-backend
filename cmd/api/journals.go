@@ -86,12 +86,6 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal.CurrentCourse, err = app.models.Journals.GetCurrentCourseForJournal(journal.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
 	err = app.outputJSON(w, http.StatusOK, envelope{"journal": journal})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
