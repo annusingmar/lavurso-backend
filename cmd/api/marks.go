@@ -176,7 +176,8 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 
 	mark.Comment = input.Comment
 	mark.By.ID = sessionUser.ID
-	mark.At = time.Now().UTC()
+	mark.CreatedAt = time.Now().UTC()
+	mark.UpdatedAt = time.Now().UTC()
 
 	err = app.models.Marks.InsertMark(mark)
 	if err != nil {
@@ -347,7 +348,7 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if updated {
-		mark.At = time.Now().UTC()
+		mark.UpdatedAt = time.Now().UTC()
 		mark.By.ID = sessionUser.ID
 
 		err = app.models.Marks.UpdateMark(mark)
