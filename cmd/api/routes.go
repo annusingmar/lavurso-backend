@@ -221,7 +221,7 @@ func (app *application) routes() http.Handler {
 		mux.Get("/students/{id}/marks", app.getMarksForStudent)
 
 		// get current marks for student's journal
-		// mux.Get("/students/{sid}/journals/{jid}/marks", app.getMarksForStudentsJournal)
+		mux.Get("/students/{sid}/journals/{jid}/marks", app.getLessonMarksForStudentsJournalsCourse)
 
 		// get absences for student
 		mux.Get("/students/{id}/absences", app.getAbsencesForStudent)

@@ -170,37 +170,6 @@ func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
 	return marks, nil
 }
 
-// func (m MarkModel) GetMarksByJournalID(journalID int) ([]*Mark, error) {
-// 	query := `SELECT
-// 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at
-// 	FROM marks m
-// 	LEFT JOIN grades g
-// 	ON m.grade_id = g.id
-// 	LEFT JOIN lessons l
-// 	ON m.lesson_id = l.id
-// 	INNER JOIN users u
-// 	ON m.by = u.id
-// 	WHERE m.journal_id = $1
-// 	ORDER BY updated_at ASC`
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-// 	defer cancel()
-
-// 	rows, err := m.DB.Query(ctx, query, journalID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer rows.Close()
-
-// 	marks, err := scanMarks(rows)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return marks, nil
-// }
-
 func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
 	query := `SELECT
 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at
@@ -294,7 +263,7 @@ func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, e
 	return marks, nil
 }
 
-func (m MarkModel) GetLessonGradesByCourseAndJournalID(journalID, course int) ([]*Mark, error) {
+func (m MarkModel) GetLessonMarksByCourseAndJournalID(journalID, course int) ([]*Mark, error) {
 	query := `SELECT
 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at
 	FROM marks m
@@ -311,6 +280,37 @@ func (m MarkModel) GetLessonGradesByCourseAndJournalID(journalID, course int) ([
 	defer cancel()
 
 	rows, err := m.DB.Query(ctx, query, journalID, course)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	marks, err := scanMarks(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
+func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*Mark, error) {
+	query := `SELECT
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at
+	FROM marks m
+	LEFT JOIN grades g
+	ON m.grade_id = g.id
+	LEFT JOIN lessons l
+	ON m.lesson_id = l.id
+	INNER JOIN users u
+	ON m.by = u.id
+	WHERE m.journal_id = $1 and m.course = $2 and m.lesson_id is not NULL and m.user_id = $3
+	ORDER BY updated_at ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, journalID, course, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -355,39 +355,6 @@ func (m MarkModel) GetMarksByLessonID(lessonID int) ([]*Mark, error) {
 
 	return marks, nil
 }
-
-// func (m MarkModel) GetMarksByUserIDAndJournalID(userID, journalID int) ([]*Mark, error) {
-// 	query := `SELECT
-// 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at
-// 	FROM marks m
-// 	LEFT JOIN grades g
-// 	ON m.grade_id = g.id
-// 	LEFT JOIN lessons l
-// 	ON m.lesson_id = l.id
-// 	INNER JOIN users u
-// 	ON m.by = u.id
-// 	INNER JOIN subjects s
-// 	ON m.subject_id = s.id
-// 	WHERE user_id = $1 and journal_id = $2
-// 	ORDER BY updated_at ASC`
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-// 	defer cancel()
-
-// 	rows, err := m.DB.Query(ctx, query, userID, journalID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	defer rows.Close()
-
-// 	marks, err := scanMarks(rows)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return marks, nil
-// }
 
 func (m MarkModel) InsertMark(mark *Mark) error {
 	stmt := `INSERT INTO marks

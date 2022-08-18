@@ -22,6 +22,7 @@ type Lesson struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 	Version     int        `json:"-"`
+	Marks       []*Mark    `json:"marks,omitempty"`
 }
 
 type LessonModel struct {
