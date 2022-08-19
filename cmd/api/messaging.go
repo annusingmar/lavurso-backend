@@ -105,7 +105,6 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		Type:      data.MsgTypeThreadStart,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
-		Version:   1,
 	}
 
 	err = app.models.Messaging.InsertMessage(threadMessage)
@@ -493,7 +492,6 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		Type:      data.MsgTypeNormal,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
-		Version:   1,
 	}
 
 	err = app.models.Messaging.InsertMessage(message)
@@ -582,12 +580,7 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 
 		err = app.models.Messaging.UpdateMessage(message)
 		if err != nil {
-			switch {
-			case errors.Is(err, data.ErrEditConflict):
-				app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
-			default:
-				app.writeInternalServerError(w, r, err)
-			}
+			app.writeInternalServerError(w, r, err)
 			return
 		}
 	}

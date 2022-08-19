@@ -6,8 +6,7 @@ create table if not exists
     "date" DATE not null,
     "course" INTEGER not null,
     "created_at" TIMESTAMP not null default NOW(),
-    "updated_at" TIMESTAMP not null default NOW(),
-    "version" INT not null default 1
+    "updated_at" TIMESTAMP not null default NOW()
   );
 
 ALTER TABLE

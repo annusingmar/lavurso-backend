@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/BurntSushi/toml v1.2.0
 	github.com/go-chi/chi/v5 v5.0.7
+	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.0.0-beta.2
 	github.com/microcosm-cc/bluemonday v1.0.19
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa

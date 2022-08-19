@@ -248,7 +248,7 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 
 	for _, id := range input.UserIDs {
 		err = app.models.Groups.InsertUserIntoGroup(id, group.ID)
-		if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
@@ -268,7 +268,7 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 
 		for _, u := range users {
 			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
-			if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}
@@ -289,7 +289,7 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 
 		for _, u := range users {
 			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
-			if err != nil && !errors.Is(err, data.ErrUserAlreadyInGroup) {
+			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}

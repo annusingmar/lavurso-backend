@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -48,10 +49,14 @@ func (app *application) searchUser(w http.ResponseWriter, r *http.Request) {
 
 func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Role     string `json:"role"`
+		Name        string     `json:"name"`
+		Email       string     `json:"email"`
+		Password    string     `json:"password"`
+		PhoneNumber *string    `json:"phone_number"`
+		IdCode      *int64     `json:"id_code"`
+		BirthDate   *data.Date `json:"birth_date"`
+		Role        string     `json:"role"`
+		ClassID     *int       `json:"class_id"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -62,18 +67,60 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	user := &data.User{
-		Name:     input.Name,
-		Email:    input.Email,
-		Password: data.Password{Plaintext: input.Password},
-		Role:     input.Role,
+	v.Check(input.Name != "", "name", "must be provided")
+	v.Check(input.Email != "", "email", "must be provided")
+	v.Check(data.EmailRegex.MatchString(input.Email), "email", "must be a valid email address")
+	v.Check(input.PhoneNumber == nil || *input.PhoneNumber != "", "phone_number", "must not be empty")
+	v.Check(input.IdCode == nil || len(fmt.Sprint(*input.IdCode)) == 11, "id_code", "must be 11 digits long")
+
+	if input.BirthDate == nil || input.BirthDate.Time == nil {
+		input.BirthDate = new(data.Date)
+	} else {
+		if input.BirthDate.Time.After(time.Now().UTC()) {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, "time is in the future")
+			return
+		}
 	}
 
-	app.models.Users.ValidateUser(v, user)
-	app.models.Users.ValidatePassword(v, user)
+	v.Check(input.Role == data.RoleAdministrator || input.Role == data.RoleTeacher || input.Role == data.RoleParent || input.Role == data.RoleStudent, "role", "must be valid role")
+
+	v.Check(input.Password != "", "password", "must be provided")
+
+	if input.Role == data.RoleStudent {
+		v.Check(input.ClassID != nil, "class_id", "must be provided")
+	}
+
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
+	}
+
+	var classField *data.Class
+	if input.Role == data.RoleStudent {
+		class, err := app.models.Classes.GetClassByID(*input.ClassID)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrNoSuchClass):
+				app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+			default:
+				app.writeInternalServerError(w, r, err)
+			}
+			return
+		}
+		classField = &data.Class{ID: class.ID}
+	} else {
+		classField = new(data.Class)
+	}
+
+	user := &data.User{
+		Name:        input.Name,
+		Email:       &input.Email,
+		Password:    data.Password{Plaintext: input.Password},
+		PhoneNumber: input.PhoneNumber,
+		IdCode:      input.IdCode,
+		BirthDate:   input.BirthDate,
+		Role:        input.Role,
+		Class:       classField,
 	}
 
 	user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
@@ -82,10 +129,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.CreatedAt = new(time.Time)
-	*user.CreatedAt = time.Now().UTC()
-	user.Active = true
-	user.Version = 1
+	user.CreatedAt = time.Now().UTC()
 
 	err = app.models.Users.InsertUser(user)
 	if err != nil {
@@ -157,10 +201,14 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Name     *string `json:"name"`
-		Email    *string `json:"email"`
-		Password *string `json:"password"`
-		Active   *bool   `json:"active"`
+		Name        *string    `json:"name"`
+		Email       *string    `json:"email"`
+		Password    *string    `json:"password"`
+		PhoneNumber *string    `json:"phone_number"`
+		IdCode      *int64     `json:"id_code"`
+		BirthDate   *data.Date `json:"birth_date"`
+		ClassID     *int       `json:"class_id"`
+		Active      *bool      `json:"active"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -171,35 +219,65 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	if input.Name != nil {
-		user.Name = *input.Name
-	}
-	if input.Email != nil {
-		user.Email = *input.Email
-	}
-	if input.Password != nil {
-		user.Password.Plaintext = *input.Password
-		app.models.Users.ValidatePassword(v, user)
-		user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-	}
-	if input.Active != nil {
-		user.Active = *input.Active
-	}
+	v.Check(input.Name == nil || *input.Name != "", "name", "must not be empty")
+	v.Check(input.Email == nil || *input.Email != "", "email", "must not be empty")
+	v.Check(input.Email == nil || data.EmailRegex.MatchString(*input.Email), "email", "must be a valid email address")
+	v.Check(input.Password == nil || *input.Password != "", "password", "must not be empty")
+	v.Check(input.PhoneNumber == nil || *input.PhoneNumber != "", "phone_number", "must not be empty")
+	v.Check(input.IdCode == nil || len(fmt.Sprint(*input.IdCode)) == 11, "id_code", "must be 11 digits long")
 
-	app.models.Users.ValidateUser(v, user)
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
+	if input.Name != nil {
+		user.Name = *input.Name
+	}
+
+	if input.Email != nil {
+		user.Email = input.Email
+	}
+
+	if input.Password != nil {
+		user.Password.Hashed, err = app.models.Users.HashPassword(*input.Password)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	user.PhoneNumber = input.PhoneNumber
+	user.IdCode = input.IdCode
+
+	if input.BirthDate != nil && input.BirthDate.Time != nil {
+		if input.BirthDate.Time.After(time.Now().UTC()) {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, "time is in the future")
+			return
+		}
+		user.BirthDate = input.BirthDate
+	} else {
+		user.BirthDate = new(data.Date)
+	}
+
+	if input.ClassID != nil && user.Role == data.RoleStudent {
+		class, err := app.models.Classes.GetClassByID(*input.ClassID)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrNoSuchClass):
+				app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+			default:
+				app.writeInternalServerError(w, r, err)
+			}
+			return
+		}
+		user.Class = &data.Class{ID: class.ID}
+	}
+
 	err = app.models.Users.UpdateUser(user)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrEditConflict):
+		case errors.Is(err, data.ErrEmailAlreadyExists):
 			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
 		default:
 			app.writeInternalServerError(w, r, err)
@@ -320,12 +398,7 @@ func (app *application) addParentToStudent(w http.ResponseWriter, r *http.Reques
 
 	err = app.models.Users.AddParentToChild(parent.ID, student.ID)
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrSuchParentAlreadySet):
-			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
 		return
 	}
 

@@ -395,7 +395,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 
 	for _, id := range input.StudentIDs {
 		err = app.models.Journals.InsertUserIntoJournal(id, journal.ID)
-		if err != nil && !errors.Is(err, data.ErrUserAlreadyInJournal) {
+		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
@@ -410,7 +410,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 
 		for _, u := range users {
 			err = app.models.Journals.InsertUserIntoJournal(u.ID, journal.ID)
-			if err != nil && !errors.Is(err, data.ErrUserAlreadyInJournal) {
+			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}
@@ -549,6 +549,7 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// TODO: class teacher check
 	switch sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleParent:

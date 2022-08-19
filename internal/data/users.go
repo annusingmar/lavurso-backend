@@ -7,8 +7,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/annusingmar/lavurso-backend/internal/validator"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,29 +22,31 @@ const (
 )
 
 var (
-	ErrEmailAlreadyExists   = errors.New("an user with specified email already exists")
-	ErrNoSuchUser           = errors.New("no such user")
-	ErrNoSuchUsers          = errors.New("no such users")
-	ErrNoSuchStudents       = errors.New("no such students")
-	ErrEditConflict         = errors.New("edit conflict, try again")
-	ErrNotAStudent          = errors.New("not a student")
-	ErrSuchParentAlreadySet = errors.New("such parent already set for child")
-	ErrNoSuchParentForUser  = errors.New("no such parent set for child")
-	ErrNotAParent           = errors.New("not a parent")
+	ErrEmailAlreadyExists  = errors.New("an user with specified email already exists")
+	ErrNoSuchUser          = errors.New("no such user")
+	ErrNoSuchUsers         = errors.New("no such users")
+	ErrNoSuchStudents      = errors.New("no such students")
+	ErrNotAStudent         = errors.New("not a student")
+	ErrNoSuchParentForUser = errors.New("no such parent set for child")
+	ErrNotAParent          = errors.New("not a parent")
 )
 
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
 
 type User struct {
-	ID        int        `json:"id"`
-	Name      string     `json:"name,omitempty"`
-	Email     string     `json:"email,omitempty"`
-	Password  Password   `json:"-"`
-	Role      string     `json:"role,omitempty"`
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-	Active    bool       `json:"active,omitempty"`
-	Version   int        `json:"-"`
-	Marks     []*Mark    `json:"marks,omitempty"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name,omitempty"`
+	Email       *string   `json:"email,omitempty"`
+	PhoneNumber *string   `json:"phone_number,omitempty"`
+	IdCode      *int64    `json:"id_code,omitempty"`
+	BirthDate   *Date     `json:"birth_date,omitempty"`
+	Password    Password  `json:"-"`
+	Role        string    `json:"role,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+	Active      *bool     `json:"active,omitempty"`
+	Archived    *bool     `json:"archived,omitempty"`
+	Class       *Class    `json:"class,omitempty"`
+	Marks       []*Mark   `json:"marks,omitempty"`
 }
 
 type Password struct {
@@ -65,25 +68,16 @@ func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return hashed, err
-}
-
-func (m UserModel) ValidateUser(v *validator.Validator, u *User) {
-	v.Check(u.Name != "", "name", "must be provided")
-	v.Check(u.Email != "", "email", "must be provided")
-	v.Check(EmailRegex.MatchString(u.Email), "email", "must be a valid email address")
-	v.Check(u.Role == RoleAdministrator || u.Role == RoleTeacher || u.Role == RoleParent || u.Role == RoleStudent, "role", "must be valid role")
-}
-
-func (m UserModel) ValidatePassword(v *validator.Validator, u *User) {
-	v.Check(u.Password.Plaintext != "", "password", "must be provided")
+	return hashed, nil
 }
 
 // DATABASE
 
 func (m UserModel) AllUsers() ([]*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, active, version
-	FROM users
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
+	FROM users u
+	LEFT JOIN classes c
+	ON u.class_id = c.id
 	ORDER BY id ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -100,15 +94,23 @@ func (m UserModel) AllUsers() ([]*User, error) {
 
 	for rows.Next() {
 		var user User
+		user.BirthDate = new(Date)
+		user.Class = new(Class)
+
 		err = rows.Scan(
 			&user.ID,
 			&user.Name,
 			&user.Email,
+			&user.PhoneNumber,
+			&user.IdCode,
+			&user.BirthDate.Time,
 			&user.Password.Hashed,
 			&user.Role,
+			&user.Class.ID,
+			&user.Class.Name,
 			&user.CreatedAt,
 			&user.Active,
-			&user.Version,
+			&user.Archived,
 		)
 		if err != nil {
 			return nil, err
@@ -163,24 +165,33 @@ func (m UserModel) SearchUser(name string) ([]*User, error) {
 }
 
 func (m UserModel) GetUserByID(userID int) (*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, active, version
-	FROM users
-	WHERE id = $1`
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
+	FROM users u
+	LEFT JOIN classes c
+	ON u.class_id = c.id
+	WHERE u.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
+	user.BirthDate = new(Date)
+	user.Class = new(Class)
 
 	err := m.DB.QueryRow(ctx, query, userID).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
+		&user.PhoneNumber,
+		&user.IdCode,
+		&user.BirthDate.Time,
 		&user.Password.Hashed,
 		&user.Role,
+		&user.Class.ID,
+		&user.Class.Name,
 		&user.CreatedAt,
 		&user.Active,
-		&user.Version,
+		&user.Archived,
 	)
 
 	if err != nil {
@@ -302,19 +313,29 @@ func (m UserModel) GetUserByIDMinimal(userID int) (*User, error) {
 
 func (m UserModel) InsertUser(u *User) error {
 	stmt := `INSERT INTO users
-	(name, email, password, role, created_at, active, version)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	(name, email, phone_number, id_code, birth_date, password, role, class_id, created_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.CreatedAt, u.Active, u.Version).Scan(&u.ID)
+	err := m.DB.QueryRow(ctx, stmt,
+		u.Name,
+		u.Email,
+		u.PhoneNumber,
+		u.IdCode,
+		u.BirthDate.Time,
+		u.Password.Hashed,
+		u.Role,
+		u.Class.ID,
+		u.CreatedAt).Scan(&u.ID)
+
 	if err != nil {
-		switch {
-		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_email_key" (SQLSTATE 23505)`:
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 			return ErrEmailAlreadyExists
-		default:
+		} else {
 			return err
 		}
 	}
@@ -323,24 +344,34 @@ func (m UserModel) InsertUser(u *User) error {
 }
 
 func (m UserModel) UpdateUser(u *User) error {
-	stmt := `UPDATE users SET (name, email, password, role, active, version) =
-	($1, $2, $3, $4, $5, version+1)
-	WHERE id = $6
-	RETURNING version`
+	stmt := `UPDATE users SET (name, email, phone_number, id_code, birth_date, password, role, class_id, created_at, active) =
+	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	WHERE id = $11`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, u.Name, u.Email, u.Password.Hashed, u.Role, u.Active, u.ID).Scan(&u.Version)
+	_, err := m.DB.Exec(ctx, stmt,
+		u.Name,
+		u.Email,
+		u.PhoneNumber,
+		u.IdCode,
+		u.BirthDate.Time,
+		u.Password.Hashed,
+		u.Role,
+		u.Class.ID,
+		u.CreatedAt,
+		u.Active,
+		u.ID)
+
 	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return ErrEditConflict
-		default:
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return ErrEmailAlreadyExists
+		} else {
 			return err
 		}
 	}
-
 	return nil
 
 }
@@ -382,8 +413,10 @@ func (m UserModel) GetAllStudentIDs() ([]int, error) {
 func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, error) {
 	hash := sha256.Sum256([]byte(plaintextToken))
 
-	query := `SELECT u.id, u.name, u.email, u.password, u.role, u.created_at, u.active, u.version, s.id
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived, s.id
 	FROM users u
+	LEFT JOIN classes c
+	ON u.class_id = c.id
 	INNER JOIN sessions s
 	ON u.id = s.user_id
 	WHERE s.token_hash = $1
@@ -393,17 +426,24 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, er
 	defer cancel()
 
 	var user User
+	user.BirthDate = new(Date)
+	user.Class = new(Class)
 	var sessionID int
 
 	err := m.DB.QueryRow(ctx, query, hash[:], time.Now().UTC()).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
+		&user.PhoneNumber,
+		&user.IdCode,
+		&user.BirthDate.Time,
 		&user.Password.Hashed,
 		&user.Role,
+		&user.Class.ID,
+		&user.Class.Name,
 		&user.CreatedAt,
 		&user.Active,
-		&user.Version,
+		&user.Archived,
 		&sessionID,
 	)
 
@@ -420,24 +460,33 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, er
 }
 
 func (m UserModel) GetUserByEmail(email string) (*User, error) {
-	query := `SELECT id, name, email, password, role, created_at, active, version
-	FROM users
-	WHERE email = $1`
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
+	FROM users u
+	LEFT JOIN classes c
+	ON u.class_id = c.id
+	WHERE u.email = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var user User
+	user.BirthDate = new(Date)
+	user.Class = new(Class)
 
 	err := m.DB.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
+		&user.PhoneNumber,
+		&user.IdCode,
+		&user.BirthDate.Time,
 		&user.Password.Hashed,
 		&user.Role,
+		&user.Class.ID,
+		&user.Class.Name,
 		&user.CreatedAt,
 		&user.Active,
-		&user.Version,
+		&user.Archived,
 	)
 
 	if err != nil {
@@ -456,19 +505,15 @@ func (m UserModel) AddParentToChild(parentID, childID int) error {
 	stmt := `INSERT INTO parents_children
 	(parent_id, child_id)
 	VALUES
-	($1, $2)`
+	($1, $2)
+	ON CONFLICT DO NOTHING`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, parentID, childID)
 	if err != nil {
-		switch {
-		case err.Error() == `ERROR: duplicate key value violates unique constraint "parents_children_pkey" (SQLSTATE 23505)`:
-			return ErrSuchParentAlreadySet
-		default:
-			return err
-		}
+		return err
 	}
 
 	return nil

@@ -10,11 +10,10 @@ import (
 )
 
 var (
-	ErrNoSuchJournal        = errors.New("no such journal")
-	ErrUserAlreadyInJournal = errors.New("user is already part of journal")
-	ErrJournalArchived      = errors.New("journal is archived")
-	ErrJournalNotArchived   = errors.New("journal is not archived")
-	ErrUserNotInJournal     = errors.New("user not in journal")
+	ErrNoSuchJournal      = errors.New("no such journal")
+	ErrJournalArchived    = errors.New("journal is archived")
+	ErrJournalNotArchived = errors.New("journal is not archived")
+	ErrUserNotInJournal   = errors.New("user not in journal")
 )
 
 type Journal struct {
@@ -228,19 +227,15 @@ func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
 	users_journals
 	(user_id, journal_id)
 	VALUES
-	($1, $2)`
+	($1, $2)
+	ON CONFLICT DO NOTHING`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, userID, journalID)
 	if err != nil {
-		switch {
-		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_journals_pkey" (SQLSTATE 23505)`:
-			return ErrUserAlreadyInJournal
-		default:
-			return err
-		}
+		return err
 	}
 
 	return nil

@@ -114,7 +114,6 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		Type:        input.Type,
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
-		Version:     1,
 	}
 
 	if assignment.Deadline.Time.IsZero() {
@@ -244,12 +243,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 
 	err = app.models.Assignments.UpdateAssignment(assignment)
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrEditConflict):
-			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
 		return
 	}
 

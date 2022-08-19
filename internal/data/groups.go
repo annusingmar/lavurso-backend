@@ -10,9 +10,8 @@ import (
 )
 
 var (
-	ErrNoSuchGroup        = errors.New("no such group")
-	ErrNoSuchGroups       = errors.New("no such groups")
-	ErrUserAlreadyInGroup = errors.New("user already in group")
+	ErrNoSuchGroup  = errors.New("no such group")
+	ErrNoSuchGroups = errors.New("no such groups")
 )
 
 type Group struct {
@@ -253,19 +252,15 @@ func (m GroupModel) InsertUserIntoGroup(userID, groupID int) error {
 	stmt := `INSERT INTO users_groups
 	(user_id, group_id)
 	VALUES
-	($1, $2)`
+	($1, $2)
+	ON CONFLICT DO NOTHING`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, userID, groupID)
 	if err != nil {
-		switch {
-		case err.Error() == `ERROR: duplicate key value violates unique constraint "users_groups_pkey" (SQLSTATE 23505)`:
-			return ErrUserAlreadyInGroup
-		default:
-			return err
-		}
+		return err
 	}
 
 	return nil

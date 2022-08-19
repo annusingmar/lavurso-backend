@@ -42,7 +42,6 @@ type Message struct {
 	Type      string    `json:"type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	Version   int       `json:"-"`
 }
 
 type MessagingModel struct {
@@ -326,7 +325,7 @@ func (m MessagingModel) GetGroupsInThread(threadID int) ([]*Group, error) {
 }
 
 func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
-	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at, m.version
+	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
@@ -348,7 +347,6 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 		&message.Type,
 		&message.CreatedAt,
 		&message.UpdatedAt,
-		&message.Version,
 	)
 	if err != nil {
 		switch {
@@ -364,9 +362,9 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 
 func (m MessagingModel) InsertMessage(ms *Message) error {
 	stmt := `INSERT INTO messages
-	(thread_id, user_id, body, type, created_at, updated_at, version)
+	(thread_id, user_id, body, type, created_at, updated_at)
 	VALUES
-	($1, $2, $3, $4, $5, $6, $7)
+	($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
 	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
@@ -374,7 +372,7 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, sanitizedHTML, ms.Type, ms.CreatedAt, ms.UpdatedAt, ms.Version).Scan(&ms.ID)
+	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, sanitizedHTML, ms.Type, ms.CreatedAt, ms.UpdatedAt).Scan(&ms.ID)
 	if err != nil {
 		return err
 	}
@@ -397,30 +395,24 @@ func (m MessagingModel) DeleteMessage(messageID int) error {
 
 func (m MessagingModel) UpdateMessage(ms *Message) error {
 	stmt := `UPDATE messages
-	SET (body, updated_at, version)
-	= ($1, $2, version+1)
-	WHERE id = $3 and version = $4
-	RETURNING version`
+	SET (body, updated_at)
+	= ($1, $2)
+	WHERE id = $3`
 
 	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, sanitizedHTML, ms.UpdatedAt, ms.ID, ms.Version).Scan(&ms.Version)
+	_, err := m.DB.Exec(ctx, stmt, sanitizedHTML, ms.UpdatedAt, ms.ID)
 	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return ErrEditConflict
-		default:
-			return err
-		}
+		return err
 	}
 	return nil
 }
 
 func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, error) {
-	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at, m.version
+	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at
 	FROM messages m
 	INNER JOIN users u
 	ON m.user_id = u.id
@@ -453,7 +445,6 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 			&message.Type,
 			&message.CreatedAt,
 			&message.UpdatedAt,
-			&message.Version,
 		)
 		if err != nil {
 			return nil, err

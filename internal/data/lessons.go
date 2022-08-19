@@ -21,7 +21,6 @@ type Lesson struct {
 	Course      *int       `json:"course,omitempty"`
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
-	Version     int        `json:"-"`
 	Marks       []*Mark    `json:"marks,omitempty"`
 }
 
@@ -33,15 +32,15 @@ type LessonModel struct {
 
 func (m LessonModel) InsertLesson(l *Lesson) error {
 	stmt := `INSERT INTO lessons
-	(journal_id, description, date, course, created_at, updated_at, version)
+	(journal_id, description, date, course, created_at, updated_at)
 	VALUES
-	($1, $2, $3, $4, $5, $6, $7)
+	($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, l.Journal.ID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt, l.Version).Scan(&l.ID)
+	err := m.DB.QueryRow(ctx, stmt, l.Journal.ID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt).Scan(&l.ID)
 	if err != nil {
 		return err
 	}
@@ -51,7 +50,7 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 }
 
 func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
-	query := `SELECT l.id, l.journal_id, j.name, j.archived, l.description, l.date, l.course, l.created_at, l.updated_at, l.version
+	query := `SELECT l.id, l.journal_id, j.name, j.archived, l.description, l.date, l.course, l.created_at, l.updated_at
 	FROM lessons l
 	INNER JOIN journals j
 	ON j.id = l.journal_id
@@ -74,7 +73,6 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 		&lesson.Course,
 		&lesson.CreatedAt,
 		&lesson.UpdatedAt,
-		&lesson.Version,
 	)
 
 	if err != nil {
@@ -91,22 +89,16 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 
 func (m LessonModel) UpdateLesson(l *Lesson) error {
 	stmt := `UPDATE lessons
-	SET (description, date, updated_at, version)
-	= ($1, $2, $3, version+1)
-	WHERE id = $4 and version = $5
-	RETURNING version`
+	SET (description, date, updated_at)
+	= ($1, $2, $3)
+	WHERE id = $4`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID, l.Version).Scan(&l.Version)
+	_, err := m.DB.Exec(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID)
 	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return ErrEditConflict
-		default:
-			return err
-		}
+		return err
 	}
 
 	return nil
@@ -128,7 +120,7 @@ func (m LessonModel) DeleteLesson(lessonID int) error {
 }
 
 func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson, error) {
-	query := `SELECT id, journal_id, description, date, course, created_at, updated_at, version
+	query := `SELECT id, journal_id, description, date, course, created_at, updated_at
 	FROM lessons
 	WHERE journal_id = $1 and course = $2
 	ORDER BY date DESC`
@@ -158,7 +150,6 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 			&lesson.Course,
 			&lesson.CreatedAt,
 			&lesson.UpdatedAt,
-			&lesson.Version,
 		)
 		if err != nil {
 			return nil, err

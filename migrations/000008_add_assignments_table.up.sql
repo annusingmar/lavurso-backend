@@ -6,8 +6,7 @@ create table if not exists
     "deadline" DATE not null,
     "type" TEXT not null,
     "created_at" TIMESTAMP not null default NOW(),
-    "updated_at" TIMESTAMP not null default NOW(),
-    "version" INTEGER not null default 1
+    "updated_at" TIMESTAMP not null default NOW()
   );
 
 ALTER TABLE

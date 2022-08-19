@@ -27,7 +27,6 @@ type Assignment struct {
 	Type        string    `json:"type"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-	Version     int       `json:"-"`
 }
 
 type AssignmentModel struct {
@@ -35,7 +34,7 @@ type AssignmentModel struct {
 }
 
 func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error) {
-	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at, a.version
+	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at
 	FROM assignments a
 	INNER JOIN journals j
 	ON a.journal_id = j.id
@@ -56,7 +55,6 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 		&assignment.Type,
 		&assignment.CreatedAt,
 		&assignment.UpdatedAt,
-		&assignment.Version,
 	)
 
 	if err != nil {
@@ -73,15 +71,15 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 
 func (m AssignmentModel) InsertAssignment(a *Assignment) error {
 	stmt := `INSERT INTO assignments
-	(journal_id, description, deadline, type, created_at, updated_at, version)
+	(journal_id, description, deadline, type, created_at, updated_at)
 	VALUES
-	($1, $2, $3, $4, $5, $6, $7)
+	($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, a.Journal.ID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt, a.Version).Scan(&a.ID)
+	err := m.DB.QueryRow(ctx, stmt, a.Journal.ID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt).Scan(&a.ID)
 	if err != nil {
 		return err
 	}
@@ -91,22 +89,16 @@ func (m AssignmentModel) InsertAssignment(a *Assignment) error {
 
 func (m AssignmentModel) UpdateAssignment(a *Assignment) error {
 	stmt := `UPDATE assignments
-	SET (description, deadline, type, updated_at, version)
-	= ($1, $2, $3, $4, version+1)
-	WHERE id = $5 and version = $6
-	RETURNING version`
+	SET (description, deadline, type, updated_at)
+	= ($1, $2, $3, $4)
+	WHERE id = $5`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID, a.Version).Scan(&a.Version)
+	_, err := m.DB.Exec(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID)
 	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return ErrEditConflict
-		default:
-			return err
-		}
+		return err
 	}
 
 	return nil
@@ -128,7 +120,7 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 }
 
 func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment, error) {
-	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at, a.version
+	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at
 	FROM assignments a
 	INNER JOIN journals j
 	ON a.journal_id = j.id
@@ -160,7 +152,6 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 			&assignment.Type,
 			&assignment.CreatedAt,
 			&assignment.UpdatedAt,
-			&assignment.Version,
 		)
 		if err != nil {
 			return nil, err

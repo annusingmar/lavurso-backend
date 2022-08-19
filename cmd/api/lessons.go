@@ -35,7 +35,6 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		Course:      &input.Course,
 		CreatedAt:   helpers.ToPtr(time.Now().UTC()),
 		UpdatedAt:   helpers.ToPtr(time.Now().UTC()),
-		Version:     1,
 	}
 
 	if lesson.Date.Time.IsZero() {
@@ -225,12 +224,7 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 
 	err = app.models.Lessons.UpdateLesson(lesson)
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrEditConflict):
-			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
 		return
 	}
 

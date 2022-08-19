@@ -16,10 +16,10 @@ var (
 )
 
 type Class struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	Teacher  *User  `json:"teacher"`
-	Archived bool   `json:"archived"`
+	ID       *int    `json:"id,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Teacher  *User   `json:"teacher,omitempty"`
+	Archived *bool   `json:"archived,omitempty"`
 }
 
 type ClassModel struct {
@@ -207,50 +207,11 @@ func (m ClassModel) GetClassesForTeacher(teacherID int) ([]*Class, error) {
 	return classes, nil
 }
 
-func (m ClassModel) GetClassForUserID(userID int) (*Class, error) {
-	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
-	FROM classes c
-	INNER JOIN users_classes uc
-	ON uc.class_id = c.id
-	INNER JOIN users u
-	ON c.teacher_id = u.id
-	WHERE uc.user_id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var class Class
-	class.Teacher = new(User)
-
-	err := m.DB.QueryRow(ctx, query, userID).Scan(
-		&class.ID,
-		&class.Name,
-		&class.Teacher.ID,
-		&class.Teacher.Name,
-		&class.Teacher.Role,
-		&class.Archived,
-	)
-
-	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrNoClassForUser
-		default:
-			return nil, err
-		}
-	}
-
-	return &class, nil
-
-}
-
 func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
-	query := `SELECT id, name, role
+	query := `SELECT u.id, u.name, u.role
 	FROM users u
-	INNER JOIN users_classes uc
-	ON uc.user_id = u.id
-	WHERE uc.class_id = $1
-	ORDER BY id ASC`
+	WHERE u.class_id = $1
+	ORDER BY name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -284,47 +245,12 @@ func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
 	return users, nil
 }
 
-func (m ClassModel) SetClassIDForUserID(userID, classID int) error {
-	stmt := `INSERT INTO users_classes
-	(user_id, class_id)
-	VALUES ($1, $2)
-	ON CONFLICT (user_id)
-	DO UPDATE SET class_id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.Exec(ctx, stmt, userID, classID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m ClassModel) IsUserInClass(userID, classID int) (bool, error) {
-	query := `SELECT COUNT(1) FROM users_classes
-	WHERE user_id = $1 and class_id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var result int
-
-	err := m.DB.QueryRow(ctx, query, userID, classID).Scan(&result)
-	if err != nil {
-		return false, err
-	}
-
-	return result == 1, nil
-}
-
 func (m ClassModel) DoesParentHaveChildInClass(parentID, classID int) (bool, error) {
 	query := `SELECT COUNT(1)
 	FROM parents_children pc
-	INNER JOIN users_classes uc
-	ON pc.child_id = uc.user_id
-	WHERE pc.parent_id = $1
-	AND uc.class_id = $2`
+	INNER JOIN users u
+	ON pc.child_id = u.id
+	WHERE pc.parent_id = $1 and u.class_id = $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

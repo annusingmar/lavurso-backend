@@ -11,7 +11,7 @@ create table
     "type" TEXT not null,
     "by" INTEGER not null,
     "created_at" TIMESTAMP not null default NOW(),
-    "updated_at" TIMESTAMP not null default NOW(),
+    "updated_at" TIMESTAMP not null default NOW()
   );
 
 ALTER TABLE

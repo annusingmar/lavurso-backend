@@ -21,6 +21,11 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 		return ErrInvalidDateFormat
 	}
 
+	if dateString == "" {
+		d.Time = nil
+		return nil
+	}
+
 	t, err := time.Parse("2006-01-02", dateString)
 	if err != nil {
 		return ErrInvalidDateFormat

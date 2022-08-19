@@ -48,7 +48,6 @@ func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destin
 		case strings.HasPrefix(err.Error(), "json: unknown field "):
 			return fmt.Errorf("invalid field %s", strings.TrimPrefix(err.Error(), "json: unknown field "))
 		case errors.As(err, &jsonInvalidUnmarshalError):
-			// kui see juhtub, on midagi koodis valesti
 			panic(err)
 		case err.Error() == "http: request body too large":
 			return errors.New("maximum body size is 1 MiB")

@@ -47,9 +47,6 @@ func (app *application) routes() http.Handler {
 			// update class
 			mux.Patch("/classes/{id}", app.updateClass)
 
-			// set student's class
-			mux.Put("/students/{id}/class", app.setClassForStudent)
-
 			// create subject
 			mux.Post("/subjects", app.createSubject)
 
@@ -168,9 +165,6 @@ func (app *application) routes() http.Handler {
 
 		// get class by id
 		mux.Get("/classes/{id}", app.getClass)
-
-		// get student's class
-		mux.Get("/students/{id}/class", app.getClassForStudent)
 
 		// get students in class
 		mux.Get("/classes/{id}/students", app.getStudentsInClass)
