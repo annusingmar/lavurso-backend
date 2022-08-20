@@ -17,132 +17,15 @@ var (
 )
 
 type AbsenceExcuse struct {
-	ID            *int       `json:"id"`
-	AbsenceMarkID *int       `json:"absence_id"`
-	Excuse        *string    `json:"excuse"`
-	By            *int       `json:"by"`
-	At            *time.Time `json:"at"`
+	ID     *int       `json:"id"`
+	MarkID *int       `json:"mark_id"`
+	Excuse *string    `json:"excuse"`
+	By     *User      `json:"by"`
+	At     *time.Time `json:"at"`
 }
 
 type AbsenceModel struct {
 	DB *pgxpool.Pool
-}
-
-func (m AbsenceModel) GetAbsenceMarksByUserID(userID int) ([]*Mark, error) {
-	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.comment, m.type, m.by, m.created_at, m.updated_at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
-	FROM marks m
-	LEFT JOIN absences_excuses exc
-	ON m.id = exc.absence_mark_id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	WHERE m.user_id = $1 and m.type = 'absent'`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := m.DB.Query(ctx, query, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var marks []*Mark
-
-	for rows.Next() {
-		var mark Mark
-		mark.AbsenceExcuses = new(AbsenceExcuse)
-		mark.Lesson = &Lesson{Date: new(Date)}
-
-		err := rows.Scan(
-			&mark.ID,
-			&mark.UserID,
-			&mark.Lesson.ID,
-			&mark.Lesson.Date.Time,
-			&mark.Lesson.Description,
-			&mark.Course,
-			&mark.JournalID,
-			&mark.Grade.ID,
-			&mark.Comment,
-			&mark.Type,
-			&mark.By,
-			&mark.CreatedAt,
-			&mark.UpdatedAt,
-			&mark.AbsenceExcuses.ID,
-			&mark.AbsenceExcuses.AbsenceMarkID,
-			&mark.AbsenceExcuses.Excuse,
-			&mark.AbsenceExcuses.By,
-			&mark.AbsenceExcuses.At,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if mark.AbsenceExcuses.AbsenceMarkID == nil {
-			mark.AbsenceExcuses = nil
-		}
-
-		marks = append(marks, &mark)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return marks, nil
-}
-
-func (m AbsenceModel) GetAbsenceByMarkID(markID int) (*Mark, error) {
-	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, l.date, l.description, m.course, m.journal_id, m.grade_id, m.comment, m.type, m.by, m.created_at, m.updated_at, exc.id, exc.absence_mark_id, exc.excuse, exc.by, exc.at
-	FROM marks m
-	LEFT JOIN absences_excuses exc
-	ON m.id = exc.absence_mark_id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	WHERE m.id = $1 and m.type = 'absent'`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var mark Mark
-	mark.AbsenceExcuses = new(AbsenceExcuse)
-
-	err := m.DB.QueryRow(ctx, query, markID).Scan(
-		&mark.ID,
-		&mark.UserID,
-		&mark.Lesson.ID,
-		&mark.Lesson.Date.Time,
-		&mark.Lesson.Description,
-		&mark.Course,
-		&mark.JournalID,
-		&mark.Grade.ID,
-		&mark.Comment,
-		&mark.Type,
-		&mark.By,
-		&mark.CreatedAt,
-		&mark.UpdatedAt,
-		&mark.AbsenceExcuses.ID,
-		&mark.AbsenceExcuses.AbsenceMarkID,
-		&mark.AbsenceExcuses.Excuse,
-		&mark.AbsenceExcuses.By,
-		&mark.AbsenceExcuses.At,
-	)
-
-	if mark.AbsenceExcuses.AbsenceMarkID == nil {
-		mark.AbsenceExcuses = nil
-	}
-
-	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrNoSuchAbsence
-		default:
-			return nil, err
-		}
-	}
-
-	return &mark, nil
 }
 
 func (m AbsenceModel) InsertExcuse(excuse *AbsenceExcuse) error {
@@ -155,7 +38,7 @@ func (m AbsenceModel) InsertExcuse(excuse *AbsenceExcuse) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, excuse.AbsenceMarkID, excuse.Excuse, excuse.By, excuse.At).Scan(&excuse.ID)
+	err := m.DB.QueryRow(ctx, stmt, excuse.MarkID, excuse.Excuse, excuse.By, excuse.At).Scan(&excuse.ID)
 	if err != nil {
 		return err
 	}
@@ -190,7 +73,7 @@ func (m AbsenceModel) GetExcuseByID(excuseID int) (*AbsenceExcuse, error) {
 
 	err := m.DB.QueryRow(ctx, query, excuseID).Scan(
 		&excuse.ID,
-		&excuse.AbsenceMarkID,
+		&excuse.MarkID,
 		&excuse.Excuse,
 		&excuse.By,
 		&excuse.At,

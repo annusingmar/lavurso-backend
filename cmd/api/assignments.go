@@ -43,15 +43,15 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.Teacher.ID != sessionUser.ID {
+		if *journal.Teacher.ID != *sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
 	case data.RoleParent:
-		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -61,7 +61,7 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case data.RoleStudent:
-		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -132,7 +132,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -192,7 +192,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -291,7 +291,7 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -344,15 +344,15 @@ func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.Teacher.ID != sessionUser.ID {
+		if *journal.Teacher.ID != *sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
 	case data.RoleParent:
-		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -362,7 +362,7 @@ func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.
 			return
 		}
 	case data.RoleStudent:
-		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -397,10 +397,10 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(sessionUser.ID, userID)
+		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -410,7 +410,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 			return
 		}
 	case data.RoleStudent:
-		if sessionUser.ID != userID {
+		if *sessionUser.ID != userID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -430,12 +430,12 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if user.Role != data.RoleStudent {
+	if *user.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
 
-	journals, err := app.models.Journals.GetJournalsByStudent(user.ID)
+	journals, err := app.models.Journals.GetJournalsByStudent(*user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -471,12 +471,12 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	if sessionUser.ID != userID {
+	if *sessionUser.ID != userID {
 		app.notAllowed(w, r)
 		return
 	}
 
-	if sessionUser.Role != data.RoleStudent {
+	if *sessionUser.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
@@ -498,7 +498,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, assignment.Journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -508,7 +508,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	err = app.models.Assignments.SetAssignmentDoneForUserID(sessionUser.ID, assignment.ID)
+	err = app.models.Assignments.SetAssignmentDoneForUserID(*sessionUser.ID, assignment.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -529,12 +529,12 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	if sessionUser.ID != userID {
+	if *sessionUser.ID != userID {
 		app.notAllowed(w, r)
 		return
 	}
 
-	if sessionUser.Role != data.RoleStudent {
+	if *sessionUser.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
@@ -556,7 +556,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, assignment.Journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -566,7 +566,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	err = app.models.Assignments.RemoveAssignmentDoneForUserID(sessionUser.ID, assignment.ID)
+	err = app.models.Assignments.RemoveAssignmentDoneForUserID(*sessionUser.ID, assignment.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

@@ -217,14 +217,11 @@ func (app *application) routes() http.Handler {
 		// get lessons and marks for student's journal
 		mux.Get("/students/{sid}/journals/{jid}/lessons", app.getLessonsForStudentsJournalsCourse)
 
-		// get absences for student
-		mux.Get("/students/{id}/absences", app.getAbsencesForStudent)
-
 		// excuse absence for student
-		mux.Post("/students/{id}/excuses", app.excuseAbsenceForStudent)
+		// mux.Post("/students/{id}/excuses", app.excuseAbsenceForStudent)
 
 		// delete excuse for student
-		mux.Delete("/students/{sid}/excuses/{eid}", app.deleteAbsenceExcuseForStudent)
+		// mux.Delete("/students/{sid}/excuses/{eid}", app.deleteAbsenceExcuseForStudent)
 
 		// get group by id
 		mux.Get("/groups/{id}", app.getGroup)
@@ -280,8 +277,8 @@ func (app *application) routes() http.Handler {
 		// delete session by id
 		mux.Delete("/sessions/{id}", app.removeSession)
 
-		// get parents for student
-		mux.Get("/students/{id}/parents", app.getParentsForStudent)
+		// get student by id
+		mux.Get("/students/{id}/", app.getStudent)
 	})
 
 	return mux

@@ -33,7 +33,7 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if teacherID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if teacherID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -59,12 +59,12 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
+	if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
 
-	classes, err := app.models.Classes.GetClassesForTeacher(teacher.ID)
+	classes, err := app.models.Classes.GetClassesForTeacher(*teacher.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -100,11 +100,11 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 
 	class := &data.Class{
 		Name:     &input.Name,
-		Teacher:  &data.User{ID: input.TeacherID},
+		Teacher:  &data.User{ID: &input.TeacherID},
 		Archived: helpers.ToPtr(false),
 	}
 
-	teacher, err := app.models.Users.GetUserByID(class.Teacher.ID)
+	teacher, err := app.models.Users.GetUserByID(*class.Teacher.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -115,7 +115,7 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
+	if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
@@ -191,7 +191,7 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 		class.Name = input.Name
 	}
 	if input.TeacherID != nil {
-		class.Teacher.ID = *input.TeacherID
+		class.Teacher.ID = input.TeacherID
 	}
 	if input.Archived != nil {
 		class.Archived = input.Archived
@@ -199,14 +199,14 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 	v.Check(*class.Name != "", "name", "must be provided")
-	v.Check(class.Teacher.ID > 0, "teacher_id", "must be provided and valid")
+	v.Check(*class.Teacher.ID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(class.Teacher.ID)
+	teacher, err := app.models.Users.GetUserByID(*class.Teacher.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -217,7 +217,7 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if teacher.Role != data.RoleAdministrator && teacher.Role != data.RoleTeacher {
+	if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
 		return
 	}
@@ -255,15 +255,15 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if class.Teacher.ID != sessionUser.ID {
+		if *class.Teacher.ID != *sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
 	case data.RoleParent:
-		ok, err := app.models.Classes.DoesParentHaveChildInClass(sessionUser.ID, *class.ID)
+		ok, err := app.models.Classes.DoesParentHaveChildInClass(*sessionUser.ID, *class.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

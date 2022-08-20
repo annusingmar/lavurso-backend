@@ -63,7 +63,7 @@ func (app *application) requireAuthenticatedUser(next http.Handler) http.Handler
 func (app *application) requireAdministrator(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.getUserFromContext(r)
-		if user.Role != data.RoleAdministrator {
+		if *user.Role != data.RoleAdministrator {
 			app.notAllowed(w, r)
 			return
 		}
@@ -74,7 +74,7 @@ func (app *application) requireAdministrator(next http.Handler) http.Handler {
 func (app *application) requireTeacher(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := app.getUserFromContext(r)
-		if user.Role != data.RoleTeacher && user.Role != data.RoleAdministrator {
+		if *user.Role != data.RoleTeacher && *user.Role != data.RoleAdministrator {
 			app.notAllowed(w, r)
 			return
 		}

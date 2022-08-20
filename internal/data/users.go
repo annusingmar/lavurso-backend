@@ -34,19 +34,19 @@ var (
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
 
 type User struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name,omitempty"`
-	Email       *string   `json:"email,omitempty"`
-	PhoneNumber *string   `json:"phone_number,omitempty"`
-	IdCode      *int64    `json:"id_code,omitempty"`
-	BirthDate   *Date     `json:"birth_date,omitempty"`
-	Password    Password  `json:"-"`
-	Role        string    `json:"role,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	Active      *bool     `json:"active,omitempty"`
-	Archived    *bool     `json:"archived,omitempty"`
-	Class       *Class    `json:"class,omitempty"`
-	Marks       []*Mark   `json:"marks,omitempty"`
+	ID          *int       `json:"id"`
+	Name        *string    `json:"name,omitempty"`
+	Email       *string    `json:"email,omitempty"`
+	PhoneNumber *string    `json:"phone_number,omitempty"`
+	IdCode      *int64     `json:"id_code,omitempty"`
+	BirthDate   *Date      `json:"birth_date,omitempty"`
+	Password    Password   `json:"-"`
+	Role        *string    `json:"role,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	Active      *bool      `json:"active,omitempty"`
+	Archived    *bool      `json:"archived,omitempty"`
+	Class       *Class     `json:"class,omitempty"`
+	Marks       []*Mark    `json:"marks,omitempty"`
 }
 
 type Password struct {
@@ -204,44 +204,6 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 	}
 
 	return &user, nil
-}
-
-func (m UserModel) AllUsersMinimal() ([]*User, error) {
-	query := `SELECT id, name, role,
-	FROM users
-	ORDER BY id ASC`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := m.DB.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return users, nil
-
 }
 
 func (m UserModel) GetUsersByRole(role string) ([]*User, error) {
@@ -551,8 +513,46 @@ func (m UserModel) IsParentOfChild(parentID, childID int) (bool, error) {
 	return result == 1, nil
 }
 
+func (m UserModel) GetStudentByID(userID int) (*User, error) {
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role, u.class_id, c.name
+	FROM users u
+	LEFT JOIN classes c
+	ON u.class_id = c.id
+	WHERE u.id = $1 and u.role = 'student'`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var user User
+	user.BirthDate = new(Date)
+	user.Class = new(Class)
+
+	err := m.DB.QueryRow(ctx, query, userID).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.PhoneNumber,
+		&user.IdCode,
+		&user.BirthDate.Time,
+		&user.Role,
+		&user.Class.ID,
+		&user.Class.Name,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return nil, ErrNoSuchUser
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}
+
 func (m UserModel) GetParentsForChild(childID int) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.role
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role
 	FROM users u
 	INNER JOIN parents_children pc
 	ON u.id = pc.parent_id
@@ -572,9 +572,15 @@ func (m UserModel) GetParentsForChild(childID int) ([]*User, error) {
 
 	for rows.Next() {
 		var user User
+		user.BirthDate = new(Date)
+
 		err = rows.Scan(
 			&user.ID,
 			&user.Name,
+			&user.Email,
+			&user.PhoneNumber,
+			&user.IdCode,
+			&user.BirthDate.Time,
 			&user.Role,
 		)
 		if err != nil {

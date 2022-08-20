@@ -64,7 +64,7 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 	}
 
 	session := &data.Session{
-		UserID:       user.ID,
+		UserID:       *user.ID,
 		Expires:      time.Now().UTC().Add(72 * time.Hour),
 		LoginIP:      ip,
 		LoginBrowser: r.UserAgent(),

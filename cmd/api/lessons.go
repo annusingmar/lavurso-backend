@@ -62,7 +62,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -122,15 +122,15 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.Teacher.ID != sessionUser.ID {
+		if *journal.Teacher.ID != *sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
 	case data.RoleParent:
-		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -140,7 +140,7 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case data.RoleStudent:
-		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -192,7 +192,7 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -271,7 +271,7 @@ func (app *application) deleteLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if journal.Teacher.ID != sessionUser.ID && sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -318,15 +318,15 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if journal.Teacher.ID != sessionUser.ID {
+		if *journal.Teacher.ID != *sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
 	case data.RoleParent:
-		ok, err := app.models.Journals.DoesParentHaveChildInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.DoesParentHaveChildInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -336,7 +336,7 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 			return
 		}
 	case data.RoleStudent:
-		ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, journal.ID)
+		ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

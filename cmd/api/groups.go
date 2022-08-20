@@ -32,12 +32,12 @@ func (app *application) getGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Groups.IsUserInGroup(sessionUser.ID, group.ID)
+	ok, err := app.models.Groups.IsUserInGroup(*sessionUser.ID, group.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
 
-	if !ok && sessionUser.Role != data.RoleAdministrator {
+	if !ok && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -267,12 +267,12 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		}
 
 		for _, u := range users {
-			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
+			err = app.models.Groups.InsertUserIntoGroup(*u.ID, group.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}
-			err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, u.ID)
+			err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, *u.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
@@ -288,12 +288,12 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		}
 
 		for _, u := range users {
-			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
+			err = app.models.Groups.InsertUserIntoGroup(*u.ID, group.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
 			}
-			err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, u.ID)
+			err = app.models.Messaging.AddUserGroupToAllThreads(group.ID, *u.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
@@ -375,10 +375,10 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if sessionUser.ID != userID {
+		if *sessionUser.ID != userID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -395,7 +395,7 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	groups, err := app.models.Groups.GetGroupsByUserID(user.ID)
+	groups, err := app.models.Groups.GetGroupsByUserID(*user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -427,10 +427,10 @@ func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	switch sessionUser.Role {
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		ok, err := app.models.Groups.IsUserInGroup(sessionUser.ID, group.ID)
+		ok, err := app.models.Groups.IsUserInGroup(*sessionUser.ID, group.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

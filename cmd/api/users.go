@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -113,13 +114,13 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &data.User{
-		Name:        input.Name,
+		Name:        &input.Name,
 		Email:       &input.Email,
 		Password:    data.Password{Plaintext: input.Password},
 		PhoneNumber: input.PhoneNumber,
 		IdCode:      input.IdCode,
 		BirthDate:   input.BirthDate,
-		Role:        input.Role,
+		Role:        &input.Role,
 		Class:       classField,
 	}
 
@@ -129,7 +130,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.CreatedAt = time.Now().UTC()
+	user.CreatedAt = helpers.ToPtr(time.Now().UTC())
 
 	err = app.models.Users.InsertUser(user)
 	if err != nil {
@@ -160,7 +161,7 @@ func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
 
 	var user *data.User
 
-	if sessionUser.ID == userID || sessionUser.Role == data.RoleAdministrator {
+	if *sessionUser.ID == userID || *sessionUser.Role == data.RoleAdministrator {
 		user, err = app.models.Users.GetUserByID(userID)
 	} else {
 		user, err = app.models.Users.GetUserByIDMinimal(userID)
@@ -232,7 +233,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if input.Name != nil {
-		user.Name = *input.Name
+		user.Name = input.Name
 	}
 
 	if input.Email != nil {
@@ -260,7 +261,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		user.BirthDate = new(data.Date)
 	}
 
-	if input.ClassID != nil && user.Role == data.RoleStudent {
+	if input.ClassID != nil && *user.Role == data.RoleStudent {
 		class, err := app.models.Classes.GetClassByID(*input.ClassID)
 		if err != nil {
 			switch {
@@ -292,7 +293,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (app *application) getParentsForStudent(w http.ResponseWriter, r *http.Request) {
+func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -301,16 +302,15 @@ func (app *application) getParentsForStudent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	switch sessionUser.Role {
+	// todo: class teacher
+	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if sessionUser.ID != userID {
-			app.notAllowed(w, r)
-			return
-		}
+		app.notAllowed(w, r)
+		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
+	student, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -321,18 +321,13 @@ func (app *application) getParentsForStudent(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if user.Role != data.RoleStudent {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-		return
-	}
-
-	parents, err := app.models.Users.GetParentsForChild(user.ID)
+	parents, err := app.models.Users.GetParentsForChild(*student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"parents": parents})
+	err = app.outputJSON(w, http.StatusOK, envelope{"student": student, "parents": parents})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -356,7 +351,7 @@ func (app *application) addParentToStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if student.Role != data.RoleStudent {
+	if *student.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
@@ -391,12 +386,12 @@ func (app *application) addParentToStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if parent.Role != data.RoleParent {
+	if *parent.Role != data.RoleParent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAParent.Error())
 		return
 	}
 
-	err = app.models.Users.AddParentToChild(parent.ID, student.ID)
+	err = app.models.Users.AddParentToChild(*parent.ID, *student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -426,7 +421,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if student.Role != data.RoleStudent {
+	if *student.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
@@ -461,12 +456,12 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if parent.Role != data.RoleParent {
+	if *parent.Role != data.RoleParent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAParent.Error())
 		return
 	}
 
-	ok, err := app.models.Users.IsParentOfChild(parent.ID, student.ID)
+	ok, err := app.models.Users.IsParentOfChild(*parent.ID, *student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -477,7 +472,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.models.Users.RemoveParentFromChild(parent.ID, student.ID)
+	err = app.models.Users.RemoveParentFromChild(*parent.ID, *student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

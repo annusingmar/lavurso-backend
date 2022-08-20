@@ -76,8 +76,8 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: time.Now().UTC(),
 	}
 
-	if !slices.Contains(input.UserIDs, sessionUser.ID) {
-		input.UserIDs = append(input.UserIDs, sessionUser.ID)
+	if !slices.Contains(input.UserIDs, *sessionUser.ID) {
+		input.UserIDs = append(input.UserIDs, *sessionUser.ID)
 	}
 
 	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
@@ -156,7 +156,7 @@ func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.User.ID != sessionUser.ID {
+	if *thread.User.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -193,7 +193,7 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.User.ID != sessionUser.ID {
+	if *thread.User.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -235,7 +235,7 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if thread.User.ID != sessionUser.ID {
+	if *thread.User.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -277,7 +277,7 @@ func (app *application) addMembersToThread(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if thread.User.ID != sessionUser.ID {
+	if *thread.User.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -347,7 +347,7 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if thread.User.ID != sessionUser.ID {
+	if *thread.User.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -376,7 +376,7 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 	}
 
 	for _, id := range input.UserIDs {
-		if id == sessionUser.ID {
+		if id == *sessionUser.ID {
 			continue
 		}
 		err = app.models.Messaging.RemoveUserFromThread(thread.ID, id)
@@ -409,12 +409,12 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if sessionUser.ID != userID {
+	if *sessionUser.ID != userID {
 		app.notAllowed(w, r)
 		return
 	}
 
-	threads, err := app.models.Messaging.GetThreadsForUser(sessionUser.ID)
+	threads, err := app.models.Messaging.GetThreadsForUser(*sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -456,7 +456,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, thread.ID)
+	ok, err := app.models.Messaging.IsUserInThread(*sessionUser.ID, thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -512,7 +512,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Messaging.SetThreadAsReadForUser(thread.ID, sessionUser.ID)
+	err = app.models.Messaging.SetThreadAsReadForUser(thread.ID, *sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -544,13 +544,13 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, message.ThreadID)
+	ok, err := app.models.Messaging.IsUserInThread(*sessionUser.ID, message.ThreadID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	if message.User.ID != sessionUser.ID || !ok {
+	if *message.User.ID != *sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -611,13 +611,13 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, message.ThreadID)
+	ok, err := app.models.Messaging.IsUserInThread(*sessionUser.ID, message.ThreadID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	if message.User.ID != sessionUser.ID || !ok {
+	if *message.User.ID != *sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -658,7 +658,7 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, thread.ID)
+	ok, err := app.models.Messaging.IsUserInThread(*sessionUser.ID, thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -674,7 +674,7 @@ func (app *application) getThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Messaging.SetThreadAsReadForUser(thread.ID, sessionUser.ID)
+	err = app.models.Messaging.SetThreadAsReadForUser(thread.ID, *sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -706,7 +706,7 @@ func (app *application) getThreadMembers(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, thread.ID)
+	ok, err := app.models.Messaging.IsUserInThread(*sessionUser.ID, thread.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
