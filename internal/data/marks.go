@@ -15,19 +15,19 @@ var (
 )
 
 type Mark struct {
-	ID            int            `json:"id"`
-	UserID        int            `json:"user_id"`
-	MarkID        *int           `json:"mark_id,omitempty"`
-	Lesson        *Lesson        `json:"lesson,omitempty"`
-	Course        *int           `json:"course,omitempty"`
-	JournalID     *int           `json:"journal_id,omitempty"`
-	Grade         *Grade         `json:"grade,omitempty"`
-	Comment       *string        `json:"comment,omitempty"`
-	Type          string         `json:"type"`
-	AbsenceExcuse *AbsenceExcuse `json:"absence_excuse,omitempty"`
-	By            *User          `json:"by"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	MarkID    *int      `json:"mark_id,omitempty"`
+	Lesson    *Lesson   `json:"lesson,omitempty"`
+	Course    *int      `json:"course,omitempty"`
+	JournalID *int      `json:"journal_id,omitempty"`
+	Grade     *Grade    `json:"grade,omitempty"`
+	Comment   *string   `json:"comment,omitempty"`
+	Type      string    `json:"type"`
+	Excuse    *Excuse   `json:"excuse,omitempty"`
+	By        *User     `json:"by"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type MarkModel struct {
@@ -95,7 +95,7 @@ func scanMarksWithExcuse(rows pgx.Rows) ([]*Mark, error) {
 		mark.Grade = new(Grade)
 		mark.By = new(User)
 		mark.Lesson = &Lesson{Date: new(Date)}
-		mark.AbsenceExcuse = &AbsenceExcuse{By: new(User)}
+		mark.Excuse = &Excuse{By: new(User)}
 
 		err := rows.Scan(
 			&mark.ID,
@@ -115,13 +115,13 @@ func scanMarksWithExcuse(rows pgx.Rows) ([]*Mark, error) {
 			&mark.By.Role,
 			&mark.CreatedAt,
 			&mark.UpdatedAt,
-			&mark.AbsenceExcuse.ID,
-			&mark.AbsenceExcuse.MarkID,
-			&mark.AbsenceExcuse.Excuse,
-			&mark.AbsenceExcuse.By.ID,
-			&mark.AbsenceExcuse.By.Name,
-			&mark.AbsenceExcuse.By.Role,
-			&mark.AbsenceExcuse.At,
+			&mark.Excuse.ID,
+			&mark.Excuse.MarkID,
+			&mark.Excuse.Excuse,
+			&mark.Excuse.By.ID,
+			&mark.Excuse.By.Name,
+			&mark.Excuse.By.Role,
+			&mark.Excuse.At,
 		)
 		if err != nil {
 			return nil, err

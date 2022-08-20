@@ -16,7 +16,7 @@ var (
 	ErrNoSuchExcuse    = errors.New("no such excuse")
 )
 
-type AbsenceExcuse struct {
+type Excuse struct {
 	ID     *int       `json:"id"`
 	MarkID *int       `json:"mark_id"`
 	Excuse *string    `json:"excuse"`
@@ -28,7 +28,7 @@ type AbsenceModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m AbsenceModel) InsertExcuse(excuse *AbsenceExcuse) error {
+func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
 	stmt := `INSERT INTO absences_excuses
 	(absence_mark_id, excuse, by, at)
 	VALUES
@@ -61,7 +61,7 @@ func (m AbsenceModel) DeleteExcuse(excuseID int) error {
 	return nil
 }
 
-func (m AbsenceModel) GetExcuseByID(excuseID int) (*AbsenceExcuse, error) {
+func (m AbsenceModel) GetExcuseByID(excuseID int) (*Excuse, error) {
 	query := `SELECT id, absence_mark_id, excuse, by, at
 	FROM absences_excuses
 	WHERE id = $1`
@@ -69,7 +69,7 @@ func (m AbsenceModel) GetExcuseByID(excuseID int) (*AbsenceExcuse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var excuse AbsenceExcuse
+	var excuse Excuse
 
 	err := m.DB.QueryRow(ctx, query, excuseID).Scan(
 		&excuse.ID,
