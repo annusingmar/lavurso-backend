@@ -1,216 +1,190 @@
 package main
 
-// func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.Request) {
-// 	sessionUser := app.getUserFromContext(r)
+import (
+	"errors"
+	"net/http"
+	"strconv"
+	"time"
 
-// 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-// 	if userID < 0 || err != nil {
-// 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-// 		return
-// 	}
+	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/validator"
+	"github.com/go-chi/chi/v5"
+)
 
-// 	switch *sessionUser.Role {
-// 	case data.RoleAdministrator:
-// 	case data.RoleParent:
-// 		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
-// 		if err != nil {
-// 			app.writeInternalServerError(w, r, err)
-// 			return
-// 		}
-// 		if !ok {
-// 			app.notAllowed(w, r)
-// 			return
-// 		}
-// 	case data.RoleTeacher:
-// 	default:
-// 		app.notAllowed(w, r)
-// 		return
-// 	}
+func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
 
-// 	user, err := app.models.Users.GetUserByID(userID)
-// 	if err != nil {
-// 		switch {
-// 		case errors.Is(err, data.ErrNoSuchUser):
-// 			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-// 		default:
-// 			app.writeInternalServerError(w, r, err)
-// 		}
-// 		return
-// 	}
+	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if markID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
+		return
+	}
 
-// 	if *user.Role != data.RoleStudent {
-// 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-// 		return
-// 	}
+	var input struct {
+		Excuse string `json:"excuse"`
+	}
 
-// 	var input struct {
-// 		MarkID int    `json:"mark_id"`
-// 		Excuse string `json:"excuse"`
-// 	}
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
 
-// 	err = app.inputJSON(w, r, &input)
-// 	if err != nil {
-// 		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
-// 		return
-// 	}
+	mark, err := app.models.Marks.GetMarkByID(markID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchMark):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
 
-// 	at := time.Now().UTC()
+	if mark.Type != data.MarkAbsent {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
+		return
+	}
 
-// 	excuse := &data.AbsenceExcuse{
-// 		MarkID: &input.MarkID,
-// 		Excuse: &input.Excuse,
-// 		By:     &data.User{ID: sessionUser.ID},
-// 		At:     &at,
-// 	}
+	student, err := app.models.Users.GetStudentByID(mark.UserID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
 
-// 	v := validator.NewValidator()
+	// todo: class teacher
+	switch *sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if *student.Class.Teacher.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, mark.UserID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
+		return
+	}
 
-// 	v.Check(*excuse.Excuse != "", "excuse", "must be provided")
-// 	v.Check(*excuse.MarkID > 0, "absence_id", "must be provided and valid")
+	at := time.Now().UTC()
 
-// 	if !v.Valid() {
-// 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-// 		return
-// 	}
+	excuse := &data.Excuse{
+		MarkID: &markID,
+		Excuse: &input.Excuse,
+		By:     &data.User{ID: sessionUser.ID},
+		At:     &at,
+	}
 
-// 	absence, err := app.models.Absences.GetAbsenceByMarkID(*excuse.MarkID)
-// 	if err != nil {
-// 		switch {
-// 		case errors.Is(err, data.ErrNoSuchAbsence):
-// 			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-// 		default:
-// 			app.writeInternalServerError(w, r, err)
-// 		}
-// 		return
-// 	}
+	v := validator.NewValidator()
 
-// 	if *sessionUser.Role == data.RoleTeacher {
-// 		journal, err := app.models.Journals.GetJournalByID(*absence.JournalID)
-// 		if err != nil {
-// 			app.writeInternalServerError(w, r, err)
-// 			return
-// 		}
-// 		if *sessionUser.ID != *journal.Teacher.ID {
-// 			app.notAllowed(w, r)
-// 			return
-// 		}
-// 	}
+	v.Check(*excuse.Excuse != "", "excuse", "must be provided")
+	v.Check(*excuse.MarkID > 0, "absence_id", "must be provided and valid")
 
-// 	if absence.UserID != *user.ID {
-// 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotValidAbsence.Error())
-// 		return
-// 	}
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
 
-// 	if absence.AbsenceExcuse != nil {
-// 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrAbsenceExcused.Error())
-// 		return
-// 	}
+	if mark.Excuse.MarkID != nil {
+		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrAbsenceExcused.Error())
+		return
+	}
 
-// 	err = app.models.Absences.InsertExcuse(excuse)
-// 	if err != nil {
-// 		app.writeInternalServerError(w, r, err)
-// 		return
-// 	}
+	err = app.models.Absences.InsertExcuse(excuse)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
 
-// 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
-// 	if err != nil {
-// 		app.writeInternalServerError(w, r, err)
-// 		return
-// 	}
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+}
 
-// }
+func (app *application) deleteExcuseForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
 
-// func (app *application) deleteAbsenceExcuseForStudent(w http.ResponseWriter, r *http.Request) {
-// 	sessionUser := app.getUserFromContext(r)
+	markID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if markID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
+		return
+	}
 
-// 	userID, err := strconv.Atoi(chi.URLParam(r, "sid"))
-// 	if userID < 0 || err != nil {
-// 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-// 		return
-// 	}
+	mark, err := app.models.Marks.GetMarkByID(markID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchMark):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
 
-// 	switch *sessionUser.Role {
-// 	case data.RoleAdministrator:
-// 	case data.RoleParent:
-// 		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
-// 		if err != nil {
-// 			app.writeInternalServerError(w, r, err)
-// 			return
-// 		}
-// 		if !ok {
-// 			app.notAllowed(w, r)
-// 			return
-// 		}
-// 	case data.RoleTeacher:
-// 	default:
-// 		app.notAllowed(w, r)
-// 		return
-// 	}
+	if mark.Type != data.MarkAbsent {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
+		return
+	}
 
-// 	user, err := app.models.Users.GetUserByID(userID)
-// 	if err != nil {
-// 		switch {
-// 		case errors.Is(err, data.ErrNoSuchUser):
-// 			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-// 		default:
-// 			app.writeInternalServerError(w, r, err)
-// 		}
-// 		return
-// 	}
+	student, err := app.models.Users.GetStudentByID(mark.UserID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
 
-// 	if *user.Role != data.RoleStudent {
-// 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-// 		return
-// 	}
+	// todo: class teacher
+	switch *sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if *student.Class.Teacher.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, mark.UserID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
+		return
+	}
 
-// 	excuseID, err := strconv.Atoi(chi.URLParam(r, "eid"))
-// 	if excuseID < 0 || err != nil {
-// 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchExcuse.Error())
-// 		return
-// 	}
+	err = app.models.Absences.DeleteExcuseByMarkID(mark.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
 
-// 	excuse, err := app.models.Absences.GetExcuseByID(excuseID)
-// 	if err != nil {
-// 		switch {
-// 		case errors.Is(err, data.ErrNoSuchExcuse):
-// 			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-// 		default:
-// 			app.writeInternalServerError(w, r, err)
-// 		}
-// 		return
-// 	}
-
-// 	absence, err := app.models.Absences.GetAbsenceByMarkID(*excuse.MarkID)
-// 	if err != nil {
-// 		app.writeInternalServerError(w, r, err)
-// 	}
-
-// 	if *sessionUser.Role == data.RoleTeacher {
-// 		journal, err := app.models.Journals.GetJournalByID(*absence.JournalID)
-// 		if err != nil {
-// 			app.writeInternalServerError(w, r, err)
-// 			return
-// 		}
-// 		if *sessionUser.ID != *journal.Teacher.ID {
-// 			app.notAllowed(w, r)
-// 			return
-// 		}
-// 	}
-
-// 	if absence.UserID != *user.ID {
-// 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotValidAbsence.Error())
-// 		return
-// 	}
-
-// 	err = app.models.Absences.DeleteExcuse(*excuse.ID)
-// 	if err != nil {
-// 		app.writeInternalServerError(w, r, err)
-// 		return
-// 	}
-
-// 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
-// 	if err != nil {
-// 		app.writeInternalServerError(w, r, err)
-// 	}
-
-// }
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+}

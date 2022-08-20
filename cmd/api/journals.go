@@ -549,9 +549,24 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// TODO: class teacher check
+	student, err := app.models.Users.GetStudentByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if *student.Class.Teacher.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
 	case data.RoleParent:
 		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
 		if err != nil {
@@ -572,23 +587,12 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	if *user.Role != data.RoleStudent {
+	if *student.Role != data.RoleStudent {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
 		return
 	}
 
-	journals, err := app.models.Journals.GetJournalsByStudent(*user.ID)
+	journals, err := app.models.Journals.GetJournalsByStudent(*student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -17,11 +16,10 @@ var (
 )
 
 type Excuse struct {
-	ID     *int       `json:"id"`
-	MarkID *int       `json:"mark_id"`
-	Excuse *string    `json:"excuse"`
-	By     *User      `json:"by"`
-	At     *time.Time `json:"at"`
+	MarkID *int       `json:"mark_id,omitempty"`
+	Excuse *string    `json:"excuse,omitempty"`
+	By     *User      `json:"by,omitempty"`
+	At     *time.Time `json:"at,omitempty"`
 }
 
 type AbsenceModel struct {
@@ -29,16 +27,15 @@ type AbsenceModel struct {
 }
 
 func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
-	stmt := `INSERT INTO absences_excuses
-	(absence_mark_id, excuse, by, at)
+	stmt := `INSERT INTO excuses
+	(mark_id, excuse, by, at)
 	VALUES
-	($1, $2, $3, $4)
-	RETURNING id`
+	($1, $2, $3, $4)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, excuse.MarkID, excuse.Excuse, excuse.By, excuse.At).Scan(&excuse.ID)
+	_, err := m.DB.Exec(ctx, stmt, excuse.MarkID, excuse.Excuse, excuse.By.ID, excuse.At)
 	if err != nil {
 		return err
 	}
@@ -46,46 +43,17 @@ func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
 	return nil
 }
 
-func (m AbsenceModel) DeleteExcuse(excuseID int) error {
-	stmt := `DELETE FROM absences_excuses
-	WHERE id = $1`
+func (m AbsenceModel) DeleteExcuseByMarkID(markID int) error {
+	stmt := `DELETE FROM excuses
+	WHERE mark_id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, excuseID)
+	_, err := m.DB.Exec(ctx, stmt, markID)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-func (m AbsenceModel) GetExcuseByID(excuseID int) (*Excuse, error) {
-	query := `SELECT id, absence_mark_id, excuse, by, at
-	FROM absences_excuses
-	WHERE id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var excuse Excuse
-
-	err := m.DB.QueryRow(ctx, query, excuseID).Scan(
-		&excuse.ID,
-		&excuse.MarkID,
-		&excuse.Excuse,
-		&excuse.By,
-		&excuse.At,
-	)
-	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrNoSuchExcuse
-		default:
-			return nil, err
-		}
-	}
-
-	return &excuse, nil
 }

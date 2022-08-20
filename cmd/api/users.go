@@ -302,14 +302,6 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// todo: class teacher
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	default:
-		app.notAllowed(w, r)
-		return
-	}
-
 	student, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
@@ -318,6 +310,18 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	switch *sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if *student.Class.Teacher.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
 		return
 	}
 

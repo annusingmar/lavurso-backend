@@ -218,10 +218,10 @@ func (app *application) routes() http.Handler {
 		mux.Get("/students/{sid}/journals/{jid}/lessons", app.getLessonsForStudentsJournalsCourse)
 
 		// excuse absence for student
-		// mux.Post("/students/{id}/excuses", app.excuseAbsenceForStudent)
+		mux.Post("/absences/{id}/excuse", app.excuseAbsenceForStudent)
 
 		// delete excuse for student
-		// mux.Delete("/students/{sid}/excuses/{eid}", app.deleteAbsenceExcuseForStudent)
+		mux.Delete("/absences/{id}/excuse", app.deleteExcuseForStudent)
 
 		// get group by id
 		mux.Get("/groups/{id}", app.getGroup)
@@ -278,7 +278,7 @@ func (app *application) routes() http.Handler {
 		mux.Delete("/sessions/{id}", app.removeSession)
 
 		// get student by id
-		mux.Get("/students/{id}/", app.getStudent)
+		mux.Get("/students/{id}", app.getStudent)
 	})
 
 	return mux

@@ -514,10 +514,12 @@ func (m UserModel) IsParentOfChild(parentID, childID int) (bool, error) {
 }
 
 func (m UserModel) GetStudentByID(userID int) (*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role, u.class_id, c.name
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role, u.class_id, c.name, u2.id, u2.name
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
+	LEFT JOIN users u2
+	ON c.teacher_id = u2.id
 	WHERE u.id = $1 and u.role = 'student'`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -525,7 +527,7 @@ func (m UserModel) GetStudentByID(userID int) (*User, error) {
 
 	var user User
 	user.BirthDate = new(Date)
-	user.Class = new(Class)
+	user.Class = &Class{Teacher: new(User)}
 
 	err := m.DB.QueryRow(ctx, query, userID).Scan(
 		&user.ID,
@@ -537,6 +539,8 @@ func (m UserModel) GetStudentByID(userID int) (*User, error) {
 		&user.Role,
 		&user.Class.ID,
 		&user.Class.Name,
+		&user.Class.Teacher.ID,
+		&user.Class.Teacher.Name,
 	)
 
 	if err != nil {

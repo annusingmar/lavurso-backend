@@ -115,7 +115,6 @@ func scanMarksWithExcuse(rows pgx.Rows) ([]*Mark, error) {
 			&mark.By.Role,
 			&mark.CreatedAt,
 			&mark.UpdatedAt,
-			&mark.Excuse.ID,
 			&mark.Excuse.MarkID,
 			&mark.Excuse.Excuse,
 			&mark.Excuse.By.ID,
@@ -138,7 +137,7 @@ func scanMarksWithExcuse(rows pgx.Rows) ([]*Mark, error) {
 
 func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -146,6 +145,10 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	ON m.lesson_id = l.id
 	INNER JOIN users u
 	ON m.by = u.id
+    LEFT JOIN excuses ex
+    ON m.id = ex.mark_id
+    LEFT JOIN users u2
+    ON u2.id = ex.by
 	WHERE m.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -155,6 +158,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	mark.Grade = new(Grade)
 	mark.By = new(User)
 	mark.Lesson = &Lesson{Date: new(Date)}
+	mark.Excuse = &Excuse{By: new(User)}
 
 	err := m.DB.QueryRow(ctx, query, markID).Scan(
 		&mark.ID,
@@ -174,6 +178,12 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 		&mark.By.Role,
 		&mark.CreatedAt,
 		&mark.UpdatedAt,
+		&mark.Excuse.MarkID,
+		&mark.Excuse.Excuse,
+		&mark.Excuse.By.ID,
+		&mark.Excuse.By.Name,
+		&mark.Excuse.By.Role,
+		&mark.Excuse.At,
 	)
 
 	if err != nil {
@@ -190,7 +200,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 
 func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at, ae.id, ae.absence_mark_id, ae.excuse, ae.by, u2.name, u2.role, ae.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -198,10 +208,10 @@ func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
 	ON m.lesson_id = l.id
 	INNER JOIN users u
 	ON m.by = u.id
-    LEFT JOIN absences_excuses ae
-    ON m.id = ae.absence_mark_id
+    LEFT JOIN excuses ex
+    ON m.id = ex.mark_id
     LEFT JOIN users u2
-    ON u2.id = ae.by
+    ON u2.id = ex.by
 	WHERE m.user_id = $1
 	ORDER BY updated_at ASC`
 
@@ -349,7 +359,7 @@ func (m MarkModel) GetLessonMarksByCourseAndJournalID(journalID, course int) ([]
 
 func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at, ae.id, ae.absence_mark_id, ae.excuse, ae.by, u2.name, u2.role, ae.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -357,10 +367,10 @@ func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalI
 	ON m.lesson_id = l.id
 	INNER JOIN users u
 	ON m.by = u.id
-    LEFT JOIN absences_excuses ae
-    ON m.id = ae.absence_mark_id
+    LEFT JOIN excuses ex
+    ON m.id = ex.mark_id
     LEFT JOIN users u2
-    ON u2.id = ae.by
+    ON u2.id = ex.by
 	WHERE m.journal_id = $1 and m.course = $2 and m.lesson_id is not NULL and m.user_id = $3
 	ORDER BY updated_at ASC`
 

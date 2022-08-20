@@ -438,29 +438,7 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleStudent:
-		if *sessionUser.ID != userID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(userID)
+	student, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -471,18 +449,40 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if *user.Role != data.RoleStudent {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
+	switch *sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if *student.Class.Teacher.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, *student.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		if *sessionUser.ID != *student.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
 		return
 	}
 
-	journals, err := app.models.Journals.GetJournalsByStudent(*user.ID)
+	journals, err := app.models.Journals.GetJournalsByStudent(*student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	marks, err := app.models.Marks.GetMarksByStudent(*user.ID)
+	marks, err := app.models.Marks.GetMarksByStudent(*student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -668,29 +668,6 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	// case data.RoleTeacher:
-	case data.RoleStudent:
-		if userID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
-	}
-
 	user, err := app.models.Users.GetUserByID(userID)
 	if err != nil {
 		switch {
@@ -699,6 +676,33 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	switch *sessionUser.Role {
+	case data.RoleAdministrator:
+	case data.RoleTeacher:
+		if *user.Class.Teacher.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleParent:
+		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, *user.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	case data.RoleStudent:
+		if *user.ID != *sessionUser.ID {
+			app.notAllowed(w, r)
+			return
+		}
+	default:
+		app.notAllowed(w, r)
 		return
 	}
 
