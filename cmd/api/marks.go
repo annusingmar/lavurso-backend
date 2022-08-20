@@ -668,7 +668,7 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
+	user, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):

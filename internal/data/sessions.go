@@ -20,7 +20,7 @@ type Session struct {
 	ID             int       `json:"id"`
 	TokenHash      []byte    `json:"-"`
 	TokenPlaintext string    `json:"token,omitempty"`
-	UserID         int       `json:"user_id"`
+	User           User      `json:"user"`
 	Expires        time.Time `json:"expires"`
 	LoginIP        string    `json:"login_ip"`
 	LoginBrowser   string    `json:"login_browser"`
@@ -57,7 +57,7 @@ func (m SessionModel) InsertSession(session *Session) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, session.TokenHash, session.UserID, session.Expires, session.LoginIP, session.LoginBrowser, session.LoggedIn, session.LastSeen).Scan(&session.ID)
+	err := m.DB.QueryRow(ctx, stmt, session.TokenHash, session.User.ID, session.Expires, session.LoginIP, session.LoginBrowser, session.LoggedIn, session.LastSeen).Scan(&session.ID)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (m SessionModel) GetSessionsByUserID(userID int) ([]*Session, error) {
 		err = rows.Scan(
 			&session.ID,
 			&session.TokenHash,
-			&session.UserID,
+			&session.User.ID,
 			&session.Expires,
 			&session.LoginIP,
 			&session.LoginBrowser,
@@ -172,7 +172,7 @@ func (m SessionModel) GetSessionByID(sessionID int) (*Session, error) {
 	err := m.DB.QueryRow(ctx, query, sessionID, time.Now().UTC()).Scan(
 		&session.ID,
 		&session.TokenHash,
-		&session.UserID,
+		&session.User.ID,
 		&session.Expires,
 		&session.LoginIP,
 		&session.LoginBrowser,
