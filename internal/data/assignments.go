@@ -21,10 +21,12 @@ var (
 
 type Assignment struct {
 	ID          int       `json:"id"`
-	Journal     *Journal  `json:"journal"`
+	Journal     *Journal  `json:"journal,omitempty"`
+	Subject     *Subject  `json:"subject,omitempty"`
 	Description string    `json:"description"`
 	Deadline    Date      `json:"deadline"`
 	Type        string    `json:"type"`
+	Done        *bool     `json:"done,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -150,6 +152,61 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 			&assignment.Description,
 			&assignment.Deadline.Time,
 			&assignment.Type,
+			&assignment.CreatedAt,
+			&assignment.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		assignments = append(assignments, &assignment)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return assignments, nil
+}
+
+func (m AssignmentModel) GetAssignmentsForStudent(studentID int, startDate *Date, endDate *Date) ([]*Assignment, error) {
+	query := `SELECT a.id, s.id, s.name, a.description, a.deadline, a.type, (CASE WHEN da.user_id is NOT NULL THEN TRUE ELSE FALSE END), a.created_at, a.updated_at
+	FROM assignments a
+	INNER JOIN users_journals uj
+	ON uj.journal_id = a.journal_id
+	INNER JOIN journals j
+	ON a.journal_id = j.id
+	INNER JOIN subjects s
+	ON j.subject_id = s.id
+	LEFT JOIN done_assignments da
+	ON a.id = da.assignment_id AND uj.user_id = da.user_id
+    WHERE uj.user_id = $1 AND a.deadline >= $2 AND a.deadline < $3
+	ORDER BY a.deadline DESC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := m.DB.Query(ctx, query, studentID, startDate.Time, endDate.Time)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var assignments []*Assignment
+
+	for rows.Next() {
+		var assignment Assignment
+		assignment.Subject = new(Subject)
+
+		err = rows.Scan(
+			&assignment.ID,
+			&assignment.Subject.ID,
+			&assignment.Subject.Name,
+			&assignment.Description,
+			&assignment.Deadline.Time,
+			&assignment.Type,
+			&assignment.Done,
 			&assignment.CreatedAt,
 			&assignment.UpdatedAt,
 		)

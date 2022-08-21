@@ -3,11 +3,11 @@ package main
 import (
 	"errors"
 	"net/http"
-	"sort"
 	"strconv"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -365,7 +365,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	user, err := app.models.Users.GetUserByID(userID)
+	student, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -376,31 +376,40 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if *user.Role != data.RoleStudent {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-		return
+	var startDate *data.Date
+	var endDate *data.Date
+
+	sd := r.URL.Query().Get("start_date")
+	if sd == "" {
+		startDate = &data.Date{Time: helpers.ToPtr(time.Now().UTC())}
+	} else {
+		startDate, err = data.ParseDate(sd)
+		if err != nil {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
-	journals, err := app.models.Journals.GetJournalsByStudent(*user.ID)
+	ed := r.URL.Query().Get("end_date")
+	if ed == "" {
+		endDate = &data.Date{Time: helpers.ToPtr(time.Now().UTC().AddDate(0, 0, 7))}
+	} else {
+		endDate, err = data.ParseDate(ed)
+		if err != nil {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+			return
+		}
+		if endDate.Before(*startDate.Time) {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, "end date is before start date")
+			return
+		}
+	}
+
+	assignments, err := app.models.Assignments.GetAssignmentsForStudent(*student.ID, startDate, endDate)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	var assignments []*data.Assignment
-
-	for i := range journals {
-		a, err := app.models.Assignments.GetAssignmentsByJournalID(journals[i].ID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		assignments = append(assignments, a...)
-	}
-
-	sort.SliceStable(assignments, func(i, j int) bool {
-		return assignments[i].Deadline.Time.After(*assignments[j].Deadline.Time)
-	})
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignments})
 	if err != nil {

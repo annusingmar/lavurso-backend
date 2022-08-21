@@ -14,6 +14,15 @@ type Date struct {
 	*time.Time
 }
 
+func ParseDate(s string) (*Date, error) {
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return nil, ErrInvalidDateFormat
+	}
+
+	return &Date{&t}, nil
+}
+
 func (d *Date) UnmarshalJSON(b []byte) error {
 	dateString, err := strconv.Unquote(string(b))
 	if err != nil {
