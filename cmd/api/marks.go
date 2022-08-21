@@ -403,21 +403,6 @@ func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, mark.UserID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleStudent:
-		if *sessionUser.ID != mark.UserID {
-			app.notAllowed(w, r)
-			return
-		}
 	default:
 		app.notAllowed(w, r)
 		return

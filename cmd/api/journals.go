@@ -54,34 +54,7 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *journal.Teacher.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Journals.DoesParentHaveChildInJournal(*sessionUser.ID, journal.ID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleStudent:
-		ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, journal.ID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
+	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}

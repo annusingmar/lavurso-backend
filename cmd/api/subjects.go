@@ -60,30 +60,6 @@ func (app *application) createSubject(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) getSubject(w http.ResponseWriter, r *http.Request) {
-	subjectID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if subjectID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchSubject.Error())
-		return
-	}
-
-	subject, err := app.models.Subjects.GetSubjectByID(subjectID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchSubject):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	err = app.outputJSON(w, http.StatusOK, envelope{"subject": subject})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-}
-
 func (app *application) updateSubject(w http.ResponseWriter, r *http.Request) {
 	subjectID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if subjectID < 0 || err != nil {

@@ -13,8 +13,6 @@ import (
 )
 
 func (app *application) getGroup(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
 	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if groupID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGroup.Error())
@@ -29,16 +27,6 @@ func (app *application) getGroup(w http.ResponseWriter, r *http.Request) {
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
-		return
-	}
-
-	ok, err := app.models.Groups.IsUserInGroup(*sessionUser.ID, group.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-
-	if !ok && *sessionUser.Role != data.RoleAdministrator {
-		app.notAllowed(w, r)
 		return
 	}
 
@@ -408,8 +396,6 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
 	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if groupID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGroup.Error())
@@ -425,20 +411,6 @@ func (app *application) getUsersForGroup(w http.ResponseWriter, r *http.Request)
 			app.writeInternalServerError(w, r, err)
 		}
 		return
-	}
-
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	default:
-		ok, err := app.models.Groups.IsUserInGroup(*sessionUser.ID, group.ID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
 	}
 
 	users, err := app.models.Groups.GetUsersByGroupID(group.ID)

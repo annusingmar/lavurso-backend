@@ -29,6 +29,9 @@ func (app *application) routes() http.Handler {
 		mux.Group(func(mux chi.Router) {
 			mux.Use(app.requireAdministrator)
 
+			// get user by id
+			mux.Get("/users/{id}", app.getUser)
+
 			// list all users
 			mux.Get("/users", app.listAllUsers)
 
@@ -40,6 +43,9 @@ func (app *application) routes() http.Handler {
 
 			// list all classes
 			mux.Get("/classes", app.listAllClasses)
+
+			// get class by id
+			mux.Get("/classes/{id}", app.getClass)
 
 			// create new class
 			mux.Post("/classes", app.createClass)
@@ -53,6 +59,9 @@ func (app *application) routes() http.Handler {
 			// update subject
 			mux.Patch("/subjects/{id}", app.updateSubject)
 
+			// get grade by id
+			mux.Get("/grades/{id}", app.getGrade)
+
 			// create grade
 			mux.Post("/grades", app.createGrade)
 
@@ -65,6 +74,9 @@ func (app *application) routes() http.Handler {
 			// update grade
 			mux.Patch("/grades/{id}", app.updateGrade)
 
+			// get group by id
+			mux.Get("/groups/{id}", app.getGroup)
+
 			// update group
 			mux.Patch("/groups/{id}", app.updateGroup)
 
@@ -76,6 +88,9 @@ func (app *application) routes() http.Handler {
 
 			// delete users from groups
 			mux.Delete("/groups/{id}/users", app.removeUsersFromGroup)
+
+			// get users by group id
+			mux.Get("/groups/{id}/users", app.getUsersForGroup)
 
 			// get all journals
 			mux.Get("/journals", app.listAllJournals)
@@ -101,6 +116,9 @@ func (app *application) routes() http.Handler {
 			// create journal
 			mux.Post("/journals", app.createJournal)
 
+			// get journal by id
+			mux.Get("/journals/{id}", app.getJournal)
+
 			// update journal
 			mux.Patch("/journals/{id}", app.updateJournal)
 
@@ -113,6 +131,9 @@ func (app *application) routes() http.Handler {
 			// get classes for teacher
 			mux.Get("/teachers/{id}/classes", app.getClassesForTeacher)
 
+			// get students in class
+			mux.Get("/classes/{id}/students", app.getStudentsInClass)
+
 			// get users for journal
 			mux.Get("/journals/{id}/students", app.getStudentsForJournal)
 
@@ -122,6 +143,9 @@ func (app *application) routes() http.Handler {
 			// remove user from journal
 			mux.Delete("/journals/{id}/students", app.removeStudentFromJournal)
 
+			// get lesson by id
+			mux.Get("/lessons/{id}", app.getLesson)
+
 			// create lesson
 			mux.Post("/lessons", app.createLesson)
 
@@ -130,6 +154,18 @@ func (app *application) routes() http.Handler {
 
 			// delete lesson
 			mux.Delete("/lessons/{id}", app.deleteLesson)
+
+			// get all grades
+			mux.Get("/grades", app.listAllGrades)
+
+			// get lessons for journal
+			mux.Get("/journals/{id}/lessons", app.getLessonsForJournal)
+
+			// get assignment by id
+			mux.Get("/assignments/{id}", app.getAssignment)
+
+			// get all assignments for journal
+			mux.Get("/journals/{id}/assignments", app.getAssignmentsForJournal)
 
 			// create assignment
 			mux.Post("/assignments", app.createAssignment)
@@ -150,48 +186,24 @@ func (app *application) routes() http.Handler {
 			// add mark
 			mux.Post("/marks", app.addMark)
 
+			// get mark by id
+			mux.Get("/marks/{id}", app.getMark)
+
 			// delete mark
 			mux.Delete("/marks/{id}", app.deleteMark)
 
 			// update mark
 			mux.Patch("/marks/{id}", app.updateMark)
+
+			// list all subjects
+			mux.Get("/subjects", app.listAllSubjects)
 		})
 
 		// search for user with query param 'name' (minimum 4 characters)
 		mux.Get("/users/search", app.searchUser)
 
-		// get user by id
-		mux.Get("/users/{id}", app.getUser)
-
-		// get class by id
-		mux.Get("/classes/{id}", app.getClass)
-
-		// get students in class
-		mux.Get("/classes/{id}/students", app.getStudentsInClass)
-
-		// list all subjects
-		mux.Get("/subjects", app.listAllSubjects)
-
-		// get subject by id
-		mux.Get("/subjects/{id}", app.getSubject)
-
-		// get journal by id
-		mux.Get("/journals/{id}", app.getJournal)
-
 		// get journals for user
 		mux.Get("/students/{id}/journals", app.getJournalsForStudent)
-
-		// get lesson by id
-		mux.Get("/lessons/{id}", app.getLesson)
-
-		// get lessons for journal
-		mux.Get("/journals/{id}/lessons", app.getLessonsForJournal)
-
-		// get assignment by id
-		mux.Get("/assignments/{id}", app.getAssignment)
-
-		// get all assignments for journal
-		mux.Get("/journals/{id}/assignments", app.getAssignmentsForJournal)
 
 		// get all assignments for student
 		mux.Get("/students/{id}/assignments", app.getAssignmentsForStudent)
@@ -201,15 +213,6 @@ func (app *application) routes() http.Handler {
 
 		// remove assignment done for student
 		mux.Delete("/students/{sid}/assignments/{aid}/done", app.removeAssignmentDoneForStudent)
-
-		// get all grades
-		mux.Get("/grades", app.listAllGrades)
-
-		// get grade by id
-		mux.Get("/grades/{id}", app.getGrade)
-
-		// get mark by id
-		mux.Get("/marks/{id}", app.getMark)
 
 		// get current marks for student
 		mux.Get("/students/{id}/marks", app.getMarksForStudent)
@@ -223,14 +226,8 @@ func (app *application) routes() http.Handler {
 		// delete excuse for student
 		mux.Delete("/absences/{id}/excuse", app.deleteExcuseForStudent)
 
-		// get group by id
-		mux.Get("/groups/{id}", app.getGroup)
-
 		// get groups by user id
 		mux.Get("/users/{id}/groups", app.getGroupsForUser)
-
-		// get users by group id
-		mux.Get("/groups/{id}/users", app.getUsersForGroup)
 
 		// get all threads for user
 		mux.Get("/users/{id}/threads", app.getThreadsForUser)
