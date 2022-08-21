@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS
   );
 
 CREATE INDEX IF NOT EXISTS users_name_idx ON users USING GIN (to_tsvector('simple', name));
+
+ALTER TABLE users ADD CONSTRAINT student_class_id_not_null CHECK(CASE WHEN role = 'student' THEN class_id is NOT NULL END);
