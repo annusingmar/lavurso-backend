@@ -127,10 +127,12 @@ func (m UserModel) AllUsers() ([]*User, error) {
 }
 
 func (m UserModel) SearchUser(name string) ([]*User, error) {
-	query := `SELECT id, name, role
-	FROM users
-	WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1))
-	ORDER BY name ASC`
+	query := `SELECT u.id, u.name, u.role, u.class_id, c.name
+	FROM users u
+	LEFT JOIN classes c
+	ON u.class_id = c.id
+	WHERE (to_tsvector('simple', u.name) @@ plainto_tsquery('simple', $1))
+	ORDER BY u.name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -146,14 +148,23 @@ func (m UserModel) SearchUser(name string) ([]*User, error) {
 
 	for rows.Next() {
 		var user User
+		user.Class = new(Class)
+
 		err = rows.Scan(
 			&user.ID,
 			&user.Name,
 			&user.Role,
+			&user.Class.ID,
+			&user.Class.Name,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		if user.Class.ID == nil {
+			user.Class = nil
+		}
+
 		users = append(users, &user)
 	}
 
