@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -169,8 +170,12 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 	return assignments, nil
 }
 
-func (m AssignmentModel) GetAssignmentsForStudent(studentID int, startDate *Date, endDate *Date) ([]*Assignment, error) {
-	query := `SELECT a.id, s.id, s.name, a.description, a.deadline, a.type, (CASE WHEN da.user_id is NOT NULL THEN TRUE ELSE FALSE END), a.created_at, a.updated_at
+func (m AssignmentModel) GetAssignmentsForStudent(studentID int, startDate *Date, direction string, limit int) ([]*Assignment, error) {
+	sqlQuery := `SELECT *
+	FROM (SELECT a.id, s.id, s.name, a.description, a.deadline, a.type,
+	(CASE WHEN da.user_id is NOT NULL THEN TRUE ELSE FALSE END),
+	a.created_at, a.updated_at,
+	DENSE_RANK() OVER(order by a.deadline %s) rk
 	FROM assignments a
 	INNER JOIN users_journals uj
 	ON uj.journal_id = a.journal_id
@@ -180,13 +185,26 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, startDate *Date
 	ON j.subject_id = s.id
 	LEFT JOIN done_assignments da
 	ON a.id = da.assignment_id AND uj.user_id = da.user_id
-    WHERE uj.user_id = $1 AND a.deadline >= $2 AND a.deadline < $3
-	ORDER BY a.deadline DESC`
+	WHERE uj.user_id = $1 AND a.deadline %s $2) a
+	WHERE a.rk <= $3
+	ORDER BY a.deadline ASC`
+
+	var query string
+
+	// can't use parameters for ORDER BY direction,
+	// so interpolating it directly into query string.
+	// no risk of SQL injection because we're not trusting user input;
+	// 'if' only interpolates 'DESC' and '>=' or 'ASC' and '<='
+	if direction == "desc" {
+		query = fmt.Sprintf(sqlQuery, "DESC", "<=")
+	} else {
+		query = fmt.Sprintf(sqlQuery, "ASC", ">=")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, studentID, startDate.Time, endDate.Time)
+	rows, err := m.DB.Query(ctx, query, studentID, startDate.Time, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +227,7 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, startDate *Date
 			&assignment.Done,
 			&assignment.CreatedAt,
 			&assignment.UpdatedAt,
+			nil,
 		)
 		if err != nil {
 			return nil, err

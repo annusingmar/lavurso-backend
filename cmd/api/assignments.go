@@ -377,7 +377,8 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 	}
 
 	var startDate *data.Date
-	var endDate *data.Date
+	var direction string
+	var limit int
 
 	sd := r.URL.Query().Get("start_date")
 	if sd == "" {
@@ -390,22 +391,21 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		}
 	}
 
-	ed := r.URL.Query().Get("end_date")
-	if ed == "" {
-		endDate = &data.Date{Time: helpers.ToPtr(time.Now().UTC().AddDate(0, 0, 7))}
+	dir := r.URL.Query().Get("direction")
+	if dir == "desc" {
+		direction = "desc"
 	} else {
-		endDate, err = data.ParseDate(ed)
-		if err != nil {
-			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
-			return
-		}
-		if endDate.Before(*startDate.Time) {
-			app.writeErrorResponse(w, r, http.StatusBadRequest, "end date is before start date")
-			return
-		}
+		direction = "asc"
 	}
 
-	assignments, err := app.models.Assignments.GetAssignmentsForStudent(*student.ID, startDate, endDate)
+	lim, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || lim < 1 {
+		limit = 5
+	} else {
+		limit = lim
+	}
+
+	assignments, err := app.models.Assignments.GetAssignmentsForStudent(*student.ID, startDate, direction, limit)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
