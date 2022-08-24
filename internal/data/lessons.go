@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -16,6 +17,7 @@ var (
 type Lesson struct {
 	ID          *int       `json:"id,omitempty"`
 	Journal     *Journal   `json:"journal,omitempty"`
+	Subject     *Subject   `json:"subject,omitempty"`
 	Description *string    `json:"description,omitempty"`
 	Date        *Date      `json:"date,omitempty"`
 	Course      *int       `json:"course,omitempty"`
@@ -145,6 +147,69 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 		err := rows.Scan(
 			&lesson.ID,
 			&lesson.Journal.ID,
+			&lesson.Description,
+			&lesson.Date.Time,
+			&lesson.Course,
+			&lesson.CreatedAt,
+			&lesson.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		lessons = append(lessons, &lesson)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return lessons, nil
+}
+
+func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *Date) ([]*Lesson, error) {
+	sqlQuery := `SELECT l.id, s.id, s.name, l.description, l.date, l.course, l.created_at, l.updated_at
+	FROM lessons l
+	INNER JOIN journals j
+	ON j.id = l.journal_id
+	INNER JOIN users_journals uj
+	ON uj.journal_id = j.id
+	INNER JOIN subjects s
+	ON j.subject_id = s.id
+	WHERE uj.user_id = $1 AND %s
+	ORDER BY date ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var rows pgx.Rows
+	var err error
+
+	if until != nil {
+		query := fmt.Sprintf(sqlQuery, "l.date >= $2 AND l.date < $3")
+		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
+	} else {
+		query := fmt.Sprintf(sqlQuery, "l.date >= $2")
+		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var lessons []*Lesson
+
+	for rows.Next() {
+		var lesson Lesson
+		lesson.Subject = new(Subject)
+		lesson.Date = new(Date)
+
+		err := rows.Scan(
+			&lesson.ID,
+			&lesson.Subject.ID,
+			&lesson.Subject.Name,
 			&lesson.Description,
 			&lesson.Date.Time,
 			&lesson.Course,

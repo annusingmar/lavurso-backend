@@ -381,7 +381,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 
 	fromDate := r.URL.Query().Get("from")
 	if fromDate == "" {
-		from = &data.Date{Time: helpers.ToPtr(time.Now().UTC())}
+		from = &data.Date{Time: helpers.ToPtr(time.Now().UTC().Truncate(24 * time.Hour))}
 	} else {
 		from, err = data.ParseDate(fromDate)
 		if err != nil {

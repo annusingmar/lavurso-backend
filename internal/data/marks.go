@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -24,6 +25,7 @@ type Mark struct {
 	Grade     *Grade    `json:"grade,omitempty"`
 	Comment   *string   `json:"comment,omitempty"`
 	Type      string    `json:"type"`
+	Subject   *Subject  `json:"subject,omitempty"`
 	Excuse    *Excuse   `json:"excuse,omitempty"`
 	By        *User     `json:"by"`
 	CreatedAt time.Time `json:"created_at"`
@@ -227,6 +229,97 @@ func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
 
 	marks, err := scanMarksWithExcuse(rows)
 	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
+func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *Date) ([]*Mark, error) {
+	sqlQuery := `SELECT
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, s.id, s.name, m.by, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
+	FROM marks m
+	LEFT JOIN grades g
+	ON m.grade_id = g.id
+	LEFT JOIN lessons l
+	ON m.lesson_id = l.id
+	INNER JOIN journals j
+	ON m.journal_id = j.id
+	INNER JOIN subjects s
+	ON j.subject_id = s.id
+	INNER JOIN users u
+	ON m.by = u.id
+    LEFT JOIN excuses ex
+    ON m.id = ex.mark_id
+    LEFT JOIN users u2
+    ON u2.id = ex.by
+	WHERE m.user_id = $1 AND %s
+	ORDER BY m.updated_at ASC`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var rows pgx.Rows
+	var err error
+
+	if until != nil {
+		query := fmt.Sprintf(sqlQuery, "m.updated_at >= $2 AND m.updated_at < $3")
+		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
+	} else {
+		query := fmt.Sprintf(sqlQuery, "m.updated_at >= $2")
+		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var marks []*Mark
+
+	for rows.Next() {
+		var mark Mark
+		mark.Grade = new(Grade)
+		mark.By = new(User)
+		mark.Lesson = &Lesson{Date: new(Date)}
+		mark.Excuse = &Excuse{By: new(User)}
+		mark.Subject = new(Subject)
+
+		err := rows.Scan(
+			&mark.ID,
+			&mark.UserID,
+			&mark.Lesson.ID,
+			&mark.Lesson.Date.Time,
+			&mark.Lesson.Description,
+			&mark.Course,
+			&mark.JournalID,
+			&mark.Grade.ID,
+			&mark.Grade.Identifier,
+			&mark.Grade.Value,
+			&mark.Comment,
+			&mark.Type,
+			&mark.Subject.ID,
+			&mark.Subject.Name,
+			&mark.By.ID,
+			&mark.By.Name,
+			&mark.By.Role,
+			&mark.CreatedAt,
+			&mark.UpdatedAt,
+			&mark.Excuse.MarkID,
+			&mark.Excuse.Excuse,
+			&mark.Excuse.By.ID,
+			&mark.Excuse.By.Name,
+			&mark.Excuse.By.Role,
+			&mark.Excuse.At,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		marks = append(marks, &mark)
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 

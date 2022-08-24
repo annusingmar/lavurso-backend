@@ -276,6 +276,8 @@ func (app *application) routes() http.Handler {
 
 		// get student by id
 		mux.Get("/students/{id}", app.getStudent)
+
+		mux.Get("/students/{id}/latest", app.getLatestMarksLessonsForStudent)
 	})
 
 	return mux
