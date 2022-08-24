@@ -196,10 +196,10 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *Da
 	// so interpolating it directly into query string;
 	// but still not trusting user input, so using $2 etc
 	if until != nil {
-		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2 AND a.deadline < $3")
+		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2::date AND a.deadline < $3::date")
 		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
 	} else {
-		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2")
+		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2::date")
 		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
 	}
 
