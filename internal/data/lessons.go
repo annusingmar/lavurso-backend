@@ -186,10 +186,10 @@ func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *Date
 	var err error
 
 	if until != nil {
-		query := fmt.Sprintf(sqlQuery, "l.date >= $2 AND l.date < $3")
+		query := fmt.Sprintf(sqlQuery, "l.date > $2 AND l.date <= $3")
 		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
 	} else {
-		query := fmt.Sprintf(sqlQuery, "l.date >= $2")
+		query := fmt.Sprintf(sqlQuery, "l.date > $2")
 		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
 	}
 

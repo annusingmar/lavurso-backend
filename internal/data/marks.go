@@ -263,10 +263,10 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *Date) ([
 	var err error
 
 	if until != nil {
-		query := fmt.Sprintf(sqlQuery, "m.updated_at >= $2 AND m.updated_at < $3")
+		query := fmt.Sprintf(sqlQuery, "m.updated_at > $2 AND m.updated_at <= $3")
 		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
 	} else {
-		query := fmt.Sprintf(sqlQuery, "m.updated_at >= $2")
+		query := fmt.Sprintf(sqlQuery, "m.updated_at > $2")
 		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
 	}
 
