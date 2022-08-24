@@ -376,42 +376,47 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	var startDate *data.Date
-	var direction string
-	var limit int
+	var from *data.Date
+	var until *data.Date
 
-	sd := r.URL.Query().Get("start_date")
-	if sd == "" {
-		startDate = &data.Date{Time: helpers.ToPtr(time.Now().UTC())}
+	fromDate := r.URL.Query().Get("from")
+	if fromDate == "" {
+		from = &data.Date{Time: helpers.ToPtr(time.Now().UTC())}
 	} else {
-		startDate, err = data.ParseDate(sd)
+		from, err = data.ParseDate(fromDate)
 		if err != nil {
 			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
 
-	dir := r.URL.Query().Get("direction")
-	if dir == "desc" {
-		direction = "desc"
+	untilDate := r.URL.Query().Get("until")
+	if untilDate == "" {
+		until = nil
 	} else {
-		direction = "asc"
+		until, err = data.ParseDate(untilDate)
+		if err != nil {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
-	lim, err := strconv.Atoi(r.URL.Query().Get("limit"))
-	if err != nil || lim < 1 {
-		limit = 5
-	} else {
-		limit = lim
-	}
-
-	assignments, err := app.models.Assignments.GetAssignmentsForStudent(*student.ID, startDate, direction, limit)
+	assignments, err := app.models.Assignments.GetAssignmentsForStudent(*student.ID, from, until)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignments})
+	assignmentByDate := make(map[string][]*data.Assignment)
+
+	for _, a := range assignments {
+		if assignmentByDate[a.Deadline.String()] == nil {
+			assignmentByDate[a.Deadline.String()] = make([]*data.Assignment, 0)
+		}
+		assignmentByDate[a.Deadline.String()] = append(assignmentByDate[a.Deadline.String()], a)
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignmentByDate})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

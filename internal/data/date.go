@@ -23,6 +23,10 @@ func ParseDate(s string) (*Date, error) {
 	return &Date{&t}, nil
 }
 
+func (d *Date) String() string {
+	return d.Format("2006-01-02")
+}
+
 func (d *Date) UnmarshalJSON(b []byte) error {
 	dateString, err := strconv.Unquote(string(b))
 	if err != nil {
