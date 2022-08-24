@@ -254,7 +254,7 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *Date) ([
     LEFT JOIN users u2
     ON u2.id = ex.by
 	WHERE m.user_id = $1 AND %s
-	ORDER BY m.updated_at ASC`
+	ORDER BY m.updated_at DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

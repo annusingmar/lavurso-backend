@@ -177,7 +177,7 @@ func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *Date
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
 	WHERE uj.user_id = $1 AND %s
-	ORDER BY date ASC`
+	ORDER BY date DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

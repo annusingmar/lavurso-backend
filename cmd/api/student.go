@@ -11,9 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type StudentLatest struct {
-	Marks   []*data.Mark
-	Lessons []*data.Lesson
+type StudentLatestByDate struct {
+	Date    string         `json:"date"`
+	Marks   []*data.Mark   `json:"marks"`
+	Lessons []*data.Lesson `json:"lessons"`
 }
 
 func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r *http.Request) {
@@ -95,20 +96,27 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 		return
 	}
 
-	latest := make(map[string]*StudentLatest)
+	var latest []*StudentLatestByDate
+	dateIndexMap := make(map[string]int)
 
 	for _, m := range marks {
-		if _, ok := latest[m.UpdatedAt.Format("2006-01-02")]; !ok {
-			latest[m.UpdatedAt.Format("2006-01-02")] = new(StudentLatest)
+		dateString := m.UpdatedAt.Format("2006-01-02")
+		if val, ok := dateIndexMap[dateString]; !ok {
+			latest = append(latest, &StudentLatestByDate{Date: dateString, Marks: []*data.Mark{m}})
+			dateIndexMap[dateString] = len(latest) - 1
+		} else {
+			latest[val].Marks = append(latest[val].Marks, m)
 		}
-		latest[m.UpdatedAt.Format("2006-01-02")].Marks = append(latest[m.UpdatedAt.Format("2006-01-02")].Marks, m)
 	}
 
 	for _, l := range lessons {
-		if _, ok := latest[l.Date.String()]; !ok {
-			latest[l.Date.String()] = new(StudentLatest)
+		dateString := l.Date.Format("2006-01-02")
+		if val, ok := dateIndexMap[dateString]; !ok {
+			latest = append(latest, &StudentLatestByDate{Date: dateString, Lessons: []*data.Lesson{l}})
+			dateIndexMap[dateString] = len(latest) - 1
+		} else {
+			latest[val].Lessons = append(latest[val].Lessons, l)
 		}
-		latest[l.Date.String()].Lessons = append(latest[l.Date.String()].Lessons, l)
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"latest": latest})

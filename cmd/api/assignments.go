@@ -12,6 +12,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+type AssignmentsByDate struct {
+	Date        string             `json:"date"`
+	Assignments []*data.Assignment `json:"assignments"`
+}
+
 func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
@@ -407,13 +412,17 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	assignmentByDate := make(map[string][]*data.Assignment)
+	var assignmentByDate []*AssignmentsByDate
+	dateIndexMap := make(map[string]int)
 
 	for _, a := range assignments {
-		if assignmentByDate[a.Deadline.String()] == nil {
-			assignmentByDate[a.Deadline.String()] = make([]*data.Assignment, 0)
+		dateString := a.Deadline.String()
+		if val, ok := dateIndexMap[dateString]; !ok {
+			assignmentByDate = append(assignmentByDate, &AssignmentsByDate{Date: dateString, Assignments: []*data.Assignment{a}})
+			dateIndexMap[dateString] = len(assignmentByDate) - 1
+		} else {
+			assignmentByDate[val].Assignments = append(assignmentByDate[val].Assignments, a)
 		}
-		assignmentByDate[a.Deadline.String()] = append(assignmentByDate[a.Deadline.String()], a)
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"assignments": assignmentByDate})
