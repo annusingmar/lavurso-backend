@@ -63,8 +63,19 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	sentUser := data.User{ID: user.ID, Name: user.Name, Role: user.Role}
+
+	if *user.Role == data.RoleParent {
+		children, err := app.models.Users.GetChildrenForParent(*user.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		sentUser.Children = children
+	}
+
 	session := &data.Session{
-		User:         data.User{ID: user.ID, Name: user.Name, Role: user.Role},
+		User:         sentUser,
 		Expires:      time.Now().UTC().Add(72 * time.Hour),
 		LoginIP:      ip,
 		LoginBrowser: r.UserAgent(),

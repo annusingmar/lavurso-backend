@@ -47,6 +47,7 @@ type User struct {
 	Archived    *bool      `json:"archived,omitempty"`
 	Class       *Class     `json:"class,omitempty"`
 	Marks       []*Mark    `json:"marks,omitempty"`
+	Children    []*User    `json:"children,omitempty"`
 }
 
 type Password struct {
