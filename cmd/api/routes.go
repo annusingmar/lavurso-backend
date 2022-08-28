@@ -232,6 +232,9 @@ func (app *application) routes() http.Handler {
 		// get all threads for user
 		mux.Get("/users/{id}/threads", app.getThreadsForUser)
 
+		// does user have unread
+		mux.Get("/users/{id}/unread", app.userHasUnread)
+
 		// create thread
 		mux.Post("/threads", app.createThread)
 

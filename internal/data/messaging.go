@@ -461,7 +461,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 }
 
 func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
-	query := `SELECT DISTINCT t.id, t.user_id, u.name, u.role, t.title, t.locked, tr.read, t.created_at, t.updated_at
+	query := `SELECT DISTINCT t.id, t.user_id, u.name, u.role, t.title, t.locked, tr.read, t.created_at, t.updated_at, (SELECT COUNT(id) FROM messages WHERE thread_id = t.id)
 	FROM threads t
 	INNER JOIN threads_recipients tr
 	ON t.id = tr.thread_id
@@ -496,6 +496,7 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 			&thread.Read,
 			&thread.CreatedAt,
 			&thread.UpdatedAt,
+			&thread.MessageCount,
 		)
 		if err != nil {
 			return nil, err
@@ -509,6 +510,23 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
 	}
 
 	return threads, nil
+}
+
+func (m MessagingModel) DoesUserHaveUnread(userID int) (bool, error) {
+	query := `SELECT COUNT(1) FROM threads_recipients
+	WHERE user_id = $1 AND read is FALSE`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, userID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result > 0, nil
 }
 
 func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {

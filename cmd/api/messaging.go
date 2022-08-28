@@ -420,16 +420,6 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	for _, thread := range threads {
-		count, err := app.models.Messaging.GetMessageCountForThread(thread.ID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-
-		thread.MessageCount = &count
-	}
-
 	err = app.outputJSON(w, http.StatusOK, envelope{"threads": threads})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -729,6 +719,32 @@ func (app *application) getThreadMembers(w http.ResponseWriter, r *http.Request)
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"thread": thread, "users": users, "groups": groups})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) userHasUnread(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if *sessionUser.ID != userID {
+		app.notAllowed(w, r)
+		return
+	}
+
+	unread, err := app.models.Messaging.DoesUserHaveUnread(userID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"unread": unread})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
