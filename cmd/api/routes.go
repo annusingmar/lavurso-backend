@@ -29,9 +29,6 @@ func (app *application) routes() http.Handler {
 		mux.Group(func(mux chi.Router) {
 			mux.Use(app.requireAdministrator)
 
-			// get user by id
-			mux.Get("/users/{id}", app.getUser)
-
 			// list all users
 			mux.Get("/users", app.listAllUsers)
 
@@ -281,6 +278,9 @@ func (app *application) routes() http.Handler {
 		mux.Get("/students/{id}", app.getStudent)
 
 		mux.Get("/students/{id}/latest", app.getLatestMarksLessonsForStudent)
+
+		// get user by id
+		mux.Get("/users/{id}", app.getUser)
 	})
 
 	return mux

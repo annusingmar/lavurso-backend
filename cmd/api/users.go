@@ -135,7 +135,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	err = app.models.Users.InsertUser(user)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrEmailAlreadyExists):
+		case errors.Is(err, data.ErrEmailAlreadyExists) || errors.Is(err, data.ErrIDCodeAlreadyExists):
 			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
 		default:
 			app.writeInternalServerError(w, r, err)
@@ -151,9 +151,16 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if userID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
 		return
 	}
 
@@ -272,7 +279,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	err = app.models.Users.UpdateUser(user)
 	if err != nil {
 		switch {
-		case errors.Is(err, data.ErrEmailAlreadyExists):
+		case errors.Is(err, data.ErrEmailAlreadyExists) || errors.Is(err, data.ErrIDCodeAlreadyExists):
 			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
 		default:
 			app.writeInternalServerError(w, r, err)

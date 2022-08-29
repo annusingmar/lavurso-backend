@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS
     "name" TEXT not null,
     "email" CITEXT UNIQUE not null,
     "phone_number" TEXT,
-    "id_code" BIGINT,
+    "id_code" BIGINT UNIQUE,
     "birth_date" DATE,
     "password" bytea not null,
     "role" TEXT not null,

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgerrcode"
@@ -23,6 +24,7 @@ const (
 
 var (
 	ErrEmailAlreadyExists  = errors.New("an user with specified email already exists")
+	ErrIDCodeAlreadyExists = errors.New("an user with specified ID code already exists")
 	ErrNoSuchUser          = errors.New("no such user")
 	ErrNoSuchUsers         = errors.New("no such users")
 	ErrNoSuchStudents      = errors.New("no such students")
@@ -308,7 +310,12 @@ func (m UserModel) InsertUser(u *User) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			return ErrEmailAlreadyExists
+			if strings.Contains(pgErr.Message, "email") {
+				return ErrEmailAlreadyExists
+			} else if strings.Contains(pgErr.Message, "id_code") {
+				return ErrIDCodeAlreadyExists
+			}
+			return err
 		} else {
 			return err
 		}
@@ -341,11 +348,17 @@ func (m UserModel) UpdateUser(u *User) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			return ErrEmailAlreadyExists
+			if strings.Contains(pgErr.Message, "email") {
+				return ErrEmailAlreadyExists
+			} else if strings.Contains(pgErr.Message, "id_code") {
+				return ErrIDCodeAlreadyExists
+			}
+			return err
 		} else {
 			return err
 		}
 	}
+
 	return nil
 
 }
