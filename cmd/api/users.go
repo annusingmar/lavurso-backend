@@ -184,7 +184,7 @@ func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
+func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
@@ -292,6 +292,72 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		app.writeInternalServerError(w, r, err)
 	}
 
+}
+
+func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if *user.ID != *sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
+	var input struct {
+		Email       string  `json:"email"`
+		PhoneNumber *string `json:"phone_number"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	v := validator.NewValidator()
+
+	v.Check(input.Email != "", "email", "must not be empty")
+	v.Check(input.PhoneNumber == nil || *input.PhoneNumber != "", "phone_number", "must not be empty")
+
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	user.Email = &input.Email
+	user.PhoneNumber = input.PhoneNumber
+
+	err = app.models.Users.UpdateUser(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEmailAlreadyExists):
+			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
 }
 
 func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {

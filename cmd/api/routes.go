@@ -36,7 +36,7 @@ func (app *application) routes() http.Handler {
 			mux.Post("/users", app.createUser)
 
 			// update user
-			mux.Patch("/users/{id}", app.updateUser)
+			mux.Patch("/users/{id}", app.updateUserAdmin)
 
 			// list all classes
 			mux.Get("/classes", app.listAllClasses)
@@ -281,6 +281,8 @@ func (app *application) routes() http.Handler {
 
 		// get user by id
 		mux.Get("/users/{id}", app.getUser)
+
+		mux.Put("/users/{id}", app.updateUser)
 	})
 
 	return mux
