@@ -459,7 +459,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	ok, err := app.models.Users.IsParentOfChild(*parent.ID, *student.ID)
+	ok, err := app.models.Users.IsUserParentOfStudent(*parent.ID, *student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

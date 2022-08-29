@@ -46,27 +46,8 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	student, err := app.models.Users.GetStudentByID(mark.UserID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	// todo: class teacher
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *student.Class.Teacher.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, mark.UserID)
+	if *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, *sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -75,9 +56,6 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 			app.notAllowed(w, r)
 			return
 		}
-	default:
-		app.notAllowed(w, r)
-		return
 	}
 
 	at := time.Now().UTC()
@@ -142,27 +120,8 @@ func (app *application) deleteExcuseForStudent(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	student, err := app.models.Users.GetStudentByID(mark.UserID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	// todo: class teacher
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *student.Class.Teacher.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, mark.UserID)
+	if *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, *sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -171,9 +130,6 @@ func (app *application) deleteExcuseForStudent(w http.ResponseWriter, r *http.Re
 			app.notAllowed(w, r)
 			return
 		}
-	default:
-		app.notAllowed(w, r)
-		return
 	}
 
 	err = app.models.Absences.DeleteExcuseByMarkID(mark.ID)

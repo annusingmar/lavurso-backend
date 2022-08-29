@@ -533,15 +533,8 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *student.Class.Teacher.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
+	if *sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, *sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -550,14 +543,6 @@ func (app *application) getJournalsForStudent(w http.ResponseWriter, r *http.Req
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		if *sessionUser.ID != userID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
 	}
 
 	if *student.Role != data.RoleStudent {

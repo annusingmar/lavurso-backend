@@ -508,23 +508,6 @@ func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 	return nil
 }
 
-func (m UserModel) IsParentOfChild(parentID, childID int) (bool, error) {
-	query := `SELECT COUNT(1) FROM parents_children
-	WHERE parent_id = $1 and child_id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var result int
-
-	err := m.DB.QueryRow(ctx, query, parentID, childID).Scan(&result)
-	if err != nil {
-		return false, err
-	}
-
-	return result == 1, nil
-}
-
 func (m UserModel) GetStudentByID(userID int) (*User, error) {
 	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role, u.class_id, c.name, u2.id, u2.name
 	FROM users u
@@ -649,4 +632,44 @@ func (m UserModel) GetChildrenForParent(parentID int) ([]*User, error) {
 	}
 
 	return users, nil
+}
+
+func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, error) {
+	query := `SELECT COUNT(1)
+	FROM users s
+	LEFT JOIN parents_children pc
+	ON s.id = pc.child_id
+	LEFT JOIN classes c
+	ON s.class_id = c.id
+	WHERE s.id = $1 AND (pc.parent_id = $2 OR c.teacher_id = $2)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, studentID, userID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result > 0, nil
+}
+
+func (m UserModel) IsUserParentOfStudent(studentID, userID int) (bool, error) {
+	query := `SELECT COUNT(1)
+	FROM parents_children
+	WHERE child_id = $1 AND parent_id = $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var result int
+
+	err := m.DB.QueryRow(ctx, query, studentID, userID).Scan(&result)
+	if err != nil {
+		return false, err
+	}
+
+	return result > 0, nil
 }

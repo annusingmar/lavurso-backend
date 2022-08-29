@@ -26,28 +26,6 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, userID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		if !ok {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleStudent:
-		if *sessionUser.ID != userID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
-	}
-
 	student, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
@@ -57,6 +35,18 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 			app.writeInternalServerError(w, r, err)
 		}
 		return
+	}
+
+	if *sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, *sessionUser.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	var from *data.Date

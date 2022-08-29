@@ -434,15 +434,8 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *student.Class.Teacher.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, *student.ID)
+	if *sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, *sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -451,14 +444,6 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		if *sessionUser.ID != *student.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
 	}
 
 	journals, err := app.models.Journals.GetJournalsByStudent(*student.ID)
@@ -653,7 +638,7 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	user, err := app.models.Users.GetStudentByID(userID)
+	student, err := app.models.Users.GetStudentByID(userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -664,15 +649,8 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *user.Class.Teacher.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	case data.RoleParent:
-		ok, err := app.models.Users.IsParentOfChild(*sessionUser.ID, *user.ID)
+	if *sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, *sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -681,19 +659,6 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 			app.notAllowed(w, r)
 			return
 		}
-	case data.RoleStudent:
-		if *user.ID != *sessionUser.ID {
-			app.notAllowed(w, r)
-			return
-		}
-	default:
-		app.notAllowed(w, r)
-		return
-	}
-
-	if *user.Role != data.RoleStudent {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNotAStudent.Error())
-		return
 	}
 
 	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
@@ -713,7 +678,7 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(*user.ID, journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(*student.ID, journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -735,7 +700,7 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	lessonMarks, err := app.models.Marks.GetLessonMarksForStudentByCourseAndJournalID(*user.ID, journal.ID, course)
+	lessonMarks, err := app.models.Marks.GetLessonMarksForStudentByCourseAndJournalID(*student.ID, journal.ID, course)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
