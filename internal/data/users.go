@@ -50,6 +50,7 @@ type User struct {
 	Class       *Class     `json:"class,omitempty"`
 	Marks       []*Mark    `json:"marks,omitempty"`
 	Children    []*User    `json:"children,omitempty"`
+	SessionID   *int       `json:"-"`
 }
 
 type Password struct {
@@ -259,34 +260,6 @@ func (m UserModel) GetUsersByRole(role string) ([]*User, error) {
 
 }
 
-func (m UserModel) GetUserByIDMinimal(userID int) (*User, error) {
-	query := `SELECT id, name, role
-	FROM users
-	WHERE id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var user User
-
-	err := m.DB.QueryRow(ctx, query, userID).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Role,
-	)
-
-	if err != nil {
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			return nil, ErrNoSuchUser
-		default:
-			return nil, err
-		}
-	}
-
-	return &user, nil
-}
-
 func (m UserModel) InsertUser(u *User) error {
 	stmt := `INSERT INTO users
 	(name, email, phone_number, id_code, birth_date, password, role, class_id, created_at)
@@ -397,7 +370,7 @@ func (m UserModel) GetAllStudentIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, error) {
+func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 	hash := sha256.Sum256([]byte(plaintextToken))
 
 	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived, s.id
@@ -415,7 +388,6 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, er
 	var user User
 	user.BirthDate = new(Date)
 	user.Class = new(Class)
-	var sessionID int
 
 	err := m.DB.QueryRow(ctx, query, hash[:], time.Now().UTC()).Scan(
 		&user.ID,
@@ -431,19 +403,19 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, *int, er
 		&user.CreatedAt,
 		&user.Active,
 		&user.Archived,
-		&sessionID,
+		&user.SessionID,
 	)
 
 	if err != nil {
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return nil, nil, ErrInvalidToken
+			return nil, ErrInvalidToken
 		default:
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
-	return &user, &sessionID, nil
+	return &user, nil
 }
 
 func (m UserModel) GetUserByEmail(email string) (*User, error) {

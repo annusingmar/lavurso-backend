@@ -27,7 +27,7 @@ func (app *application) authenticateSession(next http.Handler) http.Handler {
 			return
 		}
 
-		user, sessionID, err := app.models.Users.GetUserBySessionToken(splitHeader[1])
+		user, err := app.models.Users.GetUserBySessionToken(splitHeader[1])
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrInvalidToken):
@@ -38,7 +38,7 @@ func (app *application) authenticateSession(next http.Handler) http.Handler {
 			return
 		}
 
-		err = app.models.Sessions.UpdateLastSeen(*sessionID)
+		err = app.models.Sessions.UpdateLastSeen(*user.SessionID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

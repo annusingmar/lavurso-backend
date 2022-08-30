@@ -283,6 +283,8 @@ func (app *application) routes() http.Handler {
 		mux.Get("/users/{id}", app.getUser)
 
 		mux.Put("/users/{id}", app.updateUser)
+
+		mux.Post("/users/{id}/password", app.changeUserPassword)
 	})
 
 	return mux

@@ -360,6 +360,88 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if *user.ID != *sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
+	var input struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	v := validator.NewValidator()
+
+	v.Check(input.CurrentPassword != "", "current_password", "must not be empty")
+	v.Check(input.NewPassword != "", "new_password", "must not be empty")
+
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	correct, err := data.ComparePassword(user.Password.Hashed, input.CurrentPassword)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if !correct {
+		app.writeErrorResponse(w, r, http.StatusConflict, ErrInvalidCredentials.Error())
+		return
+	}
+
+	user.Password.Plaintext = input.NewPassword
+	user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Users.UpdateUser(user)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Sessions.RemoveAllSessionsByUserIDExceptOne(*user.ID, *sessionUser.SessionID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
 func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 

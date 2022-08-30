@@ -111,6 +111,21 @@ func (m SessionModel) RemoveAllSessionsByUserID(userID int) error {
 	return nil
 }
 
+func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) error {
+	stmt := `DELETE FROM sessions
+	WHERE user_id = $1 AND id != $2`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, userID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m SessionModel) GetSessionsByUserID(userID int) ([]*Session, error) {
 	query := `SELECT
 	id, token_hash, user_id, expires, login_ip, login_browser, logged_in, last_seen
