@@ -16,7 +16,17 @@ import (
 )
 
 func (app *application) listAllUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := app.models.Users.AllUsers()
+	var archived bool
+
+	archivedParam := r.URL.Query().Get("archived")
+
+	if archivedParam == "true" {
+		archived = true
+	} else {
+		archived = false
+	}
+
+	users, err := app.models.Users.AllUsers(archived)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -108,6 +118,12 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+
+		if *class.Archived {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrClassArchived.Error())
+			return
+		}
+
 		classField = &data.Class{ID: class.ID}
 	} else {
 		classField = new(data.Class)
@@ -211,6 +227,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 		BirthDate   *data.Date `json:"birth_date"`
 		ClassID     *int       `json:"class_id"`
 		Active      *bool      `json:"active"`
+		Archived    *bool      `json:"archived"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -273,7 +290,17 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 			}
 			return
 		}
+
+		if *class.Archived {
+			app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrClassArchived.Error())
+			return
+		}
+
 		user.Class = &data.Class{ID: class.ID}
+	}
+
+	if input.Archived != nil {
+		user.Archived = input.Archived
 	}
 
 	err = app.models.Users.UpdateUser(user)

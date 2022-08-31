@@ -10,13 +10,15 @@ import (
 )
 
 var (
-	ErrNoSuchGroup  = errors.New("no such group")
-	ErrNoSuchGroups = errors.New("no such groups")
+	ErrNoSuchGroup   = errors.New("no such group")
+	ErrNoSuchGroups  = errors.New("no such groups")
+	ErrGroupArchived = errors.New("group is archived")
 )
 
 type Group struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
+	Archived    bool   `json:"archived"`
 	MemberCount *int   `json:"member_count,omitempty"`
 }
 
@@ -25,7 +27,7 @@ type GroupModel struct {
 }
 
 func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
-	query := `SELECT id, name
+	query := `SELECT id, name, archived
 	FROM groups
 	WHERE id = $1`
 
@@ -37,6 +39,7 @@ func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 	err := m.DB.QueryRow(ctx, query, groupID).Scan(
 		&group.ID,
 		&group.Name,
+		&group.Archived,
 	)
 
 	if err != nil {
@@ -67,16 +70,20 @@ func (m GroupModel) GetUserCountForGroup(groupID int) (*int, error) {
 	return &count, nil
 }
 
-func (m GroupModel) GetAllGroups() ([]*Group, error) {
-	query := `SELECT id, name
-	FROM groups`
+func (m GroupModel) GetAllGroups(archived bool) ([]*Group, error) {
+	query := `SELECT g.id, g.name, g.archived, COUNT(ug.user_id)
+	FROM groups g
+	INNER JOIN users_groups ug
+	ON ug.group_id = g.id
+	WHERE g.archived = $1
+    GROUP BY g.id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var groups []*Group
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.Query(ctx, query, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +96,8 @@ func (m GroupModel) GetAllGroups() ([]*Group, error) {
 		err = rows.Scan(
 			&group.ID,
 			&group.Name,
+			&group.Archived,
+			&group.MemberCount,
 		)
 		if err != nil {
 			return nil, err
@@ -104,16 +113,23 @@ func (m GroupModel) GetAllGroups() ([]*Group, error) {
 	return groups, nil
 }
 
-func (m GroupModel) GetAllGroupIDs() ([]int, error) {
+func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
 	query := `SELECT
-	array(SELECT id	FROM groups)`
+	array(
+		SELECT g.id
+		FROM groups g
+		INNER JOIN users_groups ug
+		ON ug.group_id = g.id
+		WHERE g.archived is FALSE
+		AND ug.user_id = $1
+	)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var ids []int
 
-	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	err := m.DB.QueryRow(ctx, query, userID).Scan(&ids)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +182,7 @@ func (m GroupModel) GetGroupsByUserID(userID int) ([]*Group, error) {
 	FROM groups g
 	INNER JOIN users_groups ug
 	ON g.id = ug.group_id
-	WHERE ug.user_id = $1`
+	WHERE ug.user_id = $1 AND g.archived is FALSE`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -217,30 +233,15 @@ func (m GroupModel) InsertGroup(g *Group) error {
 	return nil
 }
 
-func (m GroupModel) DeleteGroup(groupID int) error {
-	stmt := `DELETE FROM groups
-	WHERE id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.Exec(ctx, stmt, groupID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (m GroupModel) UpdateGroup(g *Group) error {
 	stmt := `UPDATE groups
-	SET name = $1
-	WHERE id = $2`
+	SET (name, archived) = ($1, $2)
+	WHERE id = $3`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, g.Name, g.ID)
+	_, err := m.DB.Exec(ctx, stmt, g.Name, g.Archived, g.ID)
 	if err != nil {
 		return err
 	}
@@ -279,21 +280,4 @@ func (m GroupModel) RemoveUserFromGroup(userID, groupID int) error {
 	}
 
 	return nil
-}
-
-func (m GroupModel) IsUserInGroup(userID, groupID int) (bool, error) {
-	query := `SELECT COUNT(1) FROM users_groups
-	WHERE user_id = $1 and group_id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var result int
-
-	err := m.DB.QueryRow(ctx, query, userID, groupID).Scan(&result)
-	if err != nil {
-		return false, err
-	}
-
-	return result == 1, nil
 }

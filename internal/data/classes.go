@@ -45,18 +45,19 @@ func (m ClassModel) InsertClass(c *Class) error {
 	return nil
 }
 
-func (m ClassModel) AllClasses() ([]*Class, error) {
+func (m ClassModel) AllClasses(archived bool) ([]*Class, error) {
 	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role, c.archived
 	FROM classes c
 	INNER JOIN users u
-	ON c.teacher_id = u.id`
+	ON c.teacher_id = u.id
+	WHERE c.archived = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var classes []*Class
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.Query(ctx, query, archived)
 
 	if err != nil {
 		return nil, err
@@ -93,7 +94,7 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 
 func (m ClassModel) GetAllClassIDs() ([]int, error) {
 	query := `SELECT
-	array(SELECT id	FROM classes)`
+	array(SELECT id	FROM classes WHERE archived is FALSE)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -109,14 +110,14 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 }
 
 func (m ClassModel) UpdateClass(c *Class) error {
-	stmt := `UPDATE classes SET (name, teacher_id) =
-	($1, $2)
-	WHERE id = $3`
+	stmt := `UPDATE classes SET (name, teacher_id, archived) =
+	($1, $2, $3)
+	WHERE id = $4`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, c.Name, c.Teacher.ID, c.ID)
+	_, err := m.DB.Exec(ctx, stmt, c.Name, c.Teacher.ID, c.Archived, c.ID)
 	if err != nil {
 		return err
 	}
@@ -165,7 +166,7 @@ func (m ClassModel) GetClassesForTeacher(teacherID int) ([]*Class, error) {
 	FROM classes c
 	INNER JOIN users u
 	ON c.teacher_id = u.id
-	WHERE c.teacher_id = $1`
+	WHERE c.teacher_id = $1 AND c.archived is FALSE`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -243,24 +244,4 @@ func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
 	}
 
 	return users, nil
-}
-
-func (m ClassModel) DoesParentHaveChildInClass(parentID, classID int) (bool, error) {
-	query := `SELECT COUNT(1)
-	FROM parents_children pc
-	INNER JOIN users u
-	ON pc.child_id = u.id
-	WHERE pc.parent_id = $1 and u.class_id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var result int
-
-	err := m.DB.QueryRow(ctx, query, parentID, classID).Scan(&result)
-	if err != nil {
-		return false, err
-	}
-
-	return result > 0, nil
 }

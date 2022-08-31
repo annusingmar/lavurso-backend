@@ -77,17 +77,18 @@ func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
 
 // DATABASE
 
-func (m UserModel) AllUsers() ([]*User, error) {
+func (m UserModel) AllUsers(archived bool) ([]*User, error) {
 	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
+	WHERE u.archived = $1
 	ORDER BY id ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.Query(ctx, query, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (m UserModel) SearchUser(name string) ([]*User, error) {
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
-	WHERE (to_tsvector('simple', u.name) @@ plainto_tsquery('simple', $1))
+	WHERE (to_tsvector('simple', u.name) @@ plainto_tsquery('simple', $1)) AND u.archived is FALSE
 	ORDER BY u.name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -298,9 +299,9 @@ func (m UserModel) InsertUser(u *User) error {
 }
 
 func (m UserModel) UpdateUser(u *User) error {
-	stmt := `UPDATE users SET (name, email, phone_number, id_code, birth_date, password, role, class_id, created_at, active) =
-	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-	WHERE id = $11`
+	stmt := `UPDATE users SET (name, email, phone_number, id_code, birth_date, password, role, class_id, created_at, active, archived) =
+	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	WHERE id = $12`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -316,6 +317,7 @@ func (m UserModel) UpdateUser(u *User) error {
 		u.Class.ID,
 		u.CreatedAt,
 		u.Active,
+		u.Archived,
 		u.ID)
 
 	if err != nil {
@@ -338,7 +340,7 @@ func (m UserModel) UpdateUser(u *User) error {
 
 func (m UserModel) GetAllUserIDs() ([]int, error) {
 	query := `SELECT
-	array(SELECT id	FROM users)`
+	array(SELECT id	FROM users WHERE archived is FALSE)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -355,7 +357,7 @@ func (m UserModel) GetAllUserIDs() ([]int, error) {
 
 func (m UserModel) GetAllStudentIDs() ([]int, error) {
 	query := `SELECT
-	array(SELECT id	FROM users WHERE role = 'student')`
+	array(SELECT id	FROM users WHERE role = 'student' AND archived is FALSE)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -379,7 +381,9 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 	ON u.class_id = c.id
 	INNER JOIN sessions s
 	ON u.id = s.user_id
-	WHERE s.token_hash = $1
+	WHERE u.archived is FALSE
+	AND u.active is TRUE
+	AND s.token_hash = $1
 	AND s.expires > $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -423,7 +427,7 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
-	WHERE u.email = $1`
+	WHERE u.email = $1 AND u.archived is FALSE AND u.active is TRUE`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -626,7 +630,7 @@ func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, 
 	ON s.id = pc.child_id
 	LEFT JOIN classes c
 	ON s.class_id = c.id
-	WHERE s.id = $1 AND (pc.parent_id = $2 OR c.teacher_id = $2)`
+	WHERE s.id = $1 AND (pc.parent_id = $2 OR (c.teacher_id = $2 AND c.archived is FALSE))`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

@@ -12,7 +12,17 @@ import (
 )
 
 func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
-	classes, err := app.models.Classes.AllClasses()
+	var archived bool
+
+	archivedParam := r.URL.Query().Get("archived")
+
+	if archivedParam == "true" {
+		archived = true
+	} else {
+		archived = false
+	}
+
+	classes, err := app.models.Classes.AllClasses(archived)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -37,16 +47,6 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 		app.notAllowed(w, r)
 		return
 	}
-
-	// var archived bool
-
-	// archivedParam := r.URL.Query().Get("archived")
-
-	// if archivedParam == "true" {
-	// 	archived = true
-	// } else {
-	// 	archived = false
-	// }
 
 	teacher, err := app.models.Users.GetUserByID(teacherID)
 	if err != nil {

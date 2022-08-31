@@ -37,7 +37,17 @@ func (app *application) getGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) getAllGroups(w http.ResponseWriter, r *http.Request) {
-	groups, err := app.models.Groups.GetAllGroups()
+	var archived bool
+
+	archivedParam := r.URL.Query().Get("archived")
+
+	if archivedParam == "true" {
+		archived = true
+	} else {
+		archived = false
+	}
+
+	groups, err := app.models.Groups.GetAllGroups(archived)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -113,7 +123,8 @@ func (app *application) updateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Name *string `json:"name"`
+		Name     *string `json:"name"`
+		Archived *bool   `json:"archived"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -125,45 +136,19 @@ func (app *application) updateGroup(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	if input.Name != nil {
-		v.Check(*input.Name != "", "name", "must be provided")
-		if !v.Valid() {
-			app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
-			return
-		}
 		group.Name = *input.Name
+	}
+	if input.Archived != nil {
+		group.Archived = *input.Archived
+	}
+
+	v.Check(group.Name != "", "name", "must be provided")
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
 	}
 
 	err = app.models.Groups.UpdateGroup(group)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
-	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-	}
-}
-
-func (app *application) removeGroup(w http.ResponseWriter, r *http.Request) {
-	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if groupID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGroup.Error())
-		return
-	}
-
-	group, err := app.models.Groups.GetGroupByID(groupID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchGroup):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	err = app.models.Groups.DeleteGroup(group.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -190,6 +175,11 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if group.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrGroupArchived.Error())
 		return
 	}
 
@@ -310,6 +300,11 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 		default:
 			app.writeInternalServerError(w, r, err)
 		}
+		return
+	}
+
+	if group.Archived {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrGroupArchived.Error())
 		return
 	}
 

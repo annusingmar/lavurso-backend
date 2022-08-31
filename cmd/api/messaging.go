@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int) ([]int, error) {
+func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int, userID int) ([]int, error) {
 	if len(userIDs) > 0 {
 		allUserIDs, err := app.models.Users.GetAllUserIDs()
 		if err != nil {
@@ -28,7 +28,7 @@ func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int) ([]int, e
 	}
 
 	if len(groupIDs) > 0 {
-		allGroupIDs, err := app.models.Groups.GetAllGroupIDs()
+		allGroupIDs, err := app.models.Groups.GetAllGroupIDsForUser(userID)
 		if err != nil {
 			return nil, err
 		}
@@ -80,7 +80,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		input.UserIDs = append(input.UserIDs, *sessionUser.ID)
 	}
 
-	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, *sessionUser.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
@@ -293,7 +293,7 @@ func (app *application) addMembersToThread(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, *sessionUser.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
@@ -363,7 +363,7 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs)
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, *sessionUser.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
