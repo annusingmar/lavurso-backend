@@ -14,7 +14,8 @@ type configuration struct {
 }
 
 type web struct {
-	Listen string `toml:"listen"`
+	Listen             string   `toml:"listen"`
+	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
 }
 
 type database struct {
@@ -29,7 +30,8 @@ func parseConfig() configuration {
 	// default config
 	cfg := configuration{
 		web{
-			Listen: "127.0.0.1:8080",
+			Listen:             "127.0.0.1:8080",
+			CORSAllowedOrigins: []string{"http://localhost:9000", "http://127.0.0.1:9000"},
 		},
 		database{
 			Host:     "localhost",
