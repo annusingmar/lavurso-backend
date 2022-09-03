@@ -1,9 +1,8 @@
 create table if not exists
   "public"."threads_recipients" (
     "thread_id" INTEGER not null,
-    "user_id" INTEGER not null,
+    "user_id" INTEGER,
     "group_id" INTEGER,
-    "read" BOOLEAN not null default FALSE,
     unique NULLS NOT DISTINCT (thread_id, user_id, group_id)
   );
 
