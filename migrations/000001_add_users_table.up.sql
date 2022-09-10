@@ -1,19 +1,22 @@
-CREATE TABLE IF NOT EXISTS
-  users (
-    "id" serial primary key,
-    "name" TEXT not null,
-    "email" CITEXT UNIQUE not null,
-    "phone_number" TEXT,
-    "id_code" BIGINT UNIQUE,
-    "birth_date" DATE,
-    "password" bytea not null,
-    "role" TEXT not null,
-    "class_id" INTEGER,
-    "created_at" TIMESTAMPTZ not null default NOW(),
-    "active" BOOLEAN not null default true,
-    "archived" BOOLEAN not null default false
-  );
+CREATE TABLE IF NOT EXISTS users (
+    "id" serial PRIMARY KEY,
+    "name" text NOT NULL,
+    "email" CITEXT UNIQUE NOT NULL,
+    "phone_number" text,
+    "id_code" bigint UNIQUE,
+    "birth_date" date,
+    "password" bytea NOT NULL,
+    "role" text NOT NULL,
+    "class_id" integer,
+    "created_at" timestamptz NOT NULL DEFAULT NOW(),
+    "active" boolean NOT NULL DEFAULT TRUE,
+    "archived" boolean NOT NULL DEFAULT FALSE
+);
 
 CREATE INDEX IF NOT EXISTS users_name_idx ON users USING GIN (to_tsvector('simple', name));
 
-ALTER TABLE users ADD CONSTRAINT student_class_id_not_null CHECK(CASE WHEN role = 'student' THEN class_id is NOT NULL END);
+ALTER TABLE users
+    ADD CONSTRAINT student_class_id_not_null CHECK ( CASE WHEN ROLE = 'student' THEN
+        class_id IS NOT NULL
+    END);
+

@@ -1,2 +1,5 @@
-create table if not exists
-  "public"."subjects" ("id" serial primary key, "name" text not null);
+CREATE TABLE IF NOT EXISTS "public"."subjects" (
+    "id" serial PRIMARY KEY,
+    "name" text NOT NULL
+);
+

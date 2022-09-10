@@ -1,6 +1,6 @@
-create table
-  "public"."grades" (
-    "id" serial primary key,
-    "identifier" VARCHAR(3) not null,
-    "value" INTEGER not null
-  );
+CREATE TABLE "public"."grades" (
+    "id" serial PRIMARY KEY,
+    "identifier" varchar(3) NOT NULL,
+    "value" integer NOT NULL
+);
+

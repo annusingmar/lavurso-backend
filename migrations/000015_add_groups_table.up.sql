@@ -1,2 +1,6 @@
-create table if not exists
-  "public"."groups" ("id" serial primary key, "name" text not null, "archived" BOOLEAN not null DEFAULT false);
+CREATE TABLE IF NOT EXISTS "public"."groups" (
+    "id" serial PRIMARY KEY,
+    "name" text NOT NULL,
+    "archived" boolean NOT NULL DEFAULT FALSE
+);
+
