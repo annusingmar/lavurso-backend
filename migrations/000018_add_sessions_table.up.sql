@@ -3,11 +3,11 @@ create table
     "id" serial primary key,
     "token_hash" BYTEA not null,
     "user_id" INTEGER not null,
-    "expires" TIMESTAMP not null,
+    "expires" TIMESTAMPTZ not null,
     "login_ip" TEXT not null,
     "login_browser" TEXT not null,
-    "logged_in" TIMESTAMP not null,
-    "last_seen" TIMESTAMP not null
+    "logged_in" TIMESTAMPTZ not null,
+    "last_seen" TIMESTAMPTZ not null
   );
 
 ALTER TABLE

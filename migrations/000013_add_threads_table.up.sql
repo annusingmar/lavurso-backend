@@ -4,8 +4,8 @@ create table if not exists
     "user_id" INTEGER not null,
     "title" TEXT not null,
     "locked" BOOLEAN not null default false,
-    "created_at" TIMESTAMP not null default NOW(),
-    "updated_at" TIMESTAMP not null default NOW()
+    "created_at" TIMESTAMPTZ not null default NOW(),
+    "updated_at" TIMESTAMPTZ not null default NOW()
   );
 
 ALTER TABLE

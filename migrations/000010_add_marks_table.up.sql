@@ -9,8 +9,8 @@ create table
     "comment" TEXT,
     "type" TEXT not null,
     "by" INTEGER not null,
-    "created_at" TIMESTAMP not null default NOW(),
-    "updated_at" TIMESTAMP not null default NOW()
+    "created_at" TIMESTAMPTZ not null default NOW(),
+    "updated_at" TIMESTAMPTZ not null default NOW()
   );
 
 ALTER TABLE

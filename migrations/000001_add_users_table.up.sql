@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS
     "password" bytea not null,
     "role" TEXT not null,
     "class_id" INTEGER,
-    "created_at" timestamp not null default NOW(),
+    "created_at" TIMESTAMPTZ not null default NOW(),
     "active" BOOLEAN not null default true,
     "archived" BOOLEAN not null default false
   );

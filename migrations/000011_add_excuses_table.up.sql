@@ -3,7 +3,7 @@ create table if not exists
     "mark_id" INTEGER not null,
     "excuse" TEXT not null,
     "by" INTEGER not null,
-    "at" TIMESTAMP not null default now()
+    "at" TIMESTAMPTZ not null default now()
   );
 
 alter table
