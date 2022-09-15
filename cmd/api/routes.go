@@ -99,9 +99,6 @@ func (app *application) routes() http.Handler {
 			// get all journals
 			mux.Get("/journals", app.listAllJournals)
 
-			// unarchive journal
-			mux.Put("/journals/{id}/unarchive", app.unarchiveJournal)
-
 			// delete journal
 			mux.Delete("/journals/{id}", app.deleteJournal)
 
@@ -125,9 +122,6 @@ func (app *application) routes() http.Handler {
 
 			// update journal
 			mux.Patch("/journals/{id}", app.updateJournal)
-
-			// archive journal
-			mux.Put("/journals/{id}/archive", app.archiveJournal)
 
 			// get journals for teacher
 			mux.Get("/teachers/{id}/journals", app.getJournalsForTeacher)
@@ -205,9 +199,6 @@ func (app *application) routes() http.Handler {
 
 		// search for user with query param 'name' (minimum 4 characters)
 		mux.Get("/users/search", app.searchUser)
-
-		// get journals for user
-		mux.Get("/students/{id}/journals", app.getJournalsForStudent)
 
 		// get all assignments for student
 		mux.Get("/students/{id}/assignments", app.getAssignmentsForStudent)
@@ -292,6 +283,12 @@ func (app *application) routes() http.Handler {
 		mux.Put("/users/{id}", app.updateUser)
 
 		mux.Post("/users/{id}/password", app.changeUserPassword)
+
+		mux.Get("/me", app.myInfo)
+
+		mux.Get("/years", app.getAllYears)
+
+		mux.Get("/students/{id}/years", app.getYearsForStudent)
 	})
 
 	return mux

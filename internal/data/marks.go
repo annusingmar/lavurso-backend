@@ -18,7 +18,6 @@ var (
 type Mark struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
-	MarkID    *int      `json:"mark_id,omitempty"`
 	Lesson    *Lesson   `json:"lesson,omitempty"`
 	Course    *int      `json:"course,omitempty"`
 	JournalID *int      `json:"journal_id,omitempty"`
@@ -200,7 +199,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	return &mark, nil
 }
 
-func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
+func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
 	query := `SELECT
 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.by, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
 	FROM marks m
@@ -208,19 +207,21 @@ func (m MarkModel) GetMarksByStudent(userID int) ([]*Mark, error) {
 	ON m.grade_id = g.id
 	LEFT JOIN lessons l
 	ON m.lesson_id = l.id
+	LEFT JOIN journals j
+	ON m.journal_id = j.id
 	INNER JOIN users u
 	ON m.by = u.id
     LEFT JOIN excuses ex
     ON m.id = ex.mark_id
     LEFT JOIN users u2
     ON u2.id = ex.by
-	WHERE m.user_id = $1
+	WHERE m.user_id = $1 and j.year_id = $2
 	ORDER BY updated_at ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, userID)
+	rows, err := m.DB.Query(ctx, query, userID, yearID)
 	if err != nil {
 		return nil, err
 	}

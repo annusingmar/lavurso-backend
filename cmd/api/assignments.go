@@ -115,11 +115,6 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if *journal.Archived {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
-		return
-	}
-
 	err = app.models.Assignments.InsertAssignment(assignment)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -172,11 +167,6 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 
 	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
-		return
-	}
-
-	if *journal.Archived {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
 
@@ -271,11 +261,6 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 
 	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
-		return
-	}
-
-	if *journal.Archived {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
 

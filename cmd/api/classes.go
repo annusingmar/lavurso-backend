@@ -6,23 +6,21 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
-	var archived bool
+	var err error
+	var classes []*data.Class
 
-	archivedParam := r.URL.Query().Get("archived")
-
-	if archivedParam == "true" {
-		archived = true
+	current := r.URL.Query().Get("current")
+	if current != "false" {
+		classes, err = app.models.Classes.GetAllCurrentYearClasses()
 	} else {
-		archived = false
+		classes, err = app.models.Classes.AllClasses()
 	}
 
-	classes, err := app.models.Classes.AllClasses(archived)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -64,7 +62,7 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	classes, err := app.models.Classes.GetClassesForTeacher(*teacher.ID)
+	classes, err := app.models.Classes.GetCurrentYearClassesForTeacher(*teacher.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -99,9 +97,8 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	}
 
 	class := &data.Class{
-		Name:     &input.Name,
-		Teacher:  &data.User{ID: &input.TeacherID},
-		Archived: helpers.ToPtr(false),
+		Name:    &input.Name,
+		Teacher: &data.User{ID: &input.TeacherID},
 	}
 
 	teacher, err := app.models.Users.GetUserByID(*class.Teacher.ID)
@@ -192,9 +189,6 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 	}
 	if input.TeacherID != nil {
 		class.Teacher.ID = input.TeacherID
-	}
-	if input.Archived != nil {
-		class.Archived = input.Archived
 	}
 
 	v := validator.NewValidator()

@@ -18,6 +18,7 @@ type Models struct {
 	Groups      GroupModel
 	Messaging   MessagingModel
 	Sessions    SessionModel
+	Years       YearModel
 }
 
 func NewModel(db *pgxpool.Pool) Models {
@@ -34,5 +35,6 @@ func NewModel(db *pgxpool.Pool) Models {
 		Groups:      GroupModel{DB: db},
 		Messaging:   MessagingModel{DB: db, XSSpolicy: bluemonday.UGCPolicy()},
 		Sessions:    SessionModel{DB: db},
+		Years:       YearModel{DB: db},
 	}
 }

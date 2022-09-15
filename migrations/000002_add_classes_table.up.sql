@@ -1,8 +1,7 @@
 CREATE TABLE IF NOT EXISTS "classes" (
     "id" serial PRIMARY KEY,
     "name" text NOT NULL,
-    "teacher_id" integer NOT NULL,
-    "archived" boolean NOT NULL DEFAULT FALSE
+    "teacher_id" integer NOT NULL
 );
 
 ALTER TABLE "classes"

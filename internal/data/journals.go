@@ -10,10 +10,8 @@ import (
 )
 
 var (
-	ErrNoSuchJournal      = errors.New("no such journal")
-	ErrJournalArchived    = errors.New("journal is archived")
-	ErrJournalNotArchived = errors.New("journal is not archived")
-	ErrUserNotInJournal   = errors.New("user not in journal")
+	ErrNoSuchJournal    = errors.New("no such journal")
+	ErrUserNotInJournal = errors.New("user not in journal")
 )
 
 type Journal struct {
@@ -21,8 +19,8 @@ type Journal struct {
 	Name        *string         `json:"name,omitempty"`
 	Teacher     *User           `json:"teacher,omitempty"`
 	Subject     *Subject        `json:"subject,omitempty"`
+	Year        *Year           `json:"year,omitempty"`
 	LastUpdated *time.Time      `json:"last_updated,omitempty"`
-	Archived    *bool           `json:"archived,omitempty"`
 	Courses     []int           `json:"courses,omitempty"`
 	Marks       map[int][]*Mark `json:"marks,omitempty"`
 }
@@ -31,20 +29,22 @@ type JournalModel struct {
 	DB *pgxpool.Pool
 }
 
-func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
+func (m JournalModel) AllJournals(yearID int) ([]*Journal, error) {
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, y.id, y.display_name, j.last_updated
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	WHERE j.archived = $1
+	INNER JOIN years y
+	ON j.year_id = y.id
+	WHERE y.id = $1
 	ORDER BY j.last_updated DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, archived)
+	rows, err := m.DB.Query(ctx, query, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +57,8 @@ func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
 		var journal Journal
 		journal.Teacher = new(User)
 		journal.Subject = new(Subject)
+		journal.Year = new(Year)
+
 		err = rows.Scan(
 			&journal.ID,
 			&journal.Name,
@@ -65,8 +67,9 @@ func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
 			&journal.Teacher.Role,
 			&journal.Subject.ID,
 			&journal.Subject.Name,
+			&journal.Year.ID,
+			&journal.Year.DisplayName,
 			&journal.LastUpdated,
-			&journal.Archived,
 		)
 		if err != nil {
 			return nil, err
@@ -83,12 +86,14 @@ func (m JournalModel) AllJournals(archived bool) ([]*Journal, error) {
 }
 
 func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, y.id, y.display_name, y.courses, j.last_updated, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
+	INNER JOIN years y
+	ON j.year_id = y.id
 	WHERE j.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -97,6 +102,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 	var journal Journal
 	journal.Teacher = new(User)
 	journal.Subject = new(Subject)
+	journal.Year = new(Year)
 
 	err := m.DB.QueryRow(ctx, query, journalID).Scan(
 		&journal.ID,
@@ -106,8 +112,10 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 		&journal.Teacher.Role,
 		&journal.Subject.ID,
 		&journal.Subject.Name,
+		&journal.Year.ID,
+		&journal.Year.DisplayName,
+		&journal.Year.Courses,
 		&journal.LastUpdated,
-		&journal.Archived,
 		&journal.Courses,
 	)
 
@@ -125,15 +133,15 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 
 func (m JournalModel) InsertJournal(j *Journal) error {
 	stmt := `INSERT INTO journals
-	(name, teacher_id, subject_id, archived)
+	(name, teacher_id, subject_id, year_id)
 	VALUES
-	($1, $2, $3, $4)
+	($1, $2, $3, $4, $5)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, j.Archived).Scan(&j.ID)
+	err := m.DB.QueryRow(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, j.Year.ID).Scan(&j.ID)
 	if err != nil {
 		return err
 	}
@@ -142,14 +150,14 @@ func (m JournalModel) InsertJournal(j *Journal) error {
 
 func (m JournalModel) UpdateJournal(j *Journal) error {
 	stmt := `UPDATE journals
-	SET (name, teacher_id, subject_id, last_updated, archived)
-	= ($1, $2, $3, $4, $5)
-	WHERE id = $6`
+	SET (name, teacher_id, last_updated)
+	= ($1, $2, $3, $4)
+	WHERE id = $5`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, time.Now().UTC(), j.Archived, j.ID)
+	_, err := m.DB.Exec(ctx, stmt, j.Name, j.Teacher.ID, time.Now().UTC(), j.ID)
 	if err != nil {
 		return err
 	}
@@ -170,20 +178,22 @@ func (m JournalModel) DeleteJournal(journalID int) error {
 	return nil
 }
 
-func (m JournalModel) GetJournalsForTeacher(teacherID int, archived bool) ([]*Journal, error) {
-	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived
+func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*Journal, error) {
+	query := `SELECT j.id, j.name, j.teacher_id, u.name, u.role, j.subject_id, s.name, y.id, y.display_name, j.last_updated
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	WHERE j.teacher_id = $1 and j.archived = $2
+	INNER JOIN years y
+	ON j.year_id = y.id
+	WHERE j.teacher_id = $1 AND y.id = $2
 	ORDER BY j.last_updated DESC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, teacherID, archived)
+	rows, err := m.DB.Query(ctx, query, teacherID, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +206,7 @@ func (m JournalModel) GetJournalsForTeacher(teacherID int, archived bool) ([]*Jo
 		var journal Journal
 		journal.Teacher = new(User)
 		journal.Subject = new(Subject)
+		journal.Year = new(Year)
 
 		err = rows.Scan(
 			&journal.ID,
@@ -205,8 +216,9 @@ func (m JournalModel) GetJournalsForTeacher(teacherID int, archived bool) ([]*Jo
 			&journal.Teacher.Role,
 			&journal.Subject.ID,
 			&journal.Subject.Name,
+			&journal.Year.ID,
+			&journal.Year.DisplayName,
 			&journal.LastUpdated,
-			&journal.Archived,
 		)
 		if err != nil {
 			return nil, err
@@ -303,8 +315,8 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 	return users, nil
 }
 
-func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
-	query := `SELECT j.id, j.teacher_id, u.name, u.role, j.subject_id, s.name, j.last_updated, j.archived, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
+func (m JournalModel) GetJournalsByStudent(userID, yearID int) ([]*Journal, error) {
+	query := `SELECT j.id, j.teacher_id, u.name, u.role, j.subject_id, s.name, y.id, y.display_name, j.last_updated, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
 	FROM journals j
 	INNER JOIN users u
 	ON j.teacher_id = u.id
@@ -312,13 +324,15 @@ func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
 	ON j.subject_id = s.id
 	INNER JOIN users_journals uj
 	ON uj.journal_id = j.id
-	WHERE uj.user_id = $1
+	INNER JOIN years y
+	ON j.year_id = y.id
+	WHERE uj.user_id = $1 AND y.id = $2
 	ORDER BY s.name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, userID)
+	rows, err := m.DB.Query(ctx, query, userID, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -331,6 +345,7 @@ func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
 		var journal Journal
 		journal.Teacher = new(User)
 		journal.Subject = new(Subject)
+		journal.Year = new(Year)
 
 		err = rows.Scan(
 			&journal.ID,
@@ -339,8 +354,9 @@ func (m JournalModel) GetJournalsByStudent(userID int) ([]*Journal, error) {
 			&journal.Teacher.Role,
 			&journal.Subject.ID,
 			&journal.Subject.Name,
+			&journal.Year.ID,
+			&journal.Year.DisplayName,
 			&journal.LastUpdated,
-			&journal.Archived,
 			&journal.Courses,
 		)
 		if err != nil {
@@ -404,22 +420,6 @@ func (m JournalModel) SetJournalLastUpdated(journalID int) error {
 	defer cancel()
 
 	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), journalID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m JournalModel) SetJournalArchived(journalID int, archived bool) error {
-	stmt := `UPDATE journals
-	SET archived = $1
-	WHERE id = $2`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.Exec(ctx, stmt, archived, journalID)
 	if err != nil {
 		return err
 	}

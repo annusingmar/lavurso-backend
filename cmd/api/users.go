@@ -119,11 +119,6 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if *class.Archived {
-			app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrClassArchived.Error())
-			return
-		}
-
 		classField = &data.Class{ID: class.ID}
 	} else {
 		classField = new(data.Class)
@@ -288,11 +283,6 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 			default:
 				app.writeInternalServerError(w, r, err)
 			}
-			return
-		}
-
-		if *class.Archived {
-			app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrClassArchived.Error())
 			return
 		}
 
@@ -659,6 +649,31 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	children, err := app.models.Users.GetChildrenForParent(*sessionUser.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	currentYear, err := app.models.Years.GetCurrentYear()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{
+		"user":         &data.User{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
+		"children":     children,
+		"current_year": currentYear,
+	})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

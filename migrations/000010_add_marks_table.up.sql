@@ -25,7 +25,7 @@ ALTER TABLE "public"."marks"
     ADD CONSTRAINT "marks_relation_4" FOREIGN KEY ("journal_id") REFERENCES "public"."journals" ("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE "public"."marks"
-    ADD CONSTRAINT "marks_relation_6" FOREIGN KEY ("by") REFERENCES "public"."users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+    ADD CONSTRAINT "marks_relation_5" FOREIGN KEY ("by") REFERENCES "public"."users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
 
 CREATE INDEX "marks_index_2" ON "public"."marks" ("user_id" ASC);
 

@@ -157,11 +157,6 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Archived {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
-		return
-	}
-
 	mark.JournalID = &journal.ID
 
 	ok, err := app.models.Journals.IsUserInJournal(mark.UserID, *mark.JournalID)
@@ -233,11 +228,6 @@ func (app *application) deleteMark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Archived {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
-		return
-	}
-
 	err = app.models.Marks.DeleteMark(mark.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -289,11 +279,6 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 
 	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
-		return
-	}
-
-	if *journal.Archived {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrJournalArchived.Error())
 		return
 	}
 
@@ -417,6 +402,12 @@ func (app *application) getMark(w http.ResponseWriter, r *http.Request) {
 func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
+	year, err := strconv.Atoi(r.URL.Query().Get("year"))
+	if year < 1 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, "not valid year")
+		return
+	}
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
@@ -446,13 +437,13 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	journals, err := app.models.Journals.GetJournalsByStudent(*student.ID)
+	journals, err := app.models.Journals.GetJournalsByStudent(*student.ID, year)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	marks, err := app.models.Marks.GetMarksByStudent(*student.ID)
+	marks, err := app.models.Marks.GetMarksByStudent(*student.ID, year)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -715,6 +706,50 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"lessons": lessons})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getYearsForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	student, err := app.models.Users.GetStudentByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if *sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, *sessionUser.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	}
+
+	years, err := app.models.Years.GetYearsForStudent(*student.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"years": years})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

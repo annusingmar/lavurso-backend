@@ -78,10 +78,12 @@ func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
 // DATABASE
 
 func (m UserModel) AllUsers(archived bool) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, cy.display_name, u.created_at, u.active, u.archived
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
+	LEFT JOIN classes_years cy
+	ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
 	WHERE u.archived = $1
 	ORDER BY id ASC`
 
@@ -113,6 +115,7 @@ func (m UserModel) AllUsers(archived bool) ([]*User, error) {
 			&user.Role,
 			&user.Class.ID,
 			&user.Class.Name,
+			&user.Class.DisplayName,
 			&user.CreatedAt,
 			&user.Active,
 			&user.Archived,
@@ -132,10 +135,12 @@ func (m UserModel) AllUsers(archived bool) ([]*User, error) {
 }
 
 func (m UserModel) SearchUser(name string) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.role, u.class_id, c.name
+	query := `SELECT u.id, u.name, u.role, u.class_id, c.name, cy.display_name
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
+	LEFT JOIN classes_years cy
+	ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
 	WHERE (to_tsvector('simple', u.name) @@ plainto_tsquery('simple', $1)) AND u.archived is FALSE
 	ORDER BY u.name ASC`
 
@@ -161,6 +166,7 @@ func (m UserModel) SearchUser(name string) ([]*User, error) {
 			&user.Role,
 			&user.Class.ID,
 			&user.Class.Name,
+			&user.Class.DisplayName,
 		)
 		if err != nil {
 			return nil, err
@@ -423,7 +429,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 }
 
 func (m UserModel) GetUserByEmail(email string) (*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.created_at, u.active, u.archived
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
@@ -434,7 +440,6 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 
 	var user User
 	user.BirthDate = new(Date)
-	user.Class = new(Class)
 
 	err := m.DB.QueryRow(ctx, query, email).Scan(
 		&user.ID,
@@ -445,8 +450,6 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 		&user.BirthDate.Time,
 		&user.Password.Hashed,
 		&user.Role,
-		&user.Class.ID,
-		&user.Class.Name,
 		&user.CreatedAt,
 		&user.Active,
 		&user.Archived,
