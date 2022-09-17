@@ -135,7 +135,7 @@ func (m JournalModel) InsertJournal(j *Journal) error {
 	stmt := `INSERT INTO journals
 	(name, teacher_id, subject_id, year_id)
 	VALUES
-	($1, $2, $3, $4, $5)
+	($1, $2, $3, $4)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -151,8 +151,8 @@ func (m JournalModel) InsertJournal(j *Journal) error {
 func (m JournalModel) UpdateJournal(j *Journal) error {
 	stmt := `UPDATE journals
 	SET (name, teacher_id, last_updated)
-	= ($1, $2, $3, $4)
-	WHERE id = $5`
+	= ($1, $2, $3)
+	WHERE id = $4`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

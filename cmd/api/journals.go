@@ -102,6 +102,14 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	year, err := app.models.Years.GetCurrentYear()
+	if err != nil || year == nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	journal.Year.ID = year.ID
+
 	err = app.models.Journals.InsertJournal(journal)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
