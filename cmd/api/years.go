@@ -1,9 +1,24 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/annusingmar/lavurso-backend/internal/data"
+)
 
 func (app *application) getAllYears(w http.ResponseWriter, r *http.Request) {
-	years, err := app.models.Years.ListAllYears()
+	sessionUser := app.getUserFromContext(r)
+
+	var err error
+	var years []*data.Year
+
+	if *sessionUser.Role == data.RoleAdministrator && r.URL.Query().Get("stats") == "true" {
+		years, err = app.models.Years.ListAllYearsWithStats()
+	} else {
+		years, err = app.models.Years.ListAllYears()
+
+	}
+
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
