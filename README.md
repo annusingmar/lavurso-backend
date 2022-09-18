@@ -14,8 +14,6 @@
 
 [toml](https://github.com/BurntSushi/toml) => parsing config file
 
-[bluemonday](https://github.com/microcosm-cc/bluemonday) => cross-site scripting (XSS) protection
-
 ## running
 
 1.  clone this git repository: `git clone https://github.com/annusingmar/lavurso-backend.git`

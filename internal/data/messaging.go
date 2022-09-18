@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/microcosm-cc/bluemonday"
 )
 
 var (
@@ -45,8 +44,7 @@ type Message struct {
 }
 
 type MessagingModel struct {
-	DB        *pgxpool.Pool
-	XSSpolicy *bluemonday.Policy
+	DB *pgxpool.Pool
 }
 
 func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
@@ -302,12 +300,10 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	($1, $2, $3, $4, $5, $6)
 	RETURNING id`
 
-	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, sanitizedHTML, ms.Type, ms.CreatedAt, ms.UpdatedAt).Scan(&ms.ID)
+	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, ms.Body, ms.Type, ms.CreatedAt, ms.UpdatedAt).Scan(&ms.ID)
 	if err != nil {
 		return err
 	}
@@ -334,12 +330,10 @@ func (m MessagingModel) UpdateMessage(ms *Message) error {
 	= ($1, $2)
 	WHERE id = $3`
 
-	sanitizedHTML := m.XSSpolicy.Sanitize(ms.Body)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, sanitizedHTML, ms.UpdatedAt, ms.ID)
+	_, err := m.DB.Exec(ctx, stmt, ms.Body, ms.UpdatedAt, ms.ID)
 	if err != nil {
 		return err
 	}
