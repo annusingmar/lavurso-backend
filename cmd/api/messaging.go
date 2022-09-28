@@ -403,6 +403,8 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
+	search := r.URL.Query().Get("search")
+
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
@@ -414,7 +416,7 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	threads, err := app.models.Messaging.GetThreadsForUser(*sessionUser.ID)
+	threads, err := app.models.Messaging.GetThreadsForUser(*sessionUser.ID, search)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

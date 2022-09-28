@@ -14,3 +14,5 @@ ALTER TABLE "public"."messages"
 ALTER TABLE "public"."messages"
     ADD CONSTRAINT "messages_relation_2" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
+CREATE INDEX IF NOT EXISTS messages_body_idx ON messages USING GIN (to_tsvector('simple', body));
+

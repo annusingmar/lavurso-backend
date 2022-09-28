@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -389,8 +390,8 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	return messages, nil
 }
 
-func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
-	query := `SELECT DISTINCT t.id, t.user_id, u.name, u.role, t.title, t.locked, (CASE WHEN r.user_id is NOT NULL THEN TRUE ELSE FALSE END), t.created_at, t.updated_at, (SELECT COUNT(id) FROM messages WHERE thread_id = t.id)
+func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*Thread, error) {
+	baseQuery := `SELECT DISTINCT t.id, t.user_id, u.name, u.role, t.title, t.locked, (CASE WHEN r.user_id is NOT NULL THEN TRUE ELSE FALSE END), t.created_at, t.updated_at, (SELECT COUNT(id) FROM messages WHERE thread_id = t.id)
 	FROM threads t
 	INNER JOIN threads_recipients tr
 	ON t.id = tr.thread_id
@@ -399,14 +400,28 @@ func (m MessagingModel) GetThreadsForUser(userID int) ([]*Thread, error) {
     LEFT JOIN threads_read r
     ON r.thread_id = t.id AND r.user_id = $1
     INNER JOIN users u
-	on t.user_id = u.id
-    WHERE tr.user_id = $1 OR ug.user_id = $1
+	ON t.user_id = u.id
+	INNER JOIN messages m
+	ON m.thread_id = t.id
+    WHERE (tr.user_id = $1 OR ug.user_id = $1)%s
 	ORDER BY updated_at DESC`
+
+	var query string
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, userID)
+	var rows pgx.Rows
+	var err error
+
+	if search != "" {
+		query = fmt.Sprintf(baseQuery, " AND ((to_tsvector('simple', t.title) @@ plainto_tsquery('simple', $2)) OR (to_tsvector('simple', m.body) @@ plainto_tsquery('simple', $2)))")
+		rows, err = m.DB.Query(ctx, query, userID, search)
+	} else {
+		query = fmt.Sprintf(baseQuery, "")
+		rows, err = m.DB.Query(ctx, query, userID)
+	}
+
 	if err != nil {
 		return nil, err
 	}

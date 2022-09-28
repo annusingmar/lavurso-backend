@@ -10,3 +10,5 @@ CREATE TABLE IF NOT EXISTS "public"."threads" (
 ALTER TABLE "public"."threads"
     ADD CONSTRAINT "threads_relation_1" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
+CREATE INDEX IF NOT EXISTS threads_title_idx ON threads USING GIN (to_tsvector('simple', title));
+
