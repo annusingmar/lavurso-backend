@@ -4,7 +4,7 @@
 
 [Go](https://go.dev)
 
-[PostgreSQL 15 (in beta)](https://www.postgresql.org) => data storage; the database must have extension `citext`
+[PostgreSQL 15](https://www.postgresql.org) => data storage; the database must have extension `citext`
 
 ## depencencies
 
