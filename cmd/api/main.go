@@ -14,8 +14,6 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/data"
 )
 
-// application sisaldab asju, mida tahame terve programmiga jagada,
-// selle kylge paneme ka erinevaid funktsioone (reciever function'ite kaudu)
 type application struct {
 	config      configuration
 	infoLogger  *log.Logger

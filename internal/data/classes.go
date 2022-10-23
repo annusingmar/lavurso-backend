@@ -28,7 +28,7 @@ type ClassModel struct {
 
 // DATABASE
 
-func (m ClassModel) InsertClass(c *Class) error {
+func (m ClassModel) InsertClass(c *Class) (*int, error) {
 	stmt := `INSERT INTO classes
 	(name, teacher_id)
 	VALUES
@@ -38,11 +38,13 @@ func (m ClassModel) InsertClass(c *Class) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, c.Name, c.Teacher.ID).Scan(&c.ID)
+	var id int
+
+	err := m.DB.QueryRow(ctx, stmt, c.Name, c.Teacher.ID).Scan(&id)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &id, err
 }
 
 func (m ClassModel) AllClasses() ([]*Class, error) {

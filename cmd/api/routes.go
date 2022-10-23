@@ -108,6 +108,9 @@ func (app *application) routes() http.Handler {
 			// remove parent from student
 			mux.Delete("/students/{id}/parents", app.removeParentFromStudent)
 
+			// new year
+			mux.Post("/years/new", app.newYear)
+
 		})
 
 		// requires at least role 'teacher'

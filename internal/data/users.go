@@ -187,10 +187,12 @@ func (m UserModel) SearchUser(name string) ([]*User, error) {
 }
 
 func (m UserModel) GetUserByID(userID int) (*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived
+	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, cy.display_name, u.created_at, u.active, u.archived
 	FROM users u
 	LEFT JOIN classes c
 	ON u.class_id = c.id
+	LEFT JOIN classes_years cy
+	ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
 	WHERE u.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -211,6 +213,7 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 		&user.Role,
 		&user.Class.ID,
 		&user.Class.Name,
+		&user.Class.DisplayName,
 		&user.CreatedAt,
 		&user.Active,
 		&user.Archived,
@@ -664,4 +667,20 @@ func (m UserModel) IsUserParentOfStudent(studentID, userID int) (bool, error) {
 	}
 
 	return result > 0, nil
+}
+
+func (m UserModel) ArchiveUsersByClassID(classID int) error {
+	stmt := `UPDATE users u
+	SET archived = true
+	WHERE u.class_id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, classID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

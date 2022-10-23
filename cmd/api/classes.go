@@ -117,7 +117,7 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Classes.InsertClass(class)
+	_, err = app.models.Classes.InsertClass(class)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

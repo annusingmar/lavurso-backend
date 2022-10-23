@@ -123,15 +123,34 @@ func (m YearModel) ListAllYearsWithStats() ([]*Year, error) {
 	return years, nil
 }
 
-func (m YearModel) InsertYear(y *Year) error {
+func (m YearModel) InsertYear(y *Year) (*int, error) {
 	stmt := `INSERT INTO years
 	(display_name, courses)
-	VALUES ($1, $2)`
+	VALUES ($1, $2)
+	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, y.DisplayName, y.Courses)
+	var id int
+
+	err := m.DB.QueryRow(ctx, stmt, y.DisplayName, y.Courses).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &id, nil
+}
+
+func (m YearModel) InsertYearForClass(cy *ClassYear) error {
+	stmt := `INSERT INTO classes_years
+	(class_id, year_id, display_name)
+	VALUES ($1, $2, $3)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, cy.ClassID, cy.YearID, cy.DisplayName)
 	if err != nil {
 		return err
 	}
@@ -206,4 +225,35 @@ func (m YearModel) GetYearsForStudent(studentID int) ([]*Year, error) {
 	}
 
 	return years, nil
+}
+
+func (m YearModel) RemoveCurrentYear() error {
+	stmt := `UPDATE years
+	SET current = false`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m YearModel) SetYearAsCurrent(yearID int) error {
+	stmt := `UPDATE years
+	SET current = true
+	WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := m.DB.Exec(ctx, stmt, yearID)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
