@@ -10,6 +10,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/exp/slices"
 )
 
 func (app *application) getAllYears(w http.ResponseWriter, r *http.Request) {
@@ -125,11 +126,19 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	badIDs := helpers.VerifyExistsInSlice(classIDs, allClassIDs)
-	v.Check(badIDs != nil, "class_id", fmt.Sprintf("invalid class id(s): %v", badIDs))
+	v.Check(badIDs == nil, "class_id", fmt.Sprintf("invalid class id(s): %v", badIDs))
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
+	}
+
+	var archiveIDs []int
+
+	for _, id := range allClassIDs {
+		if !slices.Contains(classIDs, id) {
+			archiveIDs = append(archiveIDs, id)
+		}
 	}
 
 	year := &data.Year{
@@ -186,6 +195,14 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
+	}
+
+	for _, id := range archiveIDs {
+		err = app.models.Users.ArchiveUsersByClassID(id)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})

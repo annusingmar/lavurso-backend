@@ -125,8 +125,8 @@ func (m YearModel) ListAllYearsWithStats() ([]*Year, error) {
 
 func (m YearModel) InsertYear(y *Year) (*int, error) {
 	stmt := `INSERT INTO years
-	(display_name, courses)
-	VALUES ($1, $2)
+	(display_name, courses, current)
+	VALUES ($1, $2, false)
 	RETURNING id`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
