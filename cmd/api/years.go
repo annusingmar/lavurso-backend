@@ -10,7 +10,6 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
-	"golang.org/x/exp/slices"
 )
 
 func (app *application) getAllYears(w http.ResponseWriter, r *http.Request) {
@@ -91,10 +90,10 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 			Name        string `json:"name"`
 			DisplayName string `json:"display_name"`
 		} `json:"new_classes"`
-		OldClasses []struct {
+		TransferredClasses []struct {
 			ClassID     int    `json:"class_id"`
 			DisplayName string `json:"display_name"`
-		} `json:"old_classes"`
+		} `json:"transferred_classes"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -110,9 +109,9 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 
 	var classIDs []int
 
-	for _, oc := range input.OldClasses {
-		classIDs = append(classIDs, oc.ClassID)
-		v.Check(oc.DisplayName != "", "display_name", fmt.Sprintf("class id %d name cannot be empty", oc.ClassID))
+	for _, tc := range input.TransferredClasses {
+		classIDs = append(classIDs, tc.ClassID)
+		v.Check(tc.DisplayName != "", "display_name", fmt.Sprintf("class id %d name cannot be empty", tc.ClassID))
 	}
 
 	for _, nc := range input.NewClasses {
@@ -133,13 +132,13 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var archiveIDs []int
+	// var archiveIDs []int
 
-	for _, id := range allClassIDs {
-		if !slices.Contains(classIDs, id) {
-			archiveIDs = append(archiveIDs, id)
-		}
-	}
+	// for _, id := range allClassIDs {
+	// 	if !slices.Contains(classIDs, id) {
+	// 		archiveIDs = append(archiveIDs, id)
+	// 	}
+	// }
 
 	year := &data.Year{
 		DisplayName: input.DisplayName,
@@ -169,10 +168,10 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 		classYears = append(classYears, &data.ClassYear{YearID: *newYearID, ClassID: *insertClassID, DisplayName: nc.DisplayName})
 	}
 
-	for _, oc := range input.OldClasses {
+	for _, tc := range input.TransferredClasses {
 		classYears = append(classYears, &data.ClassYear{
-			DisplayName: oc.DisplayName,
-			ClassID:     oc.ClassID,
+			DisplayName: tc.DisplayName,
+			ClassID:     tc.ClassID,
 			YearID:      *newYearID,
 		})
 	}
@@ -197,13 +196,13 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, id := range archiveIDs {
-		err = app.models.Users.ArchiveUsersByClassID(id)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-	}
+	// for _, id := range archiveIDs {
+	// 	err = app.models.Users.ArchiveUsersByClassID(id)
+	// 	if err != nil {
+	// 		app.writeInternalServerError(w, r, err)
+	// 		return
+	// 	}
+	// }
 
 	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
 	if err != nil {
