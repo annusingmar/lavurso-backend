@@ -2,12 +2,10 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -32,7 +30,7 @@ type Mark struct {
 }
 
 type MarkModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 const (
@@ -47,7 +45,7 @@ const (
 	MarkLate          = "late"
 )
 
-func scanMarks(rows pgx.Rows) ([]*Mark, error) {
+func scanMarks(rows *sql.Rows) ([]*Mark, error) {
 	var marks []*Mark
 
 	for rows.Next() {
@@ -88,7 +86,7 @@ func scanMarks(rows pgx.Rows) ([]*Mark, error) {
 	return marks, nil
 }
 
-func scanMarksWithExcuse(rows pgx.Rows) ([]*Mark, error) {
+func scanMarksWithExcuse(rows *sql.Rows) ([]*Mark, error) {
 	var marks []*Mark
 
 	for rows.Next() {
@@ -161,7 +159,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	mark.Lesson = &Lesson{Date: new(Date)}
 	mark.Excuse = &Excuse{By: new(User)}
 
-	err := m.DB.QueryRow(ctx, query, markID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, markID).Scan(
 		&mark.ID,
 		&mark.UserID,
 		&mark.Lesson.ID,
@@ -189,7 +187,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchMark
 		default:
 			return nil, err
@@ -221,7 +219,7 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, userID, yearID)
+	rows, err := m.DB.QueryContext(ctx, query, userID, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -260,15 +258,15 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *Date) ([
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows pgx.Rows
+	var rows *sql.Rows
 	var err error
 
 	if until != nil {
 		query := fmt.Sprintf(sqlQuery, "m.updated_at::date > $2::date AND m.updated_at::date <= $3::date")
-		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
+		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time, until.Time)
 	} else {
 		query := fmt.Sprintf(sqlQuery, "m.updated_at::date > $2::date")
-		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
+		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time)
 	}
 
 	if err != nil {
@@ -343,7 +341,7 @@ func (m MarkModel) GetSubjectGradesByJournalID(journalID int) ([]*Mark, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
+	rows, err := m.DB.QueryContext(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +372,7 @@ func (m MarkModel) GetAllCoursesGradesByJournalID(journalID int) ([]*Mark, error
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
+	rows, err := m.DB.QueryContext(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +403,7 @@ func (m MarkModel) GetCourseGradesByJournalID(journalID, course int) ([]*Mark, e
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID, course)
+	rows, err := m.DB.QueryContext(ctx, query, journalID, course)
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +434,7 @@ func (m MarkModel) GetLessonMarksByCourseAndJournalID(journalID, course int) ([]
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID, course)
+	rows, err := m.DB.QueryContext(ctx, query, journalID, course)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +469,7 @@ func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalI
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID, course, userID)
+	rows, err := m.DB.QueryContext(ctx, query, journalID, course, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +500,7 @@ func (m MarkModel) GetMarksByLessonID(lessonID int) ([]*Mark, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, lessonID)
+	rows, err := m.DB.QueryContext(ctx, query, lessonID)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +525,7 @@ func (m MarkModel) InsertMark(mark *Mark) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, mark.UserID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
+	err := m.DB.QueryRowContext(ctx, stmt, mark.UserID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
 		mark.Comment, mark.Type, mark.By.ID, mark.CreatedAt, mark.UpdatedAt).Scan(&mark.ID)
 
 	if err != nil {
@@ -546,7 +544,7 @@ func (m MarkModel) UpdateMark(mark *Mark) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, mark.UserID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
+	_, err := m.DB.ExecContext(ctx, stmt, mark.UserID, mark.Lesson.ID, mark.Course, mark.JournalID, mark.Grade.ID,
 		mark.Comment, mark.Type, mark.By.ID, mark.UpdatedAt, mark.ID)
 
 	if err != nil {
@@ -563,7 +561,7 @@ func (m MarkModel) DeleteMark(markID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, markID)
+	_, err := m.DB.ExecContext(ctx, stmt, markID)
 	if err != nil {
 		return err
 	}

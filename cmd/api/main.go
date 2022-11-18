@@ -27,8 +27,8 @@ func main() {
 	infoLogger := log.New(os.Stdout, "INFO ", log.Ltime|log.Ldate)
 	errorLogger := log.New(os.Stderr, "ERROR ", log.Ltime|log.Ldate)
 
-	pool := openDBConnection(fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s", config.Database.Host, config.Database.Port, config.Database.User, config.Database.Password, config.Database.DBName))
-	models := data.NewModel(pool)
+	db := openDBConnection(fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s", config.Database.Host, config.Database.Port, config.Database.User, config.Database.Password, config.Database.DBName))
+	models := data.NewModel(db)
 
 	app := &application{
 		config:      config,

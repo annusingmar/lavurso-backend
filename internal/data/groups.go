@@ -2,11 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -23,7 +21,7 @@ type Group struct {
 }
 
 type GroupModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
@@ -36,7 +34,7 @@ func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 
 	var group Group
 
-	err := m.DB.QueryRow(ctx, query, groupID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, groupID).Scan(
 		&group.ID,
 		&group.Name,
 		&group.Archived,
@@ -44,7 +42,7 @@ func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchGroup
 		default:
 			return nil, err
@@ -62,7 +60,7 @@ func (m GroupModel) GetUserCountForGroup(groupID int) (*int, error) {
 
 	var count int
 
-	err := m.DB.QueryRow(ctx, query, groupID).Scan(&count)
+	err := m.DB.QueryRowContext(ctx, query, groupID).Scan(&count)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +81,7 @@ func (m GroupModel) GetAllGroups(archived bool) ([]*Group, error) {
 
 	var groups []*Group
 
-	rows, err := m.DB.Query(ctx, query, archived)
+	rows, err := m.DB.QueryContext(ctx, query, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +127,7 @@ func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRow(ctx, query, userID).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query, userID).Scan(&ids)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +146,7 @@ func (m GroupModel) GetUsersByGroupID(groupID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, groupID)
+	rows, err := m.DB.QueryContext(ctx, query, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +187,7 @@ func (m GroupModel) GetGroupsByUserID(userID int) ([]*Group, error) {
 
 	var groups []*Group
 
-	rows, err := m.DB.Query(ctx, query, userID)
+	rows, err := m.DB.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +223,7 @@ func (m GroupModel) InsertGroup(g *Group) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, g.Name).Scan(&g.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, g.Name).Scan(&g.ID)
 	if err != nil {
 		return err
 	}
@@ -241,7 +239,7 @@ func (m GroupModel) UpdateGroup(g *Group) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, g.Name, g.Archived, g.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, g.Name, g.Archived, g.ID)
 	if err != nil {
 		return err
 	}
@@ -259,7 +257,7 @@ func (m GroupModel) InsertUserIntoGroup(userID, groupID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, groupID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID, groupID)
 	if err != nil {
 		return err
 	}
@@ -274,7 +272,7 @@ func (m GroupModel) RemoveUserFromGroup(userID, groupID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, groupID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID, groupID)
 	if err != nil {
 		return err
 	}

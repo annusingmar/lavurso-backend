@@ -2,12 +2,10 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -33,7 +31,7 @@ type Assignment struct {
 }
 
 type AssignmentModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error) {
@@ -49,7 +47,7 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 	var assignment Assignment
 	assignment.Journal = new(Journal)
 
-	err := m.DB.QueryRow(ctx, query, assignmentID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, assignmentID).Scan(
 		&assignment.ID,
 		&assignment.Journal.ID,
 		&assignment.Journal.Name,
@@ -62,7 +60,7 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchAssignment
 		default:
 			return nil, err
@@ -82,7 +80,7 @@ func (m AssignmentModel) InsertAssignment(a *Assignment) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, a.Journal.ID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt).Scan(&a.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, a.Journal.ID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt).Scan(&a.ID)
 	if err != nil {
 		return err
 	}
@@ -99,7 +97,7 @@ func (m AssignmentModel) UpdateAssignment(a *Assignment) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID)
 	if err != nil {
 		return err
 	}
@@ -114,7 +112,7 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, assignmentID)
+	_, err := m.DB.ExecContext(ctx, stmt, assignmentID)
 	if err != nil {
 		return err
 	}
@@ -133,7 +131,7 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
+	rows, err := m.DB.QueryContext(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +187,7 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *Da
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows pgx.Rows
+	var rows *sql.Rows
 	var err error
 
 	// can't use parameters for this,
@@ -197,10 +195,10 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *Da
 	// but still not trusting user input, so using $2 etc
 	if until != nil {
 		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2::date AND a.deadline < $3::date")
-		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
+		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time, until.Time)
 	} else {
 		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2::date")
-		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
+		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time)
 	}
 
 	if err != nil {
@@ -250,7 +248,7 @@ func (m AssignmentModel) SetAssignmentDoneForUserID(userID, assignmentID int) er
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, assignmentID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID, assignmentID)
 	if err != nil {
 		return err
 	}
@@ -265,7 +263,7 @@ func (m AssignmentModel) RemoveAssignmentDoneForUserID(userID, assignmentID int)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, assignmentID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID, assignmentID)
 	if err != nil {
 		return err
 	}

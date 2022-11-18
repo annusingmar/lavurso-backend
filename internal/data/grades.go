@@ -2,11 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -20,7 +18,7 @@ type Grade struct {
 }
 
 type GradeModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m GradeModel) AllGrades() ([]*Grade, error) {
@@ -31,7 +29,7 @@ func (m GradeModel) AllGrades() ([]*Grade, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +70,7 @@ func (m GradeModel) GetGradeByID(gradeID int) (*Grade, error) {
 
 	var grade Grade
 
-	err := m.DB.QueryRow(ctx, query, gradeID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, gradeID).Scan(
 		&grade.ID,
 		&grade.Identifier,
 		&grade.Value,
@@ -80,7 +78,7 @@ func (m GradeModel) GetGradeByID(gradeID int) (*Grade, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchGrade
 		default:
 			return nil, err
@@ -99,7 +97,7 @@ func (m GradeModel) UpdateGrade(g *Grade) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, g.Identifier, g.Value, g.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, g.Identifier, g.Value, g.ID)
 	if err != nil {
 		return err
 	}
@@ -117,7 +115,7 @@ func (m GradeModel) InsertGrade(g *Grade) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, g.Identifier, g.Value).Scan(&g.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, g.Identifier, g.Value).Scan(&g.ID)
 	if err != nil {
 		return err
 	}

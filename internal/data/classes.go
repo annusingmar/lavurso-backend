@@ -2,11 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -23,7 +21,7 @@ type Class struct {
 }
 
 type ClassModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 // DATABASE
@@ -40,7 +38,7 @@ func (m ClassModel) InsertClass(c *Class) (*int, error) {
 
 	var id int
 
-	err := m.DB.QueryRow(ctx, stmt, c.Name, c.Teacher.ID).Scan(&id)
+	err := m.DB.QueryRowContext(ctx, stmt, c.Name, c.Teacher.ID).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +58,7 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 
 	var classes []*Class
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query)
 
 	if err != nil {
 		return nil, err
@@ -104,7 +102,7 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query).Scan(&ids)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +118,7 @@ func (m ClassModel) UpdateClass(c *Class) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, c.Name, c.Teacher.ID, c.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, c.Name, c.Teacher.ID, c.ID)
 	if err != nil {
 		return err
 	}
@@ -142,7 +140,7 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 	var class Class
 	class.Teacher = new(User)
 
-	err := m.DB.QueryRow(ctx, query, classID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, classID).Scan(
 		&class.ID,
 		&class.Name,
 		&class.Teacher.ID,
@@ -152,7 +150,7 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchClass
 		default:
 			return nil, err
@@ -176,7 +174,7 @@ func (m ClassModel) GetAllCurrentYearClasses() ([]*Class, error) {
 
 	var classes []*Class
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query)
 
 	if err != nil {
 		return nil, err
@@ -225,7 +223,7 @@ func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*Class, er
 
 	var classes []*Class
 
-	rows, err := m.DB.Query(ctx, query, teacherID)
+	rows, err := m.DB.QueryContext(ctx, query, teacherID)
 
 	if err != nil {
 		return nil, err
@@ -269,7 +267,7 @@ func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, classID)
+	rows, err := m.DB.QueryContext(ctx, query, classID)
 	if err != nil {
 		return nil, err
 	}

@@ -2,9 +2,8 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Year struct {
@@ -27,7 +26,7 @@ type ClassYear struct {
 }
 
 type YearModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m YearModel) ListAllYears() ([]*Year, error) {
@@ -37,7 +36,7 @@ func (m YearModel) ListAllYears() ([]*Year, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +87,7 @@ func (m YearModel) ListAllYearsWithStats() ([]*Year, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +133,7 @@ func (m YearModel) InsertYear(y *Year) (*int, error) {
 
 	var id int
 
-	err := m.DB.QueryRow(ctx, stmt, y.DisplayName, y.Courses).Scan(&id)
+	err := m.DB.QueryRowContext(ctx, stmt, y.DisplayName, y.Courses).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func (m YearModel) InsertYearForClass(cy *ClassYear) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, cy.ClassID, cy.YearID, cy.DisplayName)
+	_, err := m.DB.ExecContext(ctx, stmt, cy.ClassID, cy.YearID, cy.DisplayName)
 	if err != nil {
 		return err
 	}
@@ -168,7 +167,7 @@ func (m YearModel) GetCurrentYear() (*Year, error) {
 
 	var year Year
 
-	err := m.DB.QueryRow(ctx, query).Scan(
+	err := m.DB.QueryRowContext(ctx, query).Scan(
 		&year.ID,
 		&year.DisplayName,
 		&year.Courses,
@@ -195,7 +194,7 @@ func (m YearModel) GetYearsForStudent(studentID int) ([]*Year, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, studentID)
+	rows, err := m.DB.QueryContext(ctx, query, studentID)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +233,7 @@ func (m YearModel) RemoveCurrentYear() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt)
+	_, err := m.DB.ExecContext(ctx, stmt)
 	if err != nil {
 		return err
 	}
@@ -250,7 +249,7 @@ func (m YearModel) SetYearAsCurrent(yearID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, yearID)
+	_, err := m.DB.ExecContext(ctx, stmt, yearID)
 	if err != nil {
 		return err
 	}

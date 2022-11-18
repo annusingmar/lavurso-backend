@@ -2,11 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -26,7 +24,7 @@ type Journal struct {
 }
 
 type JournalModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m JournalModel) AllJournals(yearID int) ([]*Journal, error) {
@@ -44,7 +42,7 @@ func (m JournalModel) AllJournals(yearID int) ([]*Journal, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, yearID)
+	rows, err := m.DB.QueryContext(ctx, query, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +102,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 	journal.Subject = new(Subject)
 	journal.Year = new(Year)
 
-	err := m.DB.QueryRow(ctx, query, journalID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, journalID).Scan(
 		&journal.ID,
 		&journal.Name,
 		&journal.Teacher.ID,
@@ -121,7 +119,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchJournal
 		default:
 			return nil, err
@@ -141,7 +139,7 @@ func (m JournalModel) InsertJournal(j *Journal) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, j.Year.ID).Scan(&j.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, j.Name, j.Teacher.ID, j.Subject.ID, j.Year.ID).Scan(&j.ID)
 	if err != nil {
 		return err
 	}
@@ -157,7 +155,7 @@ func (m JournalModel) UpdateJournal(j *Journal) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, j.Name, j.Teacher.ID, time.Now().UTC(), j.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, j.Name, j.Teacher.ID, time.Now().UTC(), j.ID)
 	if err != nil {
 		return err
 	}
@@ -171,7 +169,7 @@ func (m JournalModel) DeleteJournal(journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, journalID)
+	_, err := m.DB.ExecContext(ctx, stmt, journalID)
 	if err != nil {
 		return err
 	}
@@ -193,7 +191,7 @@ func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*Journal, 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, teacherID, yearID)
+	rows, err := m.DB.QueryContext(ctx, query, teacherID, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +243,7 @@ func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, journalID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
 	if err != nil {
 		return err
 	}
@@ -261,12 +259,15 @@ func (m JournalModel) DeleteUserFromJournal(userID, journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := m.DB.Exec(ctx, stmt, userID, journalID)
+	result, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
 	if err != nil {
 		return err
 	}
 
-	affected := result.RowsAffected()
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
 
 	if affected == 0 {
 		return ErrUserNotInJournal
@@ -286,7 +287,7 @@ func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID)
+	rows, err := m.DB.QueryContext(ctx, query, journalID)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +333,7 @@ func (m JournalModel) GetJournalsByStudent(userID, yearID int) ([]*Journal, erro
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, userID, yearID)
+	rows, err := m.DB.QueryContext(ctx, query, userID, yearID)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +383,7 @@ func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, userID, journalID).Scan(&result)
+	err := m.DB.QueryRowContext(ctx, query, userID, journalID).Scan(&result)
 	if err != nil {
 		return false, err
 	}
@@ -403,7 +404,7 @@ func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (boo
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, parentID, journalID).Scan(&result)
+	err := m.DB.QueryRowContext(ctx, query, parentID, journalID).Scan(&result)
 	if err != nil {
 		return false, err
 	}
@@ -419,7 +420,7 @@ func (m JournalModel) SetJournalLastUpdated(journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), journalID)
+	_, err := m.DB.ExecContext(ctx, stmt, time.Now().UTC(), journalID)
 	if err != nil {
 		return err
 	}

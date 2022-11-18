@@ -4,11 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base32"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -29,7 +28,7 @@ type Session struct {
 }
 
 type SessionModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (s *Session) AddNewTokenToSession() error {
@@ -57,7 +56,7 @@ func (m SessionModel) InsertSession(session *Session) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, session.TokenHash, session.UserID, session.Expires, session.LoginIP, session.LoginBrowser, session.LoggedIn, session.LastSeen).Scan(&session.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, session.TokenHash, session.UserID, session.Expires, session.LoginIP, session.LoginBrowser, session.LoggedIn, session.LastSeen).Scan(&session.ID)
 	if err != nil {
 		return err
 	}
@@ -73,7 +72,7 @@ func (m SessionModel) UpdateLastSeen(sessionID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), sessionID)
+	_, err := m.DB.ExecContext(ctx, stmt, time.Now().UTC(), sessionID)
 	if err != nil {
 		return err
 	}
@@ -88,7 +87,7 @@ func (m SessionModel) RemoveSessionByID(sessionID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, sessionID)
+	_, err := m.DB.ExecContext(ctx, stmt, sessionID)
 	if err != nil {
 		return err
 	}
@@ -103,7 +102,7 @@ func (m SessionModel) RemoveAllSessionsByUserID(userID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID)
 	if err != nil {
 		return err
 	}
@@ -118,7 +117,7 @@ func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, userID, sessionID)
+	_, err := m.DB.ExecContext(ctx, stmt, userID, sessionID)
 	if err != nil {
 		return err
 	}
@@ -136,7 +135,7 @@ func (m SessionModel) GetSessionsByUserID(userID int) ([]*Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, userID, time.Now().UTC())
+	rows, err := m.DB.QueryContext(ctx, query, userID, time.Now().UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +183,7 @@ func (m SessionModel) GetSessionByID(sessionID int) (*Session, error) {
 
 	var session Session
 
-	err := m.DB.QueryRow(ctx, query, sessionID, time.Now().UTC()).Scan(
+	err := m.DB.QueryRowContext(ctx, query, sessionID, time.Now().UTC()).Scan(
 		&session.ID,
 		&session.TokenHash,
 		&session.UserID,

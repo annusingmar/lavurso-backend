@@ -3,15 +3,14 @@ package data
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -64,7 +63,7 @@ type Role struct {
 }
 
 type UserModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
@@ -90,7 +89,7 @@ func (m UserModel) AllUsers(archived bool) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, archived)
+	rows, err := m.DB.QueryContext(ctx, query, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +146,7 @@ func (m UserModel) SearchUser(name string) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, name)
+	rows, err := m.DB.QueryContext(ctx, query, name)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +201,7 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 	user.BirthDate = new(Date)
 	user.Class = new(Class)
 
-	err := m.DB.QueryRow(ctx, query, userID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -221,7 +220,7 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchUser
 		default:
 			return nil, err
@@ -240,7 +239,7 @@ func (m UserModel) GetUsersByRole(role string) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, role)
+	rows, err := m.DB.QueryContext(ctx, query, role)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +278,7 @@ func (m UserModel) InsertUser(u *User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt,
+	err := m.DB.QueryRowContext(ctx, stmt,
 		u.Name,
 		u.Email,
 		u.PhoneNumber,
@@ -315,7 +314,7 @@ func (m UserModel) UpdateUser(u *User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt,
+	_, err := m.DB.ExecContext(ctx, stmt,
 		u.Name,
 		u.Email,
 		u.PhoneNumber,
@@ -356,7 +355,7 @@ func (m UserModel) GetAllUserIDs() ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query).Scan(&ids)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +372,7 @@ func (m UserModel) GetAllStudentIDs() ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRow(ctx, query).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query).Scan(&ids)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +401,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 	user.BirthDate = new(Date)
 	user.Class = new(Class)
 
-	err := m.DB.QueryRow(ctx, query, hash[:], time.Now().UTC()).Scan(
+	err := m.DB.QueryRowContext(ctx, query, hash[:], time.Now().UTC()).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -421,7 +420,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrInvalidToken
 		default:
 			return nil, err
@@ -444,7 +443,7 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 	var user User
 	user.BirthDate = new(Date)
 
-	err := m.DB.QueryRow(ctx, query, email).Scan(
+	err := m.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -460,7 +459,7 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchUser
 		default:
 			return nil, err
@@ -480,7 +479,7 @@ func (m UserModel) AddParentToChild(parentID, childID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, parentID, childID)
+	_, err := m.DB.ExecContext(ctx, stmt, parentID, childID)
 	if err != nil {
 		return err
 	}
@@ -495,7 +494,7 @@ func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, parentID, childID)
+	_, err := m.DB.ExecContext(ctx, stmt, parentID, childID)
 	if err != nil {
 		return err
 	}
@@ -519,7 +518,7 @@ func (m UserModel) GetStudentByID(userID int) (*User, error) {
 	user.BirthDate = new(Date)
 	user.Class = &Class{Teacher: new(User)}
 
-	err := m.DB.QueryRow(ctx, query, userID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -535,7 +534,7 @@ func (m UserModel) GetStudentByID(userID int) (*User, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchUser
 		default:
 			return nil, err
@@ -555,7 +554,7 @@ func (m UserModel) GetParentsForChild(childID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, childID)
+	rows, err := m.DB.QueryContext(ctx, query, childID)
 	if err != nil {
 		return nil, err
 	}
@@ -600,7 +599,7 @@ func (m UserModel) GetChildrenForParent(parentID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, parentID)
+	rows, err := m.DB.QueryContext(ctx, query, parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -643,7 +642,7 @@ func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, 
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, studentID, userID).Scan(&result)
+	err := m.DB.QueryRowContext(ctx, query, studentID, userID).Scan(&result)
 	if err != nil {
 		return false, err
 	}
@@ -661,7 +660,7 @@ func (m UserModel) IsUserParentOfStudent(studentID, userID int) (bool, error) {
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, studentID, userID).Scan(&result)
+	err := m.DB.QueryRowContext(ctx, query, studentID, userID).Scan(&result)
 	if err != nil {
 		return false, err
 	}
@@ -677,7 +676,7 @@ func (m UserModel) ArchiveUsersByClassID(classID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, classID)
+	_, err := m.DB.ExecContext(ctx, stmt, classID)
 	if err != nil {
 		return err
 	}

@@ -2,11 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -19,7 +17,7 @@ type Subject struct {
 }
 
 type SubjectModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m SubjectModel) AllSubjects() ([]*Subject, error) {
@@ -30,7 +28,7 @@ func (m SubjectModel) AllSubjects() ([]*Subject, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +65,7 @@ func (m SubjectModel) InsertSubject(s *Subject) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, s.Name).Scan(&s.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, s.Name).Scan(&s.ID)
 	if err != nil {
 		return err
 	}
@@ -83,7 +81,7 @@ func (m SubjectModel) UpdateSubject(s *Subject) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, s.Name, s.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, s.Name, s.ID)
 	if err != nil {
 		return err
 	}
@@ -100,14 +98,14 @@ func (m SubjectModel) GetSubjectByID(subjectID int) (*Subject, error) {
 
 	var subject Subject
 
-	err := m.DB.QueryRow(ctx, query, subjectID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, subjectID).Scan(
 		&subject.ID,
 		&subject.Name,
 	)
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchSubject
 		default:
 			return nil, err

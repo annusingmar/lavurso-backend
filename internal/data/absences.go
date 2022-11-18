@@ -2,10 +2,9 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -23,7 +22,7 @@ type Excuse struct {
 }
 
 type AbsenceModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
@@ -35,7 +34,7 @@ func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, excuse.MarkID, excuse.Excuse, excuse.By.ID, excuse.At)
+	_, err := m.DB.ExecContext(ctx, stmt, excuse.MarkID, excuse.Excuse, excuse.By.ID, excuse.At)
 	if err != nil {
 		return err
 	}
@@ -50,7 +49,7 @@ func (m AbsenceModel) DeleteExcuseByMarkID(markID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, markID)
+	_, err := m.DB.ExecContext(ctx, stmt, markID)
 	if err != nil {
 		return err
 	}

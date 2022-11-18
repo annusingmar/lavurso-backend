@@ -2,12 +2,10 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -27,7 +25,7 @@ type Lesson struct {
 }
 
 type LessonModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 // DATABASE
@@ -42,7 +40,7 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, l.Journal.ID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt).Scan(&l.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, l.Journal.ID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt).Scan(&l.ID)
 	if err != nil {
 		return err
 	}
@@ -65,7 +63,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 	lesson.Journal = new(Journal)
 	lesson.Date = new(Date)
 
-	err := m.DB.QueryRow(ctx, query, lessonID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, lessonID).Scan(
 		&lesson.ID,
 		&lesson.Journal.ID,
 		&lesson.Journal.Name,
@@ -78,7 +76,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchLesson
 		default:
 			return nil, err
@@ -97,7 +95,7 @@ func (m LessonModel) UpdateLesson(l *Lesson) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID)
 	if err != nil {
 		return err
 	}
@@ -112,7 +110,7 @@ func (m LessonModel) DeleteLesson(lessonID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, lessonID)
+	_, err := m.DB.ExecContext(ctx, stmt, lessonID)
 	if err != nil {
 		return err
 	}
@@ -129,7 +127,7 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, journalID, course)
+	rows, err := m.DB.QueryContext(ctx, query, journalID, course)
 	if err != nil {
 		return nil, err
 	}
@@ -181,15 +179,15 @@ func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *Date
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows pgx.Rows
+	var rows *sql.Rows
 	var err error
 
 	if until != nil {
 		query := fmt.Sprintf(sqlQuery, "l.date > $2::date AND l.date <= $3::date")
-		rows, err = m.DB.Query(ctx, query, studentID, from.Time, until.Time)
+		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time, until.Time)
 	} else {
 		query := fmt.Sprintf(sqlQuery, "l.date > $2::date")
-		rows, err = m.DB.Query(ctx, query, studentID, from.Time)
+		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time)
 	}
 
 	if err != nil {

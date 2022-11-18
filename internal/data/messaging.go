@@ -2,12 +2,10 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -45,7 +43,7 @@ type Message struct {
 }
 
 type MessagingModel struct {
-	DB *pgxpool.Pool
+	DB *sql.DB
 }
 
 func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
@@ -61,7 +59,7 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 	var thread Thread
 	thread.User = new(User)
 
-	err := m.DB.QueryRow(ctx, query, threadID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, threadID).Scan(
 		&thread.ID,
 		&thread.User.ID,
 		&thread.User.Name,
@@ -73,7 +71,7 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchThread
 		default:
 			return nil, err
@@ -92,7 +90,7 @@ func (m MessagingModel) InsertThread(t *Thread) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, t.User.ID, t.Title, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, t.User.ID, t.Title, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
 	if err != nil {
 		return err
 	}
@@ -106,7 +104,7 @@ func (m MessagingModel) DeleteThread(threadID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID)
 	if err != nil {
 		return err
 	}
@@ -123,7 +121,7 @@ func (m MessagingModel) AddUserToThread(threadID, userID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID, userID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID, userID)
 	if err != nil {
 		return err
 	}
@@ -138,7 +136,7 @@ func (m MessagingModel) RemoveUserFromThread(threadID, userID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID, userID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID, userID)
 	if err != nil {
 		return err
 	}
@@ -156,7 +154,7 @@ func (m MessagingModel) AddGroupToThread(threadID, groupID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID, groupID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID, groupID)
 	if err != nil {
 		return err
 	}
@@ -171,7 +169,7 @@ func (m MessagingModel) RemoveGroupFromThread(threadID, groupID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID, groupID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID, groupID)
 	if err != nil {
 		return err
 	}
@@ -190,7 +188,7 @@ func (m MessagingModel) GetUsersInThread(threadID int) ([]*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, threadID)
+	rows, err := m.DB.QueryContext(ctx, query, threadID)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +228,7 @@ func (m MessagingModel) GetGroupsInThread(threadID int) ([]*Group, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, threadID)
+	rows, err := m.DB.QueryContext(ctx, query, threadID)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +269,7 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	var message Message
 	message.User = new(User)
 
-	err := m.DB.QueryRow(ctx, query, messageID).Scan(
+	err := m.DB.QueryRowContext(ctx, query, messageID).Scan(
 		&message.ID,
 		&message.ThreadID,
 		&message.User.ID,
@@ -284,7 +282,7 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, pgx.ErrNoRows):
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrNoSuchMessage
 		default:
 			return nil, err
@@ -304,7 +302,7 @@ func (m MessagingModel) InsertMessage(ms *Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRow(ctx, stmt, ms.ThreadID, ms.User.ID, ms.Body, ms.Type, ms.CreatedAt, ms.UpdatedAt).Scan(&ms.ID)
+	err := m.DB.QueryRowContext(ctx, stmt, ms.ThreadID, ms.User.ID, ms.Body, ms.Type, ms.CreatedAt, ms.UpdatedAt).Scan(&ms.ID)
 	if err != nil {
 		return err
 	}
@@ -318,7 +316,7 @@ func (m MessagingModel) DeleteMessage(messageID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, messageID)
+	_, err := m.DB.ExecContext(ctx, stmt, messageID)
 	if err != nil {
 		return err
 	}
@@ -334,7 +332,7 @@ func (m MessagingModel) UpdateMessage(ms *Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, ms.Body, ms.UpdatedAt, ms.ID)
+	_, err := m.DB.ExecContext(ctx, stmt, ms.Body, ms.UpdatedAt, ms.ID)
 	if err != nil {
 		return err
 	}
@@ -352,7 +350,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, erro
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.Query(ctx, query, threadID)
+	rows, err := m.DB.QueryContext(ctx, query, threadID)
 	if err != nil {
 		return nil, err
 	}
@@ -411,15 +409,15 @@ func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*Thread,
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows pgx.Rows
+	var rows *sql.Rows
 	var err error
 
 	if search != "" {
 		query = fmt.Sprintf(baseQuery, " AND ((to_tsvector('simple', t.title) @@ plainto_tsquery('simple', $2)) OR (to_tsvector('simple', m.body) @@ plainto_tsquery('simple', $2)))")
-		rows, err = m.DB.Query(ctx, query, userID, search)
+		rows, err = m.DB.QueryContext(ctx, query, userID, search)
 	} else {
 		query = fmt.Sprintf(baseQuery, "")
-		rows, err = m.DB.Query(ctx, query, userID)
+		rows, err = m.DB.QueryContext(ctx, query, userID)
 	}
 
 	if err != nil {
@@ -476,7 +474,7 @@ func (m MessagingModel) DoesUserHaveUnread(userID int) (bool, error) {
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, userID).Scan(&result)
+	err := m.DB.QueryRowContext(ctx, query, userID).Scan(&result)
 	if err != nil {
 		return false, err
 	}
@@ -498,7 +496,7 @@ func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {
 
 	var result int
 
-	err := m.DB.QueryRow(ctx, query, userID, threadID).Scan(&result)
+	err := m.DB.QueryRowContext(ctx, query, userID, threadID).Scan(&result)
 	if err != nil {
 		return false, err
 	}
@@ -516,7 +514,7 @@ func (m MessagingModel) SetThreadAsReadForUser(threadID, userID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID, userID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID, userID)
 	if err != nil {
 		return err
 	}
@@ -531,7 +529,7 @@ func (m MessagingModel) SetThreadAsUnreadForAll(threadID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, threadID)
+	_, err := m.DB.ExecContext(ctx, stmt, threadID)
 	if err != nil {
 		return err
 	}
@@ -547,7 +545,7 @@ func (m MessagingModel) SetThreadLocked(threadID int, locked bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, locked, threadID)
+	_, err := m.DB.ExecContext(ctx, stmt, locked, threadID)
 	if err != nil {
 		return err
 	}
@@ -563,7 +561,7 @@ func (m MessagingModel) SetThreadUpdatedAt(threadID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.Exec(ctx, stmt, time.Now().UTC(), threadID)
+	_, err := m.DB.ExecContext(ctx, stmt, time.Now().UTC(), threadID)
 	if err != nil {
 		return err
 	}

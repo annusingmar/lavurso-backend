@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func openDBConnection(connectionString string) *pgxpool.Pool {
-	pool, err := pgxpool.New(context.Background(), connectionString)
+func openDBConnection(connectionString string) *sql.DB {
+	db, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -17,8 +18,8 @@ func openDBConnection(connectionString string) *pgxpool.Pool {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err = pool.Ping(ctx); err != nil {
+	if err = db.PingContext(ctx); err != nil {
 		log.Fatalln(err)
 	}
-	return pool
+	return db
 }
