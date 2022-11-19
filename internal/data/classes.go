@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -22,7 +23,7 @@ type Class struct {
 	Teacher     *User   `json:"teacher,omitempty"`
 }
 
-type nClass struct {
+type NClass struct {
 	model.Classes
 	DisplayName *string      `json:"display_name,omitempty" alias:"classes_years.display_name"`
 	Teacher     *model.Users `json:"teacher,omitempty" alias:"teacher.*"`
@@ -110,7 +111,7 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRowContext(ctx, query).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query).Scan(pgtype.NewMap().SQLScanner(&ids))
 	if err != nil {
 		return nil, err
 	}

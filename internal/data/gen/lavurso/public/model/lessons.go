@@ -13,11 +13,11 @@ import (
 )
 
 type Lessons struct {
-	ID          *int32      `sql:"primary_key" json:"id,omitempty"`
-	JournalID   *int32      `json:"journal_id,omitempty"`
+	ID          int         `sql:"primary_key" json:"id,omitempty"`
+	JournalID   *int        `json:"journal_id,omitempty"`
 	Description *string     `json:"description,omitempty"`
 	Date        *types.Date `json:"date,omitempty"`
-	Course      *int32      `json:"course,omitempty"`
+	Course      *int        `json:"course,omitempty"`
 	CreatedAt   *time.Time  `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time  `json:"updated_at,omitempty"`
 }

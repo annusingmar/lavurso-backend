@@ -38,7 +38,7 @@ func (app *application) allSessionsForUser(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	sessions, err := app.models.Sessions.GetSessionsByUserID(*user.ID)
+	sessions, err := app.models.Sessions.GetSessionsByUserID(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -79,7 +79,7 @@ func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = app.models.Sessions.RemoveAllSessionsByUserID(*user.ID)
+	err = app.models.Sessions.RemoveAllSessionsByUserID(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

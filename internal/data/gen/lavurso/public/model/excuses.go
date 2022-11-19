@@ -12,8 +12,8 @@ import (
 )
 
 type Excuses struct {
-	MarkID *int32     `sql:"primary_key" json:"mark_id,omitempty"`
+	MarkID *int       `sql:"primary_key" json:"mark_id,omitempty"`
 	Excuse *string    `json:"excuse,omitempty"`
-	By     *int32     `json:"by,omitempty"`
+	By     *int       `json:"by,omitempty"`
 	At     *time.Time `json:"at,omitempty"`
 }

@@ -8,7 +8,7 @@
 package model
 
 type Grades struct {
-	ID         *int32  `sql:"primary_key" json:"id,omitempty"`
+	ID         int     `sql:"primary_key" json:"id,omitempty"`
 	Identifier *string `json:"identifier,omitempty"`
-	Value      *int32  `json:"value,omitempty"`
+	Value      *int    `json:"value,omitempty"`
 }

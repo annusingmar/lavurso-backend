@@ -12,9 +12,9 @@ import (
 )
 
 type Messages struct {
-	ID        *int32     `sql:"primary_key" json:"id,omitempty"`
-	ThreadID  *int32     `json:"thread_id,omitempty"`
-	UserID    *int32     `json:"user_id,omitempty"`
+	ID        int        `sql:"primary_key" json:"id,omitempty"`
+	ThreadID  *int       `json:"thread_id,omitempty"`
+	UserID    *int       `json:"user_id,omitempty"`
 	Body      *string    `json:"body,omitempty"`
 	Type      *string    `json:"type,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`

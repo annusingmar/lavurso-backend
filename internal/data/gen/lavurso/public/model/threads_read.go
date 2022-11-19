@@ -8,6 +8,6 @@
 package model
 
 type ThreadsRead struct {
-	ThreadID *int32 `sql:"primary_key" json:"thread_id,omitempty"`
-	UserID   *int32 `sql:"primary_key" json:"user_id,omitempty"`
+	ThreadID *int `sql:"primary_key" json:"thread_id,omitempty"`
+	UserID   *int `sql:"primary_key" json:"user_id,omitempty"`
 }

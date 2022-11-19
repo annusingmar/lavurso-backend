@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -71,7 +73,7 @@ func (m GroupModel) GetUserCountForGroup(groupID int) (*int, error) {
 func (m GroupModel) GetAllGroups(archived bool) ([]*Group, error) {
 	query := `SELECT g.id, g.name, g.archived, COUNT(ug.user_id)
 	FROM groups g
-	INNER JOIN users_groups ug
+	LEFT JOIN users_groups ug
 	ON ug.group_id = g.id
 	WHERE g.archived = $1
     GROUP BY g.id`
@@ -127,7 +129,7 @@ func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query, userID).Scan(pgtype.NewMap().SQLScanner(&ids))
 	if err != nil {
 		return nil, err
 	}

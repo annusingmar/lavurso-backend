@@ -8,6 +8,6 @@
 package model
 
 type UsersJournals struct {
-	UserID    *int32 `sql:"primary_key" json:"user_id,omitempty"`
-	JournalID *int32 `sql:"primary_key" json:"journal_id,omitempty"`
+	UserID    *int `sql:"primary_key" json:"user_id,omitempty"`
+	JournalID *int `sql:"primary_key" json:"journal_id,omitempty"`
 }

@@ -13,16 +13,16 @@ import (
 )
 
 type Users struct {
-	ID          *int32      `sql:"primary_key" json:"id,omitempty"`
-	Name        *string     `json:"name,omitempty"`
-	Email       *string     `json:"email,omitempty"`
-	PhoneNumber *string     `json:"phone_number,omitempty"`
-	IDCode      *int64      `json:"id_code,omitempty"`
-	BirthDate   *types.Date `json:"birth_date,omitempty"`
-	Password    []byte      `json:"-"`
-	Role        *string     `json:"role,omitempty"`
-	ClassID     *int32      `json:"class_id,omitempty"`
-	CreatedAt   *time.Time  `json:"created_at,omitempty"`
-	Active      *bool       `json:"active,omitempty"`
-	Archived    *bool       `json:"archived,omitempty"`
+	ID          int             `sql:"primary_key" json:"id,omitempty"`
+	Name        *string         `json:"name,omitempty"`
+	Email       *string         `json:"email,omitempty"`
+	PhoneNumber *string         `json:"phone_number,omitempty"`
+	IDCode      *int64          `json:"id_code,omitempty"`
+	BirthDate   *types.Date     `json:"birth_date,omitempty"`
+	Password    *types.Password `json:"-"`
+	Role        *string         `json:"role,omitempty"`
+	ClassID     *int32          `json:"class_id,omitempty"`
+	CreatedAt   *time.Time      `json:"created_at,omitempty"`
+	Active      *bool           `json:"active,omitempty"`
+	Archived    *bool           `json:"archived,omitempty"`
 }

@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -176,9 +177,7 @@ func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var user *data.User
-
-	user, err = app.models.Users.GetUserByID(userID)
+	user, err := app.models.Users.GetUserByID(userID)
 
 	if err != nil {
 		switch {
@@ -263,7 +262,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 	}
 
 	user.PhoneNumber = input.PhoneNumber
-	user.IdCode = input.IdCode
+	user.IDCode = input.IdCode
 
 	if input.BirthDate != nil && input.BirthDate.Time != nil {
 		if input.BirthDate.Time.After(time.Now().UTC()) {
@@ -287,7 +286,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		user.Class = &data.Class{ID: class.ID}
+		user.Class = &data.NClass{Classes: model.Classes{ID: *class.ID}}
 	}
 
 	if input.Archived != nil {
@@ -332,7 +331,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *user.ID != *sessionUser.ID {
+	if user.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -398,7 +397,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if *user.ID != *sessionUser.ID {
+	if user.ID != *sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -448,7 +447,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.models.Sessions.RemoveAllSessionsByUserIDExceptOne(*user.ID, *sessionUser.SessionID)
+	err = app.models.Sessions.RemoveAllSessionsByUserIDExceptOne(user.ID, *sessionUser.SessionID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -562,7 +561,7 @@ func (app *application) addParentToStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.models.Users.AddParentToChild(*parent.ID, *student.ID)
+	err = app.models.Users.AddParentToChild(parent.ID, student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -632,7 +631,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	ok, err := app.models.Users.IsUserParentOfStudent(*parent.ID, *student.ID)
+	ok, err := app.models.Users.IsUserParentOfStudent(parent.ID, student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -643,7 +642,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	err = app.models.Users.RemoveParentFromChild(*parent.ID, *student.ID)
+	err = app.models.Users.RemoveParentFromChild(parent.ID, student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

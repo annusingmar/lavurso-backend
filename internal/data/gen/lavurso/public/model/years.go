@@ -8,8 +8,8 @@
 package model
 
 type Years struct {
-	ID          *int32  `sql:"primary_key" json:"id,omitempty"`
+	ID          int     `sql:"primary_key" json:"id,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
-	Courses     *int32  `json:"courses,omitempty"`
+	Courses     *int    `json:"courses,omitempty"`
 	Current     *bool   `json:"current,omitempty"`
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -57,9 +58,9 @@ type User struct {
 	SessionID   *int           `json:"-"`
 }
 
-type nUser struct {
+type NUser struct {
 	model.Users
-	Class *nClass `json:"class,omitempty"`
+	Class *NClass `json:"class,omitempty"`
 }
 
 type Role struct {
@@ -81,7 +82,7 @@ func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
 
 // DATABASE
 
-func (m UserModel) AllUsers(archived bool) ([]*nUser, error) {
+func (m UserModel) AllUsers(archived bool) ([]*NUser, error) {
 	query := postgres.SELECT(table.Users.AllColumns.Except(table.Users.Password), table.Classes.Name, table.ClassesYears.DisplayName).
 		FROM(table.Users.
 			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
@@ -92,7 +93,7 @@ func (m UserModel) AllUsers(archived bool) ([]*nUser, error) {
 		WHERE(table.Users.Archived.EQ(postgres.Bool(archived))).
 		ORDER_BY(table.Users.ID.ASC())
 
-	var users []*nUser
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -105,7 +106,7 @@ func (m UserModel) AllUsers(archived bool) ([]*nUser, error) {
 	return users, nil
 }
 
-func (m UserModel) SearchUser(name string) ([]*nUser, error) {
+func (m UserModel) SearchUser(name string) ([]*NUser, error) {
 	// todo: LIKE + LOWER -> ILIKE
 
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Users.ClassID, table.Classes.Name, table.ClassesYears.DisplayName).
@@ -117,7 +118,7 @@ func (m UserModel) SearchUser(name string) ([]*nUser, error) {
 			AND(table.Users.Archived.IS_FALSE())).
 		ORDER_BY(table.Users.Name.ASC())
 
-	var users []*nUser
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -130,88 +131,45 @@ func (m UserModel) SearchUser(name string) ([]*nUser, error) {
 	return users, nil
 }
 
-func (m UserModel) GetUserByID(userID int) (*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, cy.display_name, u.created_at, u.active, u.archived
-	FROM users u
-	LEFT JOIN classes c
-	ON u.class_id = c.id
-	LEFT JOIN classes_years cy
-	ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
-	WHERE u.id = $1`
+func (m UserModel) GetUserByID(userID int) (*NUser, error) {
+	query := postgres.SELECT(table.Users.AllColumns, table.Classes.ID, table.Classes.Name, table.ClassesYears.DisplayName).
+		FROM(table.Users.
+			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+			LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
+				AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
+		WHERE(table.Users.ID.EQ(postgres.Int32(int32(userID))))
+
+	var user NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var user User
-	user.BirthDate = new(types.Date)
-	user.Class = new(Class)
-
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Email,
-		&user.PhoneNumber,
-		&user.IdCode,
-		&user.BirthDate.Time,
-		&user.Password.Hashed,
-		&user.Role,
-		&user.Class.ID,
-		&user.Class.Name,
-		&user.Class.DisplayName,
-		&user.CreatedAt,
-		&user.Active,
-		&user.Archived,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &user)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrNoSuchUser
-		default:
-			return nil, err
-		}
+		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (m UserModel) GetUsersByRole(role string) ([]*User, error) {
-	query := `SELECT id, name, role
-	FROM users
-	WHERE role = $1
-	ORDER BY id ASC`
+func (m UserModel) GetUsersByRole(role string) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
+		FROM(table.Users).
+		WHERE(table.Users.Role.EQ(postgres.String(role))).
+		ORDER_BY(table.Users.ID.ASC())
+
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, role)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	return users, nil
-
 }
 
 func (m UserModel) InsertUser(u *User) error {
@@ -251,7 +209,7 @@ func (m UserModel) InsertUser(u *User) error {
 	return nil
 }
 
-func (m UserModel) UpdateUser(u *User) error {
+func (m UserModel) UpdateUser(u *NUser) error {
 	stmt := `UPDATE users SET (name, email, phone_number, id_code, birth_date, password, role, class_id, created_at, active, archived) =
 	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	WHERE id = $12`
@@ -263,7 +221,7 @@ func (m UserModel) UpdateUser(u *User) error {
 		u.Name,
 		u.Email,
 		u.PhoneNumber,
-		u.IdCode,
+		u.IDCode,
 		u.BirthDate.Time,
 		u.Password.Hashed,
 		u.Role,
@@ -300,7 +258,7 @@ func (m UserModel) GetAllUserIDs() ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRowContext(ctx, query).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query).Scan(pgtype.NewMap().SQLScanner(&ids))
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +275,7 @@ func (m UserModel) GetAllStudentIDs() ([]int, error) {
 
 	var ids []int
 
-	err := m.DB.QueryRowContext(ctx, query).Scan(&ids)
+	err := m.DB.QueryRowContext(ctx, query).Scan(pgtype.NewMap().SQLScanner(&ids))
 	if err != nil {
 		return nil, err
 	}

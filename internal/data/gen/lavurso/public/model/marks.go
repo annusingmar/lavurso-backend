@@ -12,15 +12,15 @@ import (
 )
 
 type Marks struct {
-	ID        *int32     `sql:"primary_key" json:"id,omitempty"`
-	UserID    *int32     `json:"user_id,omitempty"`
+	ID        int        `sql:"primary_key" json:"id,omitempty"`
+	UserID    *int       `json:"user_id,omitempty"`
 	LessonID  *int32     `json:"lesson_id,omitempty"`
 	Course    *int32     `json:"course,omitempty"`
-	JournalID *int32     `json:"journal_id,omitempty"`
+	JournalID *int       `json:"journal_id,omitempty"`
 	GradeID   *int32     `json:"grade_id,omitempty"`
 	Comment   *string    `json:"comment,omitempty"`
 	Type      *string    `json:"type,omitempty"`
-	By        *int32     `json:"by,omitempty"`
+	By        *int       `json:"by,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }

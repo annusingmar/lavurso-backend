@@ -8,7 +8,7 @@
 package model
 
 type ClassesYears struct {
-	ClassID     *int32  `sql:"primary_key" json:"class_id,omitempty"`
-	YearID      *int32  `sql:"primary_key" json:"year_id,omitempty"`
+	ClassID     *int    `sql:"primary_key" json:"class_id,omitempty"`
+	YearID      *int    `sql:"primary_key" json:"year_id,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
 }

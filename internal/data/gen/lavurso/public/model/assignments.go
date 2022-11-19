@@ -13,8 +13,8 @@ import (
 )
 
 type Assignments struct {
-	ID          *int32      `sql:"primary_key" json:"id,omitempty"`
-	JournalID   *int32      `json:"journal_id,omitempty"`
+	ID          int         `sql:"primary_key" json:"id,omitempty"`
+	JournalID   *int        `json:"journal_id,omitempty"`
 	Description *string     `json:"description,omitempty"`
 	Deadline    *types.Date `json:"deadline,omitempty"`
 	Type        *string     `json:"type,omitempty"`

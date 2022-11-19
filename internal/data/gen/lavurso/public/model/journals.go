@@ -12,10 +12,10 @@ import (
 )
 
 type Journals struct {
-	ID          *int32     `sql:"primary_key" json:"id,omitempty"`
+	ID          int        `sql:"primary_key" json:"id,omitempty"`
 	Name        *string    `json:"name,omitempty"`
-	TeacherID   *int32     `json:"teacher_id,omitempty"`
-	SubjectID   *int32     `json:"subject_id,omitempty"`
-	YearID      *int32     `json:"year_id,omitempty"`
+	TeacherID   *int       `json:"teacher_id,omitempty"`
+	SubjectID   *int       `json:"subject_id,omitempty"`
+	YearID      *int       `json:"year_id,omitempty"`
 	LastUpdated *time.Time `json:"last_updated,omitempty"`
 }

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"time"
@@ -65,5 +66,6 @@ func (d *Date) Scan(src any) error {
 	return nil
 }
 
-// todo:
-// func (d *Date) Value() (driver.Value, error)
+func (d *Date) Value() (driver.Value, error) {
+	return *d.Time, nil
+}

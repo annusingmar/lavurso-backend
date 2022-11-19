@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -114,7 +116,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*Journal, error) {
 		&journal.Year.DisplayName,
 		&journal.Year.Courses,
 		&journal.LastUpdated,
-		&journal.Courses,
+		pgtype.NewMap().SQLScanner(&journal.Courses),
 	)
 
 	if err != nil {
@@ -358,7 +360,7 @@ func (m JournalModel) GetJournalsByStudent(userID, yearID int) ([]*Journal, erro
 			&journal.Year.ID,
 			&journal.Year.DisplayName,
 			&journal.LastUpdated,
-			&journal.Courses,
+			pgtype.NewMap().SQLScanner(&journal.Courses),
 		)
 		if err != nil {
 			return nil, err

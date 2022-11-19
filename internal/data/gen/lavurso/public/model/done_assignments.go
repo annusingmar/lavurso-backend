@@ -8,6 +8,6 @@
 package model
 
 type DoneAssignments struct {
-	UserID       *int32 `sql:"primary_key" json:"user_id,omitempty"`
-	AssignmentID *int32 `sql:"primary_key" json:"assignment_id,omitempty"`
+	UserID       *int `sql:"primary_key" json:"user_id,omitempty"`
+	AssignmentID *int `sql:"primary_key" json:"assignment_id,omitempty"`
 }

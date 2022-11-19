@@ -280,7 +280,7 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	journals, err := app.models.Journals.GetJournalsForTeacher(*teacher.ID, year)
+	journals, err := app.models.Journals.GetJournalsForTeacher(teacher.ID, year)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -438,7 +438,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = app.models.Journals.DeleteUserFromJournal(*user.ID, journal.ID)
+	err = app.models.Journals.DeleteUserFromJournal(user.ID, journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrUserNotInJournal):

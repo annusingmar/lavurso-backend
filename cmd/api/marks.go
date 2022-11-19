@@ -62,7 +62,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	mark.By = new(data.User)
 	mark.Lesson = &data.Lesson{Date: new(types.Date)}
 
-	mark.UserID = *user.ID
+	mark.UserID = user.ID
 	mark.Type = input.Type
 
 	switch mark.Type {

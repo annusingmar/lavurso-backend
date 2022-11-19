@@ -8,6 +8,6 @@
 package model
 
 type Subjects struct {
-	ID   *int32  `sql:"primary_key" json:"id,omitempty"`
+	ID   int     `sql:"primary_key" json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
 }

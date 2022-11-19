@@ -8,6 +8,6 @@
 package model
 
 type ParentsChildren struct {
-	ParentID *int32 `sql:"primary_key" json:"parent_id,omitempty"`
-	ChildID  *int32 `sql:"primary_key" json:"child_id,omitempty"`
+	ParentID *int `sql:"primary_key" json:"parent_id,omitempty"`
+	ChildID  *int `sql:"primary_key" json:"child_id,omitempty"`
 }

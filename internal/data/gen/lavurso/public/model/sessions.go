@@ -12,9 +12,9 @@ import (
 )
 
 type Sessions struct {
-	ID           *int32     `sql:"primary_key" json:"id,omitempty"`
+	ID           int        `sql:"primary_key" json:"id,omitempty"`
 	TokenHash    []byte     `json:"token_hash,omitempty"`
-	UserID       *int32     `json:"user_id,omitempty"`
+	UserID       *int       `json:"user_id,omitempty"`
 	Expires      *time.Time `json:"expires,omitempty"`
 	LoginIP      *string    `json:"login_ip,omitempty"`
 	LoginBrowser *string    `json:"login_browser,omitempty"`

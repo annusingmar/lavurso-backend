@@ -12,8 +12,8 @@ import (
 )
 
 type Threads struct {
-	ID        *int32     `sql:"primary_key" json:"id,omitempty"`
-	UserID    *int32     `json:"user_id,omitempty"`
+	ID        int        `sql:"primary_key" json:"id,omitempty"`
+	UserID    *int       `json:"user_id,omitempty"`
 	Title     *string    `json:"title,omitempty"`
 	Locked    *bool      `json:"locked,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`

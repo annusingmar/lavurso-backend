@@ -62,7 +62,7 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	classes, err := app.models.Classes.GetCurrentYearClassesForTeacher(*teacher.ID)
+	classes, err := app.models.Classes.GetCurrentYearClassesForTeacher(teacher.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
