@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 )
 
 const (
@@ -198,7 +199,7 @@ func (m UserModel) GetUserByID(userID int) (*User, error) {
 	defer cancel()
 
 	var user User
-	user.BirthDate = new(Date)
+	user.BirthDate = new(types.Date)
 	user.Class = new(Class)
 
 	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
@@ -398,7 +399,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
 	defer cancel()
 
 	var user User
-	user.BirthDate = new(Date)
+	user.BirthDate = new(types.Date)
 	user.Class = new(Class)
 
 	err := m.DB.QueryRowContext(ctx, query, hash[:], time.Now().UTC()).Scan(
@@ -441,7 +442,7 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 	defer cancel()
 
 	var user User
-	user.BirthDate = new(Date)
+	user.BirthDate = new(types.Date)
 
 	err := m.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
@@ -515,7 +516,7 @@ func (m UserModel) GetStudentByID(userID int) (*User, error) {
 	defer cancel()
 
 	var user User
-	user.BirthDate = new(Date)
+	user.BirthDate = new(types.Date)
 	user.Class = &Class{Teacher: new(User)}
 
 	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
@@ -565,7 +566,7 @@ func (m UserModel) GetParentsForChild(childID int) ([]*User, error) {
 
 	for rows.Next() {
 		var user User
-		user.BirthDate = new(Date)
+		user.BirthDate = new(types.Date)
 
 		err = rows.Scan(
 			&user.ID,

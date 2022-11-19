@@ -8,6 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -49,14 +50,14 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 		}
 	}
 
-	var from *data.Date
-	var until *data.Date
+	var from *types.Date
+	var until *types.Date
 
 	fromDate := r.URL.Query().Get("from")
 	if fromDate == "" {
-		from = &data.Date{Time: helpers.ToPtr(time.Now().UTC())}
+		from = &types.Date{Time: helpers.ToPtr(time.Now().UTC())}
 	} else {
-		from, err = data.ParseDate(fromDate)
+		from, err = types.ParseDate(fromDate)
 		if err != nil {
 			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 			return
@@ -67,7 +68,7 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 	if untilDate == "" {
 		until = nil
 	} else {
-		until, err = data.ParseDate(untilDate)
+		until, err = types.ParseDate(untilDate)
 		if err != nil {
 			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 			return

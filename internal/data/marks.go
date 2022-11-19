@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/types"
 )
 
 var (
@@ -52,7 +54,7 @@ func scanMarks(rows *sql.Rows) ([]*Mark, error) {
 		var mark Mark
 		mark.Grade = new(Grade)
 		mark.By = new(User)
-		mark.Lesson = &Lesson{Date: new(Date)}
+		mark.Lesson = &Lesson{Date: new(types.Date)}
 
 		err := rows.Scan(
 			&mark.ID,
@@ -93,7 +95,7 @@ func scanMarksWithExcuse(rows *sql.Rows) ([]*Mark, error) {
 		var mark Mark
 		mark.Grade = new(Grade)
 		mark.By = new(User)
-		mark.Lesson = &Lesson{Date: new(Date)}
+		mark.Lesson = &Lesson{Date: new(types.Date)}
 		mark.Excuse = &Excuse{By: new(User)}
 
 		err := rows.Scan(
@@ -156,7 +158,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	var mark Mark
 	mark.Grade = new(Grade)
 	mark.By = new(User)
-	mark.Lesson = &Lesson{Date: new(Date)}
+	mark.Lesson = &Lesson{Date: new(types.Date)}
 	mark.Excuse = &Excuse{By: new(User)}
 
 	err := m.DB.QueryRowContext(ctx, query, markID).Scan(
@@ -234,7 +236,7 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
 	return marks, nil
 }
 
-func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *Date) ([]*Mark, error) {
+func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Date) ([]*Mark, error) {
 	sqlQuery := `SELECT
 	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, s.id, s.name, m.by, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
 	FROM marks m
@@ -281,7 +283,7 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *Date) ([
 		var mark Mark
 		mark.Grade = new(Grade)
 		mark.By = new(User)
-		mark.Lesson = &Lesson{Date: new(Date)}
+		mark.Lesson = &Lesson{Date: new(types.Date)}
 		mark.Excuse = &Excuse{By: new(User)}
 		mark.Subject = new(Subject)
 

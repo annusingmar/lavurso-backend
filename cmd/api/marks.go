@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -59,7 +60,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	mark := new(data.Mark)
 	mark.Grade = new(data.Grade)
 	mark.By = new(data.User)
-	mark.Lesson = &data.Lesson{Date: new(data.Date)}
+	mark.Lesson = &data.Lesson{Date: new(types.Date)}
 
 	mark.UserID = *user.ID
 	mark.Type = input.Type

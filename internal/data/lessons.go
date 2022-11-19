@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/types"
 )
 
 var (
@@ -13,15 +15,15 @@ var (
 )
 
 type Lesson struct {
-	ID          *int       `json:"id,omitempty"`
-	Journal     *Journal   `json:"journal,omitempty"`
-	Subject     *Subject   `json:"subject,omitempty"`
-	Description *string    `json:"description,omitempty"`
-	Date        *Date      `json:"date,omitempty"`
-	Course      *int       `json:"course,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
-	Marks       []*Mark    `json:"marks,omitempty"`
+	ID          *int        `json:"id,omitempty"`
+	Journal     *Journal    `json:"journal,omitempty"`
+	Subject     *Subject    `json:"subject,omitempty"`
+	Description *string     `json:"description,omitempty"`
+	Date        *types.Date `json:"date,omitempty"`
+	Course      *int        `json:"course,omitempty"`
+	CreatedAt   *time.Time  `json:"created_at,omitempty"`
+	UpdatedAt   *time.Time  `json:"updated_at,omitempty"`
+	Marks       []*Mark     `json:"marks,omitempty"`
 }
 
 type LessonModel struct {
@@ -61,7 +63,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 
 	var lesson Lesson
 	lesson.Journal = new(Journal)
-	lesson.Date = new(Date)
+	lesson.Date = new(types.Date)
 
 	err := m.DB.QueryRowContext(ctx, query, lessonID).Scan(
 		&lesson.ID,
@@ -139,7 +141,7 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 	for rows.Next() {
 		var lesson Lesson
 		lesson.Journal = new(Journal)
-		lesson.Date = new(Date)
+		lesson.Date = new(types.Date)
 
 		err := rows.Scan(
 			&lesson.ID,
@@ -164,7 +166,7 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson
 	return lessons, nil
 }
 
-func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *Date) ([]*Lesson, error) {
+func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *types.Date) ([]*Lesson, error) {
 	sqlQuery := `SELECT l.id, s.id, s.name, l.description, l.date, l.course, l.created_at, l.updated_at
 	FROM lessons l
 	INNER JOIN journals j
@@ -201,7 +203,7 @@ func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *Date
 	for rows.Next() {
 		var lesson Lesson
 		lesson.Subject = new(Subject)
-		lesson.Date = new(Date)
+		lesson.Date = new(types.Date)
 
 		err := rows.Scan(
 			&lesson.ID,

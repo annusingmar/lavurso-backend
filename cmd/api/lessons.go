@@ -8,6 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -16,10 +17,10 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	var input struct {
-		JournalID   int       `json:"journal_id"`
-		Description string    `json:"description"`
-		Date        data.Date `json:"date"`
-		Course      int       `json:"course"`
+		JournalID   int        `json:"journal_id"`
+		Description string     `json:"description"`
+		Date        types.Date `json:"date"`
+		Course      int        `json:"course"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -38,7 +39,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lesson.Date.Time.IsZero() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrInvalidDateFormat.Error())
+		app.writeErrorResponse(w, r, http.StatusBadRequest, types.ErrInvalidDateFormat.Error())
 		return
 	}
 
@@ -166,8 +167,8 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Description *string    `json:"description"`
-		Date        *data.Date `json:"date"`
+		Description *string     `json:"description"`
+		Date        *types.Date `json:"date"`
 	}
 
 	err = app.inputJSON(w, r, &input)

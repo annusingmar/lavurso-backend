@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/types"
 )
 
 const (
@@ -19,15 +21,15 @@ var (
 )
 
 type Assignment struct {
-	ID          int       `json:"id"`
-	Journal     *Journal  `json:"journal,omitempty"`
-	Subject     *Subject  `json:"subject,omitempty"`
-	Description string    `json:"description"`
-	Deadline    Date      `json:"deadline"`
-	Type        string    `json:"type"`
-	Done        *bool     `json:"done,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          int        `json:"id"`
+	Journal     *Journal   `json:"journal,omitempty"`
+	Subject     *Subject   `json:"subject,omitempty"`
+	Description string     `json:"description"`
+	Deadline    types.Date `json:"deadline"`
+	Type        string     `json:"type"`
+	Done        *bool      `json:"done,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type AssignmentModel struct {
@@ -168,7 +170,7 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment
 	return assignments, nil
 }
 
-func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *Date) ([]*Assignment, error) {
+func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *types.Date) ([]*Assignment, error) {
 	sqlQuery := `SELECT a.id, s.id, s.name, a.description, a.deadline, a.type,
 	(CASE WHEN da.user_id is NOT NULL THEN TRUE ELSE FALSE END),
 	a.created_at, a.updated_at

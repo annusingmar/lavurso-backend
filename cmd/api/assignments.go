@@ -8,6 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -63,10 +64,10 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 	sessionUser := app.getUserFromContext(r)
 
 	var input struct {
-		JournalID   int       `json:"journal_id"`
-		Description string    `json:"description"`
-		Deadline    data.Date `json:"deadline"`
-		Type        string    `json:"type"`
+		JournalID   int        `json:"journal_id"`
+		Description string     `json:"description"`
+		Deadline    types.Date `json:"deadline"`
+		Type        string     `json:"type"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -95,7 +96,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 	}
 
 	if assignment.Deadline.Time.IsZero() {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrInvalidDateFormat.Error())
+		app.writeErrorResponse(w, r, http.StatusBadRequest, types.ErrInvalidDateFormat.Error())
 		return
 	}
 
@@ -176,9 +177,9 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 	}
 
 	var input struct {
-		Description *string    `json:"description"`
-		Deadline    *data.Date `json:"deadline"`
-		Type        *string    `json:"type"`
+		Description *string     `json:"description"`
+		Deadline    *types.Date `json:"deadline"`
+		Type        *string     `json:"type"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -356,14 +357,14 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		}
 	}
 
-	var from *data.Date
-	var until *data.Date
+	var from *types.Date
+	var until *types.Date
 
 	fromDate := r.URL.Query().Get("from")
 	if fromDate == "" {
-		from = &data.Date{Time: helpers.ToPtr(time.Now().UTC())}
+		from = &types.Date{Time: helpers.ToPtr(time.Now().UTC())}
 	} else {
-		from, err = data.ParseDate(fromDate)
+		from, err = types.ParseDate(fromDate)
 		if err != nil {
 			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 			return
@@ -374,7 +375,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 	if untilDate == "" {
 		until = nil
 	} else {
-		until, err = data.ParseDate(untilDate)
+		until, err = types.ParseDate(untilDate)
 		if err != nil {
 			app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 			return

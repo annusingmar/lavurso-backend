@@ -11,6 +11,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -60,14 +61,14 @@ func (app *application) searchUser(w http.ResponseWriter, r *http.Request) {
 
 func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name        string     `json:"name"`
-		Email       string     `json:"email"`
-		Password    string     `json:"password"`
-		PhoneNumber *string    `json:"phone_number"`
-		IdCode      *int64     `json:"id_code"`
-		BirthDate   *data.Date `json:"birth_date"`
-		Role        string     `json:"role"`
-		ClassID     *int       `json:"class_id"`
+		Name        string      `json:"name"`
+		Email       string      `json:"email"`
+		Password    string      `json:"password"`
+		PhoneNumber *string     `json:"phone_number"`
+		IdCode      *int64      `json:"id_code"`
+		BirthDate   *types.Date `json:"birth_date"`
+		Role        string      `json:"role"`
+		ClassID     *int        `json:"class_id"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -85,7 +86,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	v.Check(input.IdCode == nil || len(fmt.Sprint(*input.IdCode)) == 11, "id_code", "must be 11 digits long")
 
 	if input.BirthDate == nil || input.BirthDate.Time == nil {
-		input.BirthDate = new(data.Date)
+		input.BirthDate = new(types.Date)
 	} else {
 		if input.BirthDate.Time.After(time.Now().UTC()) {
 			app.writeErrorResponse(w, r, http.StatusBadRequest, "time is in the future")
@@ -214,15 +215,15 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var input struct {
-		Name        *string    `json:"name"`
-		Email       *string    `json:"email"`
-		Password    *string    `json:"password"`
-		PhoneNumber *string    `json:"phone_number"`
-		IdCode      *int64     `json:"id_code"`
-		BirthDate   *data.Date `json:"birth_date"`
-		ClassID     *int       `json:"class_id"`
-		Active      *bool      `json:"active"`
-		Archived    *bool      `json:"archived"`
+		Name        *string     `json:"name"`
+		Email       *string     `json:"email"`
+		Password    *string     `json:"password"`
+		PhoneNumber *string     `json:"phone_number"`
+		IdCode      *int64      `json:"id_code"`
+		BirthDate   *types.Date `json:"birth_date"`
+		ClassID     *int        `json:"class_id"`
+		Active      *bool       `json:"active"`
+		Archived    *bool       `json:"archived"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -271,7 +272,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 		}
 		user.BirthDate = input.BirthDate
 	} else {
-		user.BirthDate = new(data.Date)
+		user.BirthDate = new(types.Date)
 	}
 
 	if input.ClassID != nil && *user.Role == data.RoleStudent {
