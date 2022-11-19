@@ -1,8 +1,8 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
-	"strconv"
 	"time"
 )
 
@@ -28,23 +28,22 @@ func (d *Date) String() string {
 }
 
 func (d *Date) UnmarshalJSON(b []byte) error {
-	dateString, err := strconv.Unquote(string(b))
-	if err != nil {
-		// err if not a string
+	var ds string
+	if err := json.Unmarshal(b, &ds); err != nil {
 		return ErrInvalidDateFormat
 	}
 
-	if dateString == "" {
+	if ds == "" {
 		d.Time = nil
 		return nil
 	}
 
-	t, err := time.Parse("2006-01-02", dateString)
+	date, err := ParseDate(ds)
 	if err != nil {
-		return ErrInvalidDateFormat
+		return err
 	}
 
-	d.Time = &t
+	*d = *date
 	return nil
 }
 
@@ -52,10 +51,19 @@ func (d *Date) MarshalJSON() ([]byte, error) {
 	var fd string
 
 	if d.Time != nil {
-		fd = d.Time.Format("2006-01-02")
+		fd = d.String()
 	} else {
 		return []byte("null"), nil
 	}
 
-	return []byte(strconv.Quote(fd)), nil
+	return json.Marshal(fd)
 }
+
+func (d *Date) Scan(src any) error {
+	date := src.(time.Time)
+	d.Time = &date
+	return nil
+}
+
+// todo:
+// func (d *Date) Value() (driver.Value, error)

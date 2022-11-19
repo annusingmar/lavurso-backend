@@ -12,7 +12,11 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
 	"github.com/annusingmar/lavurso-backend/internal/types"
+	"github.com/go-jet/jet/v2/postgres"
 )
 
 const (
@@ -36,26 +40,26 @@ var (
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
 
 type User struct {
-	ID          *int       `json:"id"`
-	Name        *string    `json:"name,omitempty"`
-	Email       *string    `json:"email,omitempty"`
-	PhoneNumber *string    `json:"phone_number,omitempty"`
-	IdCode      *int64     `json:"id_code,omitempty"`
-	BirthDate   *Date      `json:"birth_date,omitempty"`
-	Password    Password   `json:"-"`
-	Role        *string    `json:"role,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	Active      *bool      `json:"active,omitempty"`
-	Archived    *bool      `json:"archived,omitempty"`
-	Class       *Class     `json:"class,omitempty"`
-	Marks       []*Mark    `json:"marks,omitempty"`
-	Children    []*User    `json:"children,omitempty"`
-	SessionID   *int       `json:"-"`
+	ID          *int           `json:"id"`
+	Name        *string        `json:"name,omitempty"`
+	Email       *string        `json:"email,omitempty"`
+	PhoneNumber *string        `json:"phone_number,omitempty"`
+	IdCode      *int64         `json:"id_code,omitempty"`
+	BirthDate   *types.Date    `json:"birth_date,omitempty"`
+	Password    types.Password `json:"-"`
+	Role        *string        `json:"role,omitempty"`
+	CreatedAt   *time.Time     `json:"created_at,omitempty"`
+	Active      *bool          `json:"active,omitempty"`
+	Archived    *bool          `json:"archived,omitempty"`
+	Class       *Class         `json:"class,omitempty"`
+	Marks       []*Mark        `json:"marks,omitempty"`
+	Children    []*User        `json:"children,omitempty"`
+	SessionID   *int           `json:"-"`
 }
 
-type Password struct {
-	Hashed    []byte
-	Plaintext string
+type nUser struct {
+	model.Users
+	Class *nClass `json:"class,omitempty"`
 }
 
 type Role struct {
@@ -77,109 +81,49 @@ func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
 
 // DATABASE
 
-func (m UserModel) AllUsers(archived bool) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, cy.display_name, u.created_at, u.active, u.archived
-	FROM users u
-	LEFT JOIN classes c
-	ON u.class_id = c.id
-	LEFT JOIN classes_years cy
-	ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
-	WHERE u.archived = $1
-	ORDER BY id ASC`
+func (m UserModel) AllUsers(archived bool) ([]*nUser, error) {
+	query := postgres.SELECT(table.Users.AllColumns.Except(table.Users.Password), table.Classes.Name, table.ClassesYears.DisplayName).
+		FROM(table.Users.
+			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+			LEFT_JOIN(table.ClassesYears,
+				table.ClassesYears.ClassID.EQ(table.Classes.ID).
+					AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
+		WHERE(table.Users.Archived.EQ(postgres.Bool(archived))).
+		ORDER_BY(table.Users.ID.ASC())
+
+	var users []*nUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, archived)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		user.BirthDate = new(Date)
-		user.Class = new(Class)
-
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Email,
-			&user.PhoneNumber,
-			&user.IdCode,
-			&user.BirthDate.Time,
-			&user.Password.Hashed,
-			&user.Role,
-			&user.Class.ID,
-			&user.Class.Name,
-			&user.Class.DisplayName,
-			&user.CreatedAt,
-			&user.Active,
-			&user.Archived,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return users, nil
-
 }
 
-func (m UserModel) SearchUser(name string) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.role, u.class_id, c.name, cy.display_name
-	FROM users u
-	LEFT JOIN classes c
-	ON u.class_id = c.id
-	LEFT JOIN classes_years cy
-	ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
-	WHERE (to_tsvector('simple', u.name) @@ plainto_tsquery('simple', $1)) AND u.archived is FALSE
-	ORDER BY u.name ASC`
+func (m UserModel) SearchUser(name string) ([]*nUser, error) {
+	// todo: LIKE + LOWER -> ILIKE
+
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Users.ClassID, table.Classes.Name, table.ClassesYears.DisplayName).
+		FROM(table.Users.
+			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+			LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
+		WHERE(postgres.LOWER(table.Users.Name).LIKE(postgres.LOWER(postgres.String("%" + name + "%"))).
+			AND(table.Users.Archived.IS_FALSE())).
+		ORDER_BY(table.Users.Name.ASC())
+
+	var users []*nUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, name)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		user.Class = new(Class)
-
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-			&user.Class.ID,
-			&user.Class.Name,
-			&user.Class.DisplayName,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if user.Class.ID == nil {
-			user.Class = nil
-		}
-
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 

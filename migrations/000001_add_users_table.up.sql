@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     "archived" boolean NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX IF NOT EXISTS users_name_idx ON users USING GIN (to_tsvector('simple', name));
+CREATE INDEX trgm_idx_users_name ON users USING gin (name gin_trgm_ops);
 
 ALTER TABLE users
     ADD CONSTRAINT student_class_id_not_null CHECK ( CASE WHEN ROLE = 'student' THEN

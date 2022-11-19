@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 )
 
 var (
@@ -18,6 +20,12 @@ type Class struct {
 	Name        *string `json:"name,omitempty"`
 	DisplayName *string `json:"display_name,omitempty"`
 	Teacher     *User   `json:"teacher,omitempty"`
+}
+
+type nClass struct {
+	model.Classes
+	DisplayName *string      `json:"display_name,omitempty" alias:"classes_years.display_name"`
+	Teacher     *model.Users `json:"teacher,omitempty" alias:"teacher.*"`
 }
 
 type ClassModel struct {

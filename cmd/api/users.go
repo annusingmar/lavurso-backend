@@ -128,7 +128,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 	user := &data.User{
 		Name:        &input.Name,
 		Email:       &input.Email,
-		Password:    data.Password{Plaintext: input.Password},
+		Password:    types.Password{Plaintext: input.Password},
 		PhoneNumber: input.PhoneNumber,
 		IdCode:      input.IdCode,
 		BirthDate:   input.BirthDate,
