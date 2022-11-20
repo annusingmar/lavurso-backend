@@ -8,7 +8,7 @@
 package model
 
 type ThreadsRecipients struct {
-	ThreadID *int   `json:"thread_id,omitempty"`
-	UserID   *int32 `json:"user_id,omitempty"`
-	GroupID  *int32 `json:"group_id,omitempty"`
+	ThreadID *int `json:"thread_id,omitempty"`
+	UserID   *int `json:"user_id,omitempty"`
+	GroupID  *int `json:"group_id,omitempty"`
 }

@@ -66,6 +66,6 @@ func (d *Date) Scan(src any) error {
 	return nil
 }
 
-func (d *Date) Value() (driver.Value, error) {
-	return *d.Time, nil
+func (d Date) Value() (driver.Value, error) {
+	return d.Time, nil
 }

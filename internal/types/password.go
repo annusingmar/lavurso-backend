@@ -12,6 +12,6 @@ func (p *Password) Scan(src any) error {
 	return nil
 }
 
-func (p *Password) Value() (driver.Value, error) {
+func (p Password) Value() (driver.Value, error) {
 	return p.Hashed, nil
 }

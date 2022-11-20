@@ -14,10 +14,10 @@ import (
 type Marks struct {
 	ID        int        `sql:"primary_key" json:"id,omitempty"`
 	UserID    *int       `json:"user_id,omitempty"`
-	LessonID  *int32     `json:"lesson_id,omitempty"`
-	Course    *int32     `json:"course,omitempty"`
+	LessonID  *int       `json:"lesson_id,omitempty"`
+	Course    *int       `json:"course,omitempty"`
 	JournalID *int       `json:"journal_id,omitempty"`
-	GradeID   *int32     `json:"grade_id,omitempty"`
+	GradeID   *int       `json:"grade_id,omitempty"`
 	Comment   *string    `json:"comment,omitempty"`
 	Type      *string    `json:"type,omitempty"`
 	By        *int       `json:"by,omitempty"`

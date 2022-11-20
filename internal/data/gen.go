@@ -44,7 +44,7 @@ func main() {
 								}
 
 								switch defaultTableModelField.Type.Name {
-								case "int32":
+								case "int32", "*int32":
 									if columnMetaData.Name != "id" {
 										defaultTableModelField.Type = template.NewType(new(int))
 									} else {

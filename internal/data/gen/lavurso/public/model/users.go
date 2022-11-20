@@ -21,7 +21,7 @@ type Users struct {
 	BirthDate   *types.Date     `json:"birth_date,omitempty"`
 	Password    *types.Password `json:"-"`
 	Role        *string         `json:"role,omitempty"`
-	ClassID     *int32          `json:"class_id,omitempty"`
+	ClassID     *int            `json:"class_id,omitempty"`
 	CreatedAt   *time.Time      `json:"created_at,omitempty"`
 	Active      *bool           `json:"active,omitempty"`
 	Archived    *bool           `json:"archived,omitempty"`

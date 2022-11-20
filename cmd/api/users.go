@@ -11,7 +11,6 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
-	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -108,7 +107,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var classField *data.Class
+	var classID *int
 	if input.Role == data.RoleStudent {
 		class, err := app.models.Classes.GetClassByID(*input.ClassID)
 		if err != nil {
@@ -121,20 +120,22 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		classField = &data.Class{ID: class.ID}
+		classID = class.ID
 	} else {
-		classField = new(data.Class)
+		classID = nil
 	}
 
-	user := &data.User{
-		Name:        &input.Name,
-		Email:       &input.Email,
-		Password:    types.Password{Plaintext: input.Password},
-		PhoneNumber: input.PhoneNumber,
-		IdCode:      input.IdCode,
-		BirthDate:   input.BirthDate,
-		Role:        &input.Role,
-		Class:       classField,
+	user := &data.NUser{
+		Users: model.Users{
+			Name:        &input.Name,
+			Email:       &input.Email,
+			Password:    &types.Password{Plaintext: input.Password},
+			PhoneNumber: input.PhoneNumber,
+			IDCode:      input.IdCode,
+			BirthDate:   input.BirthDate,
+			Role:        &input.Role,
+			ClassID:     classID,
+		},
 	}
 
 	user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
@@ -142,8 +143,6 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
-
-	user.CreatedAt = helpers.ToPtr(time.Now().UTC())
 
 	err = app.models.Users.InsertUser(user)
 	if err != nil {

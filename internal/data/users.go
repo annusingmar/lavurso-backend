@@ -172,25 +172,22 @@ func (m UserModel) GetUsersByRole(role string) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m UserModel) InsertUser(u *User) error {
-	stmt := `INSERT INTO users
-	(name, email, phone_number, id_code, birth_date, password, role, class_id, created_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	RETURNING id`
+func (m UserModel) InsertUser(u *NUser) error {
+	stmt := table.Users.INSERT(
+		table.Users.Name,
+		table.Users.Email,
+		table.Users.PhoneNumber,
+		table.Users.IDCode,
+		table.Users.BirthDate,
+		table.Users.Password,
+		table.Users.Role,
+		table.Users.ClassID,
+	).MODEL(u).RETURNING(table.Users.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt,
-		u.Name,
-		u.Email,
-		u.PhoneNumber,
-		u.IdCode,
-		u.BirthDate.Time,
-		u.Password.Hashed,
-		u.Role,
-		u.Class.ID,
-		u.CreatedAt).Scan(&u.ID)
+	err := stmt.QueryContext(ctx, m.DB, u)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
