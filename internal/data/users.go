@@ -397,84 +397,38 @@ func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
 	return &user, nil
 }
 
-func (m UserModel) GetParentsForChild(childID int) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role
-	FROM users u
-	INNER JOIN parents_children pc
-	ON u.id = pc.parent_id
-	WHERE pc.child_id = $1`
+func (m UserModel) GetParentsForChild(childID int) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role).
+		FROM(table.Users.
+			INNER_JOIN(table.ParentsChildren, table.ParentsChildren.ParentID.EQ(table.Users.ID))).
+		WHERE(table.ParentsChildren.ChildID.EQ(postgres.Int32(int32(childID))))
+
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, childID)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		user.BirthDate = new(types.Date)
-
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Email,
-			&user.PhoneNumber,
-			&user.IdCode,
-			&user.BirthDate.Time,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return users, nil
 }
 
-func (m UserModel) GetChildrenForParent(parentID int) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.role
-	FROM users u
-	INNER JOIN parents_children pc
-	ON u.id = pc.child_id
-	WHERE pc.parent_id = $1`
+func (m UserModel) GetChildrenForParent(parentID int) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
+		FROM(table.Users.
+			INNER_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID))).
+		WHERE(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(parentID))))
+
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, parentID)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -482,54 +436,55 @@ func (m UserModel) GetChildrenForParent(parentID int) ([]*User, error) {
 }
 
 func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, error) {
-	query := `SELECT COUNT(1)
-	FROM users s
-	LEFT JOIN parents_children pc
-	ON s.id = pc.child_id
-	LEFT JOIN classes c
-	ON s.class_id = c.id
-	WHERE s.id = $1 AND (pc.parent_id = $2 OR c.teacher_id = $2)`
+	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
+		FROM(table.Users.
+			LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
+			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID))).
+		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))).
+			AND(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(userID))).
+				OR(table.Classes.TeacherID.EQ(postgres.Int32(int32(userID))))))
+
+	var result []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var result int
-
-	err := m.DB.QueryRowContext(ctx, query, studentID, userID).Scan(&result)
+	err := query.QueryContext(ctx, m.DB, &result)
 	if err != nil {
 		return false, err
 	}
 
-	return result > 0, nil
+	return result[0] > 0, nil
 }
 
 func (m UserModel) IsUserParentOfStudent(studentID, userID int) (bool, error) {
-	query := `SELECT COUNT(1)
-	FROM parents_children
-	WHERE child_id = $1 AND parent_id = $2`
+	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
+		FROM(table.ParentsChildren).
+		WHERE(table.ParentsChildren.ChildID.EQ(postgres.Int32(int32(studentID))).
+			AND(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(userID)))))
+
+	var result []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var result int
-
-	err := m.DB.QueryRowContext(ctx, query, studentID, userID).Scan(&result)
+	err := query.QueryContext(ctx, m.DB, &result)
 	if err != nil {
 		return false, err
 	}
 
-	return result > 0, nil
+	return result[0] > 0, nil
 }
 
 func (m UserModel) ArchiveUsersByClassID(classID int) error {
-	stmt := `UPDATE users u
-	SET archived = true
-	WHERE u.class_id = $1`
+	stmt := table.Users.UPDATE(table.Users.Archived).
+		SET(postgres.Bool(true)).
+		WHERE(table.Users.ClassID.EQ(postgres.Int32(int32(classID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, classID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
