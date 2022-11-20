@@ -341,7 +341,7 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if *sessionUser.ID != userID {
+		if sessionUser.ID != userID {
 			app.notAllowed(w, r)
 			return
 		}

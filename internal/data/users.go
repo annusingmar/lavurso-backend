@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -60,7 +59,8 @@ type User struct {
 
 type NUser struct {
 	model.Users
-	Class *NClass `json:"class,omitempty"`
+	Class     *NClass `json:"class,omitempty"`
+	SessionID *int    `json:"-" alias:"sessions.id"`
 }
 
 type Role struct {
@@ -207,26 +207,14 @@ func (m UserModel) InsertUser(u *NUser) error {
 }
 
 func (m UserModel) UpdateUser(u *NUser) error {
-	stmt := `UPDATE users SET (name, email, phone_number, id_code, birth_date, password, role, class_id, created_at, active, archived) =
-	($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	WHERE id = $12`
+	stmt := table.Users.UPDATE(table.Users.MutableColumns).
+		MODEL(u).
+		WHERE(table.Users.ID.EQ(postgres.Int32(int32(u.ID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt,
-		u.Name,
-		u.Email,
-		u.PhoneNumber,
-		u.IDCode,
-		u.BirthDate.Time,
-		u.Password.Hashed,
-		u.Role,
-		u.Class.ID,
-		u.CreatedAt,
-		u.Active,
-		u.Archived,
-		u.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -247,15 +235,16 @@ func (m UserModel) UpdateUser(u *NUser) error {
 }
 
 func (m UserModel) GetAllUserIDs() ([]int, error) {
-	query := `SELECT
-	array(SELECT id	FROM users WHERE archived is FALSE)`
+	query := postgres.SELECT(table.Users.ID).
+		FROM(table.Users).
+		WHERE(table.Users.Archived.IS_FALSE())
+
+	var ids []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var ids []int
-
-	err := m.DB.QueryRowContext(ctx, query).Scan(pgtype.NewMap().SQLScanner(&ids))
+	err := query.QueryContext(ctx, m.DB, &ids)
 	if err != nil {
 		return nil, err
 	}
@@ -264,15 +253,16 @@ func (m UserModel) GetAllUserIDs() ([]int, error) {
 }
 
 func (m UserModel) GetAllStudentIDs() ([]int, error) {
-	query := `SELECT
-	array(SELECT id	FROM users WHERE role = 'student' AND archived is FALSE)`
+	query := postgres.SELECT(table.Users.ID).
+		FROM(table.Users).
+		WHERE(table.Users.Role.EQ(postgres.String(RoleStudent)).AND(table.Users.Archived.IS_FALSE()))
+
+	var ids []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var ids []int
-
-	err := m.DB.QueryRowContext(ctx, query).Scan(pgtype.NewMap().SQLScanner(&ids))
+	err := query.QueryContext(ctx, m.DB, &ids)
 	if err != nil {
 		return nil, err
 	}
@@ -280,43 +270,25 @@ func (m UserModel) GetAllStudentIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m UserModel) GetUserBySessionToken(plaintextToken string) (*User, error) {
+func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) {
 	hash := sha256.Sum256([]byte(plaintextToken))
 
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.class_id, c.name, u.created_at, u.active, u.archived, s.id
-	FROM users u
-	LEFT JOIN classes c
-	ON u.class_id = c.id
-	INNER JOIN sessions s
-	ON u.id = s.user_id
-	WHERE u.archived is FALSE
-	AND u.active is TRUE
-	AND s.token_hash = $1
-	AND s.expires > $2`
+	query := postgres.SELECT(table.Users.AllColumns, table.Classes.Name, table.Sessions.ID).
+		FROM(table.Users.
+			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+			INNER_JOIN(table.Sessions, table.Sessions.UserID.EQ(table.Users.ID))).
+		WHERE(postgres.AND(
+			table.Users.Archived.IS_FALSE(),
+			table.Users.Active.IS_TRUE(),
+			table.Sessions.TokenHash.EQ(postgres.Bytea(hash[:])),
+			table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
+
+	var user NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var user User
-	user.BirthDate = new(types.Date)
-	user.Class = new(Class)
-
-	err := m.DB.QueryRowContext(ctx, query, hash[:], time.Now().UTC()).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Email,
-		&user.PhoneNumber,
-		&user.IdCode,
-		&user.BirthDate.Time,
-		&user.Password.Hashed,
-		&user.Role,
-		&user.Class.ID,
-		&user.Class.Name,
-		&user.CreatedAt,
-		&user.Active,
-		&user.Archived,
-		&user.SessionID,
-	)
+	err := query.QueryContext(ctx, m.DB, &user)
 
 	if err != nil {
 		switch {

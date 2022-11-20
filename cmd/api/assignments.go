@@ -49,7 +49,7 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -111,7 +111,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -166,7 +166,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -260,7 +260,7 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -308,7 +308,7 @@ func (app *application) getAssignmentsForJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -345,8 +345,8 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if *sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, *sessionUser.ID)
+	if sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -416,7 +416,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	if *sessionUser.ID != userID {
+	if sessionUser.ID != userID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -443,7 +443,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, assignment.Journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -453,7 +453,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	err = app.models.Assignments.SetAssignmentDoneForUserID(*sessionUser.ID, assignment.ID)
+	err = app.models.Assignments.SetAssignmentDoneForUserID(sessionUser.ID, assignment.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -474,7 +474,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	if *sessionUser.ID != userID {
+	if sessionUser.ID != userID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -501,7 +501,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(*sessionUser.ID, assignment.Journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -511,7 +511,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	err = app.models.Assignments.RemoveAssignmentDoneForUserID(*sessionUser.ID, assignment.ID)
+	err = app.models.Assignments.RemoveAssignmentDoneForUserID(sessionUser.ID, assignment.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

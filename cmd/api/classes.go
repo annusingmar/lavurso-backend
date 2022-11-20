@@ -41,7 +41,7 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if teacherID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if teacherID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -249,7 +249,7 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if *class.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *class.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}

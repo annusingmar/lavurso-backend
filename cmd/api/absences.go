@@ -47,7 +47,7 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 	}
 
 	if *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, *sessionUser.ID)
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -63,7 +63,7 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 	excuse := &data.Excuse{
 		MarkID: &markID,
 		Excuse: &input.Excuse,
-		By:     &data.User{ID: sessionUser.ID},
+		By:     &data.User{ID: &sessionUser.ID},
 		At:     &at,
 	}
 
@@ -121,7 +121,7 @@ func (app *application) deleteExcuseForStudent(w http.ResponseWriter, r *http.Re
 	}
 
 	if *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, *sessionUser.ID)
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

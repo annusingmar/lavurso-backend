@@ -21,7 +21,7 @@ func (app *application) allSessionsForUser(w http.ResponseWriter, r *http.Reques
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if *sessionUser.ID != userID {
+		if sessionUser.ID != userID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -62,7 +62,7 @@ func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if *sessionUser.ID != userID {
+		if sessionUser.ID != userID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -114,7 +114,7 @@ func (app *application) removeSession(w http.ResponseWriter, r *http.Request) {
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if *sessionUser.ID != session.UserID {
+		if sessionUser.ID != session.UserID {
 			app.notAllowed(w, r)
 			return
 		}

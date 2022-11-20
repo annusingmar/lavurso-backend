@@ -63,7 +63,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -118,7 +118,7 @@ func (app *application) getLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -161,7 +161,7 @@ func (app *application) updateLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -235,7 +235,7 @@ func (app *application) deleteLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -277,7 +277,7 @@ func (app *application) getLessonsForJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}

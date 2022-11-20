@@ -50,7 +50,7 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -79,7 +79,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 
 	journal := &data.Journal{
 		Name:    &input.Name,
-		Teacher: &data.User{ID: sessionUser.ID},
+		Teacher: &data.User{ID: &sessionUser.ID},
 		Subject: &data.Subject{ID: &input.SubjectID},
 	}
 
@@ -143,7 +143,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -163,7 +163,7 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		journal.Name = input.Name
 	}
 	if input.TeacherID != nil {
-		if *input.TeacherID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+		if *input.TeacherID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 			app.notAllowed(w, r)
 			return
 		}
@@ -259,7 +259,7 @@ func (app *application) getJournalsForTeacher(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if teacherID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if teacherID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -312,7 +312,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -400,7 +400,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -475,7 +475,7 @@ func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if *journal.Teacher.ID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}

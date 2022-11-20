@@ -171,7 +171,7 @@ func (app *application) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if userID != *sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if userID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -285,7 +285,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		user.Class = &data.NClass{Classes: model.Classes{ID: *class.ID}}
+		user.ClassID = class.ID
 	}
 
 	if input.Archived != nil {
@@ -330,7 +330,7 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.ID != *sessionUser.ID {
+	if user.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -396,7 +396,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if user.ID != *sessionUser.ID {
+	if user.ID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -481,7 +481,7 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if *student.Class.Teacher.ID != *sessionUser.ID {
+		if *student.Class.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -656,7 +656,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
-	children, err := app.models.Users.GetChildrenForParent(*sessionUser.ID)
+	children, err := app.models.Users.GetChildrenForParent(sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -669,7 +669,7 @@ func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{
-		"user":         &data.User{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
+		"user":         &data.User{ID: &sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
 		"children":     children,
 		"current_year": currentYear,
 	})
