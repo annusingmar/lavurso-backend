@@ -38,8 +38,8 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 		return
 	}
 
-	if sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, sessionUser.ID)
+	if sessionUser.ID != student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(student.ID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -75,13 +75,13 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 		}
 	}
 
-	marks, err := app.models.Marks.GetLatestMarksForStudent(*student.ID, from, until)
+	marks, err := app.models.Marks.GetLatestMarksForStudent(student.ID, from, until)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	lessons, err := app.models.Lessons.GetLatestLessonsForStudent(*student.ID, from, until)
+	lessons, err := app.models.Lessons.GetLatestLessonsForStudent(student.ID, from, until)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

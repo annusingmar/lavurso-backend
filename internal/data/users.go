@@ -17,6 +17,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 const (
@@ -302,36 +303,25 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) 
 	return &user, nil
 }
 
-func (m UserModel) GetUserByEmail(email string) (*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.password, u.role, u.created_at, u.active, u.archived
-	FROM users u
-	LEFT JOIN classes c
-	ON u.class_id = c.id
-	WHERE u.email = $1 AND u.archived is FALSE AND u.active is TRUE`
+func (m UserModel) GetUserByEmail(email string) (*NUser, error) {
+	query := postgres.SELECT(table.Users.AllColumns).
+		FROM(table.Users).
+		WHERE(postgres.AND(
+			table.Users.Email.EQ(postgres.String(email)),
+			table.Users.Archived.IS_FALSE(),
+			table.Users.Active.IS_TRUE(),
+		))
+
+	var user NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var user User
-	user.BirthDate = new(types.Date)
-
-	err := m.DB.QueryRowContext(ctx, query, email).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Email,
-		&user.PhoneNumber,
-		&user.IdCode,
-		&user.BirthDate.Time,
-		&user.Password.Hashed,
-		&user.Role,
-		&user.CreatedAt,
-		&user.Active,
-		&user.Archived,
-	)
+	err := query.QueryContext(ctx, m.DB, &user)
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchUser
 		default:
 			return nil, err
@@ -342,16 +332,17 @@ func (m UserModel) GetUserByEmail(email string) (*User, error) {
 }
 
 func (m UserModel) AddParentToChild(parentID, childID int) error {
-	stmt := `INSERT INTO parents_children
-	(parent_id, child_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT DO NOTHING`
+	stmt := table.ParentsChildren.INSERT(table.ParentsChildren.AllColumns).
+		MODEL(model.ParentsChildren{
+			ParentID: &parentID,
+			ChildID:  &childID,
+		}).
+		ON_CONFLICT(table.ParentsChildren.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, parentID, childID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -360,13 +351,14 @@ func (m UserModel) AddParentToChild(parentID, childID int) error {
 }
 
 func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
-	stmt := `DELETE FROM parents_children
-	WHERE parent_id = $1 and child_id = $2`
+	stmt := table.ParentsChildren.DELETE().
+		WHERE(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(parentID))).
+			AND(table.ParentsChildren.ChildID.EQ(postgres.Int32(int32(childID)))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, parentID, childID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -374,39 +366,28 @@ func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 	return nil
 }
 
-func (m UserModel) GetStudentByID(userID int) (*User, error) {
-	query := `SELECT u.id, u.name, u.email, u.phone_number, u.id_code, u.birth_date, u.role, u.class_id, c.name, u2.id, u2.name
-	FROM users u
-	LEFT JOIN classes c
-	ON u.class_id = c.id
-	LEFT JOIN users u2
-	ON c.teacher_id = u2.id
-	WHERE u.id = $1 and u.role = 'student'`
+func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
+	teacher := table.Users.AS("teacher")
+
+	query := postgres.SELECT(
+		table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role, table.Users.ClassID,
+		table.Classes.ID, table.Classes.Name,
+		teacher.ID, teacher.Name,
+	).FROM(table.Users.
+		LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+		LEFT_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID))).
+		WHERE(table.Users.ID.EQ(postgres.Int32(int32(userID))).
+			AND(table.Users.Role.EQ(postgres.String(RoleStudent))))
+
+	var user NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var user User
-	user.BirthDate = new(types.Date)
-	user.Class = &Class{Teacher: new(User)}
-
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(
-		&user.ID,
-		&user.Name,
-		&user.Email,
-		&user.PhoneNumber,
-		&user.IdCode,
-		&user.BirthDate.Time,
-		&user.Role,
-		&user.Class.ID,
-		&user.Class.Name,
-		&user.Class.Teacher.ID,
-		&user.Class.Teacher.Name,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &user)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchUser
 		default:
 			return nil, err
@@ -507,7 +488,7 @@ func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, 
 	ON s.id = pc.child_id
 	LEFT JOIN classes c
 	ON s.class_id = c.id
-	WHERE s.id = $1 AND (pc.parent_id = $2 OR (c.teacher_id = $2 AND c.archived is FALSE))`
+	WHERE s.id = $1 AND (pc.parent_id = $2 OR c.teacher_id = $2)`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

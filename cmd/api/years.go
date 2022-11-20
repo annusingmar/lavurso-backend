@@ -56,8 +56,8 @@ func (app *application) getYearsForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if sessionUser.ID != *student.ID && *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*student.ID, sessionUser.ID)
+	if sessionUser.ID != student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(student.ID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -68,7 +68,7 @@ func (app *application) getYearsForStudent(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	years, err := app.models.Years.GetYearsForStudent(*student.ID)
+	years, err := app.models.Years.GetYearsForStudent(student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

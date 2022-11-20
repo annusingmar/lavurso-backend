@@ -481,7 +481,7 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if *student.Class.Teacher.ID != sessionUser.ID {
+		if student.Class.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}
@@ -490,7 +490,7 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parents, err := app.models.Users.GetParentsForChild(*student.ID)
+	parents, err := app.models.Users.GetParentsForChild(student.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -630,7 +630,7 @@ func (app *application) removeParentFromStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	ok, err := app.models.Users.IsUserParentOfStudent(parent.ID, student.ID)
+	ok, err := app.models.Users.IsUserParentOfStudent(student.ID, parent.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
