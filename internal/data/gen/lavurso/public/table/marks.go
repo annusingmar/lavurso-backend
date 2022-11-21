@@ -25,7 +25,7 @@ type marksTable struct {
 	GradeID   postgres.ColumnInteger
 	Comment   postgres.ColumnString
 	Type      postgres.ColumnString
-	By        postgres.ColumnInteger
+	TeacherID postgres.ColumnInteger
 	CreatedAt postgres.ColumnTimestampz
 	UpdatedAt postgres.ColumnTimestampz
 
@@ -76,11 +76,11 @@ func newMarksTableImpl(schemaName, tableName, alias string) marksTable {
 		GradeIDColumn   = postgres.IntegerColumn("grade_id")
 		CommentColumn   = postgres.StringColumn("comment")
 		TypeColumn      = postgres.StringColumn("type")
-		ByColumn        = postgres.IntegerColumn("by")
+		TeacherIDColumn = postgres.IntegerColumn("teacher_id")
 		CreatedAtColumn = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn = postgres.TimestampzColumn("updated_at")
-		allColumns      = postgres.ColumnList{IDColumn, UserIDColumn, LessonIDColumn, CourseColumn, JournalIDColumn, GradeIDColumn, CommentColumn, TypeColumn, ByColumn, CreatedAtColumn, UpdatedAtColumn}
-		mutableColumns  = postgres.ColumnList{UserIDColumn, LessonIDColumn, CourseColumn, JournalIDColumn, GradeIDColumn, CommentColumn, TypeColumn, ByColumn, CreatedAtColumn, UpdatedAtColumn}
+		allColumns      = postgres.ColumnList{IDColumn, UserIDColumn, LessonIDColumn, CourseColumn, JournalIDColumn, GradeIDColumn, CommentColumn, TypeColumn, TeacherIDColumn, CreatedAtColumn, UpdatedAtColumn}
+		mutableColumns  = postgres.ColumnList{UserIDColumn, LessonIDColumn, CourseColumn, JournalIDColumn, GradeIDColumn, CommentColumn, TypeColumn, TeacherIDColumn, CreatedAtColumn, UpdatedAtColumn}
 	)
 
 	return marksTable{
@@ -95,7 +95,7 @@ func newMarksTableImpl(schemaName, tableName, alias string) marksTable {
 		GradeID:   GradeIDColumn,
 		Comment:   CommentColumn,
 		Type:      TypeColumn,
-		By:        ByColumn,
+		TeacherID: TeacherIDColumn,
 		CreatedAt: CreatedAtColumn,
 		UpdatedAt: UpdatedAtColumn,
 

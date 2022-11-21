@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 )
 
@@ -24,6 +25,13 @@ type Lesson struct {
 	CreatedAt   *time.Time  `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time  `json:"updated_at,omitempty"`
 	Marks       []*Mark     `json:"marks,omitempty"`
+}
+
+type NLessons struct {
+	model.Lessons
+	Journal *model.Journals `json:"journal,omitempty"`
+	Subject *model.Subjects `json:"subject,omitempty"`
+	Marks   []*NMark        `json:"marks,omitempty"`
 }
 
 type LessonModel struct {

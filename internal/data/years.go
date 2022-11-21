@@ -29,11 +29,7 @@ type YearStats struct {
 	JournalCount *int `json:"journal_count"`
 }
 
-type ClassYear struct {
-	ClassID     int    `json:"class_id"`
-	YearID      int    `json:"year_id"`
-	DisplayName string `json:"display_name"`
-}
+type ClassYear = model.ClassesYears
 
 type YearModel struct {
 	DB *sql.DB
@@ -73,7 +69,72 @@ func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
 
 	var years []*NYear
 
-	fmt.Println(query.DebugSql())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &years)
+	if err != nil {
+		return nil, err
+	}
+
+	return years, nil
+}
+
+func (m YearModel) InsertYear(y *NYear) error {
+	stmt := table.Years.INSERT(table.Years.MutableColumns).
+		MODEL(y).RETURNING(table.Years.ID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := stmt.QueryContext(ctx, m.DB, y)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m YearModel) InsertYearForClass(cy *ClassYear) error {
+	stmt := table.ClassesYears.INSERT(table.ClassesYears.AllColumns).
+		MODEL(cy)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m YearModel) GetCurrentYear() (*NYear, error) {
+	query := postgres.SELECT(table.Years.AllColumns).
+		FROM(table.Years).
+		WHERE(table.Years.Current.IS_TRUE())
+
+	var year NYear
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &year)
+
+	return &year, err
+}
+
+func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {
+
+	query := postgres.SELECT(table.Years.ID, table.Years.DisplayName, table.Years.Courses, table.Years.Current).DISTINCT().
+		FROM(table.Years.
+			INNER_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID)).
+			INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.ClassesYears.ClassID)).
+			INNER_JOIN(table.Users, table.Users.ClassID.EQ(table.ClassesYears.ClassID))).
+		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))))
+
+	var years []*NYear
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -86,118 +147,15 @@ func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
 	return years, nil
 }
 
-func (m YearModel) InsertYear(y *Year) (*int, error) {
-	stmt := `INSERT INTO years
-	(display_name, courses, current)
-	VALUES ($1, $2, false)
-	RETURNING id`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var id int
-
-	err := m.DB.QueryRowContext(ctx, stmt, y.DisplayName, y.Courses).Scan(&id)
-	if err != nil {
-		return nil, err
-	}
-
-	return &id, nil
-}
-
-func (m YearModel) InsertYearForClass(cy *ClassYear) error {
-	stmt := `INSERT INTO classes_years
-	(class_id, year_id, display_name)
-	VALUES ($1, $2, $3)`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.ExecContext(ctx, stmt, cy.ClassID, cy.YearID, cy.DisplayName)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m YearModel) GetCurrentYear() (*Year, error) {
-	query := `SELECT id, display_name, courses, current
-	FROM years
-	WHERE current is TRUE`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var year Year
-
-	err := m.DB.QueryRowContext(ctx, query).Scan(
-		&year.ID,
-		&year.DisplayName,
-		&year.Courses,
-		&year.Current,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &year, err
-}
-
-func (m YearModel) GetYearsForStudent(studentID int) ([]*Year, error) {
-	query := `SELECT DISTINCT y.id, y.display_name, y.courses, y.current
-	FROM years y
-	INNER JOIN classes_years cy
-	ON y.id = cy.year_id
-	INNER JOIN classes c
-	ON c.id = cy.class_id
-	INNER JOIN users u
-	ON u.class_id = cy.class_id
-	WHERE u.id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := m.DB.QueryContext(ctx, query, studentID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var years []*Year
-
-	for rows.Next() {
-		var year Year
-
-		err = rows.Scan(
-			&year.ID,
-			&year.DisplayName,
-			&year.Courses,
-			&year.Current,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		years = append(years, &year)
-	}
-
-	if rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return years, nil
-}
-
 func (m YearModel) RemoveCurrentYear() error {
-	stmt := `UPDATE years
-	SET current = false`
+	stmt := table.Years.UPDATE(table.Years.Current).
+		SET(postgres.Bool(false)).
+		WHERE(table.Years.Current.IS_TRUE())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -206,14 +164,14 @@ func (m YearModel) RemoveCurrentYear() error {
 }
 
 func (m YearModel) SetYearAsCurrent(yearID int) error {
-	stmt := `UPDATE years
-	SET current = true
-	WHERE id = $1`
+	stmt := table.Years.UPDATE(table.Years.Current).
+		SET(postgres.Bool(true)).
+		WHERE(table.Years.ID.EQ(postgres.Int32(int32(yearID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, yearID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}

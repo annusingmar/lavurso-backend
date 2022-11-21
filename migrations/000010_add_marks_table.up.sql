@@ -7,7 +7,7 @@ CREATE TABLE "public"."marks" (
     "grade_id" integer,
     "comment" text,
     "type" text NOT NULL,
-    "by" integer NOT NULL,
+    "teacher_id" integer NOT NULL,
     "created_at" timestamptz NOT NULL DEFAULT NOW(),
     "updated_at" timestamptz NOT NULL DEFAULT NOW()
 );
@@ -25,7 +25,7 @@ ALTER TABLE "public"."marks"
     ADD CONSTRAINT "marks_relation_4" FOREIGN KEY ("journal_id") REFERENCES "public"."journals" ("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE "public"."marks"
-    ADD CONSTRAINT "marks_relation_5" FOREIGN KEY ("by") REFERENCES "public"."users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+    ADD CONSTRAINT "marks_relation_5" FOREIGN KEY ("teacher_id") REFERENCES "public"."users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
 
 CREATE INDEX "marks_index_2" ON "public"."marks" ("user_id" ASC);
 

@@ -59,7 +59,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 
 	mark := new(data.Mark)
 	mark.Grade = new(data.Grade)
-	mark.By = new(data.User)
+	mark.Teacher = new(data.User)
 	mark.Lesson = &data.Lesson{Date: new(types.Date)}
 
 	mark.UserID = user.ID
@@ -171,7 +171,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mark.Comment = input.Comment
-	mark.By.ID = &sessionUser.ID
+	mark.Teacher.ID = &sessionUser.ID
 	mark.CreatedAt = time.Now().UTC()
 	mark.UpdatedAt = time.Now().UTC()
 
@@ -335,7 +335,7 @@ func (app *application) updateMark(w http.ResponseWriter, r *http.Request) {
 
 	if updated {
 		mark.UpdatedAt = time.Now().UTC()
-		mark.By.ID = &sessionUser.ID
+		mark.Teacher.ID = &sessionUser.ID
 
 		err = app.models.Marks.UpdateMark(mark)
 		if err != nil {

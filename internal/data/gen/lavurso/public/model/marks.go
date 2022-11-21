@@ -20,7 +20,7 @@ type Marks struct {
 	GradeID   *int       `json:"grade_id,omitempty"`
 	Comment   *string    `json:"comment,omitempty"`
 	Type      *string    `json:"type,omitempty"`
-	By        *int       `json:"by,omitempty"`
+	TeacherID *int       `json:"teacher_id,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -140,12 +141,15 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	// 	}
 	// }
 
-	year := &data.Year{
-		DisplayName: input.DisplayName,
-		Courses:     &input.Courses,
+	year := &data.NYear{
+		Years: model.Years{
+			DisplayName: &input.DisplayName,
+			Courses:     &input.Courses,
+			Current:     helpers.ToPtr(false),
+		},
 	}
 
-	newYearID, err := app.models.Years.InsertYear(year)
+	err = app.models.Years.InsertYear(year)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -165,14 +169,14 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		classYears = append(classYears, &data.ClassYear{YearID: *newYearID, ClassID: *insertClassID, DisplayName: nc.DisplayName})
+		classYears = append(classYears, &data.ClassYear{YearID: &year.ID, ClassID: insertClassID, DisplayName: &nc.DisplayName})
 	}
 
 	for _, tc := range input.TransferredClasses {
 		classYears = append(classYears, &data.ClassYear{
-			DisplayName: tc.DisplayName,
-			ClassID:     tc.ClassID,
-			YearID:      *newYearID,
+			DisplayName: &tc.DisplayName,
+			ClassID:     &tc.ClassID,
+			YearID:      &year.ID,
 		})
 	}
 
@@ -190,7 +194,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Years.SetYearAsCurrent(*newYearID)
+	err = app.models.Years.SetYearAsCurrent(year.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
