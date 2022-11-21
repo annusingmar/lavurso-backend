@@ -3,7 +3,12 @@ package data
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/go-jet/jet/v2/postgres"
 )
 
 type Year struct {
@@ -12,6 +17,11 @@ type Year struct {
 	Courses     *int       `json:"courses"`
 	Current     bool       `json:"current"`
 	Stats       *YearStats `json:"stats"`
+}
+
+type NYear struct {
+	model.Years
+	Stats *YearStats `json:"stats,omitempty" alias:"stats.*"`
 }
 
 type YearStats struct {
@@ -29,93 +39,47 @@ type YearModel struct {
 	DB *sql.DB
 }
 
-func (m YearModel) ListAllYears() ([]*Year, error) {
-	query := `SELECT id, display_name, courses, current
-	FROM years`
+func (m YearModel) ListAllYears() ([]*NYear, error) {
+	query := postgres.SELECT(table.Years.AllColumns).
+		FROM(table.Years)
+
+	fmt.Println(query.DebugSql())
+
+	var years []*NYear
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	err := query.QueryContext(ctx, m.DB, &years)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var years []*Year
-
-	for rows.Next() {
-		var year Year
-
-		err = rows.Scan(
-			&year.ID,
-			&year.DisplayName,
-			&year.Courses,
-			&year.Current,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		years = append(years, &year)
-	}
-
-	if rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return years, nil
 }
 
-func (m YearModel) ListAllYearsWithStats() ([]*Year, error) {
-	query := `SELECT y.id, y.display_name, y.courses, y.current,
-	(
-	  SELECT COUNT(1)
-	  FROM journals j
-	  WHERE j.year_id = y.id
-	),
-	(
-	  SELECT COUNT(1)
-	  FROM users u
-	  INNER JOIN classes_years cy
-	  ON cy.year_id = y.id
-	  WHERE u.class_id = cy.class_id
-	)
-	FROM years y`
+func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
+	journalCount := postgres.SELECT(postgres.COUNT(postgres.Int32(int32(1)))).
+		FROM(table.Journals).
+		WHERE(table.Journals.YearID.EQ(table.Years.ID))
+
+	studentCount := postgres.SELECT(postgres.COUNT(postgres.Int32(int32(1)))).
+		FROM(table.Users.
+			INNER_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID))).
+		WHERE(table.Users.ClassID.EQ(table.ClassesYears.ClassID))
+
+	query := postgres.SELECT(table.Years.AllColumns, journalCount.AS("stats.journal_count"), studentCount.AS("stats.student_count")).
+		FROM(table.Years)
+
+	var years []*NYear
+
+	fmt.Println(query.DebugSql())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	err := query.QueryContext(ctx, m.DB, &years)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var years []*Year
-
-	for rows.Next() {
-		var year Year
-		year.Stats = new(YearStats)
-
-		err = rows.Scan(
-			&year.ID,
-			&year.DisplayName,
-			&year.Courses,
-			&year.Current,
-			&year.Stats.JournalCount,
-			&year.Stats.StudentCount,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		years = append(years, &year)
-	}
-
-	if rows.Err(); err != nil {
 		return nil, err
 	}
 

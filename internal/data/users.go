@@ -58,10 +58,14 @@ type User struct {
 	SessionID   *int           `json:"-"`
 }
 
+type Student struct {
+	Class *NClass `json:"class,omitempty"`
+}
+
 type NUser struct {
 	model.Users
-	Class     *NClass `json:"class,omitempty"`
-	SessionID *int    `json:"-" alias:"sessions.id"`
+	Student   *Student `json:"student,omitempty"`
+	SessionID *int     `json:"-" alias:"sessions.id"`
 }
 
 type Role struct {
@@ -293,7 +297,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) 
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrInvalidToken
 		default:
 			return nil, err

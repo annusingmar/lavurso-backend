@@ -481,7 +481,7 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if student.Class.Teacher.ID != sessionUser.ID {
+		if student.Student.Class.Teacher.ID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}

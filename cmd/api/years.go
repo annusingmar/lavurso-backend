@@ -16,7 +16,7 @@ func (app *application) getAllYears(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	var err error
-	var years []*data.Year
+	var years []*data.NYear
 
 	if *sessionUser.Role == data.RoleAdministrator && r.URL.Query().Get("stats") == "true" {
 		years, err = app.models.Years.ListAllYearsWithStats()
