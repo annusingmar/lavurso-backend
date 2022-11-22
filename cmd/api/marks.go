@@ -107,7 +107,7 @@ func (app *application) addMark(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		mark.Lesson.ID = lesson.ID
+		mark.Lesson.ID = &lesson.ID
 
 		mark.Course = lesson.Course
 		mark.JournalID = &lesson.Journal.ID
@@ -601,7 +601,7 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	marks, err := app.models.Marks.GetMarksByLessonID(*lesson.ID)
+	marks, err := app.models.Marks.GetMarksByLessonID(lesson.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -686,24 +686,10 @@ func (app *application) getLessonsForStudentsJournalsCourse(w http.ResponseWrite
 		return
 	}
 
-	lessons, err := app.models.Lessons.GetLessonsByJournalID(journal.ID, course)
+	lessons, err := app.models.Lessons.GetLessonsAndStudentMarksByJournalID(student.ID, journal.ID, course)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
-	}
-
-	lessonMarks, err := app.models.Marks.GetLessonMarksForStudentByCourseAndJournalID(student.ID, journal.ID, course)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
-	for _, l := range lessons {
-		for _, lm := range lessonMarks {
-			if *l.ID == *lm.Lesson.ID {
-				l.Marks = append(l.Marks, lm)
-			}
-		}
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"lessons": lessons})

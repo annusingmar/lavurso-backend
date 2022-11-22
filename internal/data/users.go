@@ -59,7 +59,8 @@ type User struct {
 }
 
 type Student struct {
-	Class *NClass `json:"class,omitempty"`
+	Class   *NClass        `json:"class,omitempty"`
+	Parents []*model.Users `json:"parents,omitempty" alias:"parents"`
 }
 
 type NUser struct {
@@ -178,16 +179,7 @@ func (m UserModel) GetUsersByRole(role string) ([]*NUser, error) {
 }
 
 func (m UserModel) InsertUser(u *NUser) error {
-	stmt := table.Users.INSERT(
-		table.Users.Name,
-		table.Users.Email,
-		table.Users.PhoneNumber,
-		table.Users.IDCode,
-		table.Users.BirthDate,
-		table.Users.Password,
-		table.Users.Role,
-		table.Users.ClassID,
-	).MODEL(u).RETURNING(table.Users.ID)
+	stmt := table.Users.INSERT(table.Users.MutableColumns).MODEL(u).RETURNING(table.Users.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -372,14 +364,18 @@ func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 
 func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
 	teacher := table.Users.AS("teacher")
+	parent := table.Users.AS("parents")
 
 	query := postgres.SELECT(
 		table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role, table.Users.ClassID,
 		table.Classes.ID, table.Classes.Name,
-		teacher.ID, teacher.Name,
+		teacher.ID, teacher.Name, teacher.Role,
+		parent.ID, parent.Name, parent.Email, parent.PhoneNumber, parent.IDCode, parent.BirthDate, parent.Role,
 	).FROM(table.Users.
-		LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
-		LEFT_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID))).
+		INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+		LEFT_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+		LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
+		LEFT_JOIN(parent, parent.ID.EQ(table.ParentsChildren.ParentID))).
 		WHERE(table.Users.ID.EQ(postgres.Int32(int32(userID))).
 			AND(table.Users.Role.EQ(postgres.String(RoleStudent))))
 

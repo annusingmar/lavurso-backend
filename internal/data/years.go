@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -38,8 +37,6 @@ type YearModel struct {
 func (m YearModel) ListAllYears() ([]*NYear, error) {
 	query := postgres.SELECT(table.Years.AllColumns).
 		FROM(table.Years)
-
-	fmt.Println(query.DebugSql())
 
 	var years []*NYear
 

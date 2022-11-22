@@ -34,11 +34,11 @@ type Mark struct {
 
 type NMark struct {
 	model.Marks
-	Lesson  *model.Lessons  `json:"lesson,omitempty"`
+	Lesson  *model.Lessons  `json:"lesson,omitempty" alias:"mark_lesson"`
 	Grade   *model.Grades   `json:"grade,omitempty"`
 	Subject *model.Subjects `json:"subject,omitempty"`
-	Excuse  *model.Excuses  `json:"excuse,omitempty"`
-	Teacher *model.Users    `json:"teacher,omitempty"`
+	Excuse  *NExcuse        `json:"excuse,omitempty"`
+	Teacher *model.Users    `json:"teacher,omitempty" alias:"teacher"`
 }
 
 type MarkModel struct {
@@ -148,7 +148,7 @@ func scanMarksWithExcuse(rows *sql.Rows) ([]*Mark, error) {
 
 func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -159,7 +159,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
     LEFT JOIN excuses ex
     ON m.id = ex.mark_id
     LEFT JOIN users u2
-    ON u2.id = ex.by
+    ON u2.id = ex.user_id
 	WHERE m.id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -211,7 +211,7 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 
 func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -224,7 +224,7 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
     LEFT JOIN excuses ex
     ON m.id = ex.mark_id
     LEFT JOIN users u2
-    ON u2.id = ex.by
+    ON u2.id = ex.user_id
 	WHERE m.user_id = $1 and j.year_id = $2
 	ORDER BY updated_at ASC`
 
@@ -248,7 +248,7 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
 
 func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Date) ([]*Mark, error) {
 	sqlQuery := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, s.id, s.name, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, s.id, s.name, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -263,7 +263,7 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Da
     LEFT JOIN excuses ex
     ON m.id = ex.mark_id
     LEFT JOIN users u2
-    ON u2.id = ex.by
+    ON u2.id = ex.user_id
 	WHERE m.user_id = $1 AND %s
 	ORDER BY m.updated_at DESC`
 
@@ -463,7 +463,7 @@ func (m MarkModel) GetLessonMarksByCourseAndJournalID(journalID, course int) ([]
 
 func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*Mark, error) {
 	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.by, u2.name, u2.role, ex.at
+	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
 	FROM marks m
 	LEFT JOIN grades g
 	ON m.grade_id = g.id
@@ -474,7 +474,7 @@ func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalI
     LEFT JOIN excuses ex
     ON m.id = ex.mark_id
     LEFT JOIN users u2
-    ON u2.id = ex.by
+    ON u2.id = ex.user_id
 	WHERE m.journal_id = $1 and m.course = $2 and m.lesson_id is not NULL and m.user_id = $3
 	ORDER BY updated_at ASC`
 

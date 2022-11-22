@@ -19,7 +19,7 @@ type excusesTable struct {
 	//Columns
 	MarkID postgres.ColumnInteger
 	Excuse postgres.ColumnString
-	By     postgres.ColumnInteger
+	UserID postgres.ColumnInteger
 	At     postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
@@ -63,10 +63,10 @@ func newExcusesTableImpl(schemaName, tableName, alias string) excusesTable {
 	var (
 		MarkIDColumn   = postgres.IntegerColumn("mark_id")
 		ExcuseColumn   = postgres.StringColumn("excuse")
-		ByColumn       = postgres.IntegerColumn("by")
+		UserIDColumn   = postgres.IntegerColumn("user_id")
 		AtColumn       = postgres.TimestampzColumn("at")
-		allColumns     = postgres.ColumnList{MarkIDColumn, ExcuseColumn, ByColumn, AtColumn}
-		mutableColumns = postgres.ColumnList{ExcuseColumn, ByColumn, AtColumn}
+		allColumns     = postgres.ColumnList{MarkIDColumn, ExcuseColumn, UserIDColumn, AtColumn}
+		mutableColumns = postgres.ColumnList{ExcuseColumn, UserIDColumn, AtColumn}
 	)
 
 	return excusesTable{
@@ -75,7 +75,7 @@ func newExcusesTableImpl(schemaName, tableName, alias string) excusesTable {
 		//Columns
 		MarkID: MarkIDColumn,
 		Excuse: ExcuseColumn,
-		By:     ByColumn,
+		UserID: UserIDColumn,
 		At:     AtColumn,
 
 		AllColumns:     allColumns,

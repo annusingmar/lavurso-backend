@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
 	"github.com/annusingmar/lavurso-backend/internal/types"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -27,7 +29,7 @@ type Lesson struct {
 	Marks       []*Mark     `json:"marks,omitempty"`
 }
 
-type NLessons struct {
+type NLesson struct {
 	model.Lessons
 	Journal *model.Journals `json:"journal,omitempty"`
 	Subject *model.Subjects `json:"subject,omitempty"`
@@ -40,17 +42,15 @@ type LessonModel struct {
 
 // DATABASE
 
-func (m LessonModel) InsertLesson(l *Lesson) error {
-	stmt := `INSERT INTO lessons
-	(journal_id, description, date, course, created_at, updated_at)
-	VALUES
-	($1, $2, $3, $4, $5, $6)
-	RETURNING id`
+func (m LessonModel) InsertLesson(l *NLesson) error {
+	stmt := table.Lessons.INSERT(table.Lessons.MutableColumns).
+		MODEL(l).
+		RETURNING(table.Lessons.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, l.Journal.ID, l.Description, l.Date.Time, l.Course, l.CreatedAt, l.UpdatedAt).Scan(&l.ID)
+	err := stmt.QueryContext(ctx, m.DB, &l)
 	if err != nil {
 		return err
 	}
@@ -59,34 +59,21 @@ func (m LessonModel) InsertLesson(l *Lesson) error {
 
 }
 
-func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
-	query := `SELECT l.id, l.journal_id, j.name, l.description, l.date, l.course, l.created_at, l.updated_at
-	FROM lessons l
-	INNER JOIN journals j
-	ON j.id = l.journal_id
-	WHERE l.id = $1`
+func (m LessonModel) GetLessonByID(lessonID int) (*NLesson, error) {
+	query := postgres.SELECT(table.Lessons.AllColumns, table.Journals.AllColumns).
+		FROM(table.Lessons.
+			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Lessons.JournalID))).
+		WHERE(table.Lessons.ID.EQ(postgres.Int32(int32(lessonID))))
+
+	var lesson NLesson
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var lesson Lesson
-	lesson.Journal = new(Journal)
-	lesson.Date = new(types.Date)
-
-	err := m.DB.QueryRowContext(ctx, query, lessonID).Scan(
-		&lesson.ID,
-		&lesson.Journal.ID,
-		&lesson.Journal.Name,
-		&lesson.Description,
-		&lesson.Date.Time,
-		&lesson.Course,
-		&lesson.CreatedAt,
-		&lesson.UpdatedAt,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &lesson)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchLesson
 		default:
 			return nil, err
@@ -96,16 +83,15 @@ func (m LessonModel) GetLessonByID(lessonID int) (*Lesson, error) {
 	return &lesson, nil
 }
 
-func (m LessonModel) UpdateLesson(l *Lesson) error {
-	stmt := `UPDATE lessons
-	SET (description, date, updated_at)
-	= ($1, $2, $3)
-	WHERE id = $4`
+func (m LessonModel) UpdateLesson(l *NLesson) error {
+	stmt := table.Lessons.UPDATE(table.Lessons.Description, table.Lessons.Date, table.Lessons.UpdatedAt).
+		MODEL(l).
+		WHERE(table.Lessons.ID.EQ(postgres.Int32(int32(l.ID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, l.Description, l.Date.Time, l.UpdatedAt, l.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -114,13 +100,12 @@ func (m LessonModel) UpdateLesson(l *Lesson) error {
 }
 
 func (m LessonModel) DeleteLesson(lessonID int) error {
-	stmt := `DELETE FROM lessons
-	WHERE id = $1`
+	stmt := table.Lessons.DELETE().WHERE(table.Lessons.ID.EQ(postgres.Int32(int32(lessonID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, lessonID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -128,109 +113,90 @@ func (m LessonModel) DeleteLesson(lessonID int) error {
 	return nil
 }
 
-func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*Lesson, error) {
-	query := `SELECT id, journal_id, description, date, course, created_at, updated_at
-	FROM lessons
-	WHERE journal_id = $1 and course = $2
-	ORDER BY date DESC`
+func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*NLesson, error) {
+	query := postgres.SELECT(table.Lessons.AllColumns).
+		FROM(table.Lessons).
+		WHERE(table.Lessons.JournalID.EQ(postgres.Int32(int32(journalID))).
+			AND(table.Lessons.Course.EQ(postgres.Int32(int32(course))))).
+		ORDER_BY(table.Lessons.Date.DESC())
+
+	var lessons []*NLesson
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID, course)
+	err := query.QueryContext(ctx, m.DB, &lessons)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var lessons []*Lesson
-
-	for rows.Next() {
-		var lesson Lesson
-		lesson.Journal = new(Journal)
-		lesson.Date = new(types.Date)
-
-		err := rows.Scan(
-			&lesson.ID,
-			&lesson.Journal.ID,
-			&lesson.Description,
-			&lesson.Date.Time,
-			&lesson.Course,
-			&lesson.CreatedAt,
-			&lesson.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		lessons = append(lessons, &lesson)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return lessons, nil
 }
 
-func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *types.Date) ([]*Lesson, error) {
-	sqlQuery := `SELECT l.id, s.id, s.name, l.description, l.date, l.course, l.created_at, l.updated_at
-	FROM lessons l
-	INNER JOIN journals j
-	ON j.id = l.journal_id
-	INNER JOIN users_journals uj
-	ON uj.journal_id = j.id
-	INNER JOIN subjects s
-	ON j.subject_id = s.id
-	WHERE uj.user_id = $1 AND %s
-	ORDER BY date DESC`
+func (m LessonModel) GetLessonsAndStudentMarksByJournalID(studentID, journalID, course int) ([]*NLesson, error) {
+	teacher := table.Users.AS("teacher")
+	excuser := table.Users.AS("excuser")
+
+	query := postgres.SELECT(
+		table.Lessons.AllColumns,
+		table.Marks.AllColumns,
+		table.Grades.AllColumns,
+		table.Excuses.AllColumns,
+		teacher.ID, teacher.Name, teacher.Role,
+		excuser.ID, excuser.Name, excuser.Role).
+		FROM(table.Lessons.
+			LEFT_JOIN(table.Marks, table.Marks.LessonID.EQ(table.Lessons.ID).
+				AND(table.Marks.UserID.EQ(postgres.Int32(int32(studentID))))).
+			LEFT_JOIN(table.Grades, table.Grades.ID.EQ(table.Marks.GradeID)).
+			LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(table.Marks.ID)).
+			LEFT_JOIN(teacher, teacher.ID.EQ(table.Marks.TeacherID)).
+			LEFT_JOIN(excuser, excuser.ID.EQ(table.Excuses.UserID))).
+		WHERE(postgres.AND(
+			table.Lessons.JournalID.EQ(postgres.Int32(int32(journalID))),
+			table.Lessons.Course.EQ(postgres.Int32(int32(course))),
+		)).
+		ORDER_BY(table.Lessons.Date.DESC(), table.Marks.UpdatedAt.ASC())
+
+	var lessons []*NLesson
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows *sql.Rows
-	var err error
-
-	if until != nil {
-		query := fmt.Sprintf(sqlQuery, "l.date > $2::date AND l.date <= $3::date")
-		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time, until.Time)
-	} else {
-		query := fmt.Sprintf(sqlQuery, "l.date > $2::date")
-		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time)
-	}
-
+	err := query.QueryContext(ctx, m.DB, &lessons)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
+	return lessons, nil
+}
 
-	var lessons []*Lesson
+func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *types.Date) ([]*NLesson, error) {
+	query := postgres.SELECT(table.Lessons.AllColumns, table.Subjects.AllColumns).
+		FROM(table.Lessons.
+			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Lessons.JournalID)).
+			INNER_JOIN(table.UsersJournals, table.UsersJournals.JournalID.EQ(table.Journals.ID)).
+			INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID)))
 
-	for rows.Next() {
-		var lesson Lesson
-		lesson.Subject = new(Subject)
-		lesson.Date = new(types.Date)
-
-		err := rows.Scan(
-			&lesson.ID,
-			&lesson.Subject.ID,
-			&lesson.Subject.Name,
-			&lesson.Description,
-			&lesson.Date.Time,
-			&lesson.Course,
-			&lesson.CreatedAt,
-			&lesson.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		lessons = append(lessons, &lesson)
+	if until != nil {
+		query = query.WHERE(postgres.AND(
+			table.UsersJournals.UserID.EQ(postgres.Int32(int32(studentID))),
+			table.Lessons.Date.GT(postgres.DateT(*from.Time)),
+			table.Lessons.Date.LT_EQ(postgres.DateT(*until.Time)),
+		)).ORDER_BY(table.Lessons.Date.DESC())
+	} else {
+		query = query.WHERE(postgres.AND(
+			table.UsersJournals.UserID.EQ(postgres.Int32(int32(studentID))),
+			table.Lessons.Date.GT(postgres.DateT(*from.Time)),
+		)).ORDER_BY(table.Lessons.Date.DESC())
 	}
 
-	if err = rows.Err(); err != nil {
+	var lessons []*NLesson
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &lessons)
+	if err != nil {
 		return nil, err
 	}
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -29,13 +30,17 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	lesson := &data.Lesson{
-		Journal:     &data.Journal{ID: input.JournalID},
-		Description: &input.Description,
-		Date:        &input.Date,
-		Course:      &input.Course,
-		CreatedAt:   helpers.ToPtr(time.Now().UTC()),
-		UpdatedAt:   helpers.ToPtr(time.Now().UTC()),
+	time := time.Now().UTC()
+
+	lesson := &data.NLesson{
+		Lessons: model.Lessons{
+			JournalID:   &input.JournalID,
+			Description: &input.Description,
+			Date:        &input.Date,
+			Course:      &input.Course,
+			CreatedAt:   &time,
+			UpdatedAt:   &time,
+		},
 	}
 
 	if lesson.Date.Time.IsZero() {
@@ -240,7 +245,7 @@ func (app *application) deleteLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Lessons.DeleteLesson(*lesson.ID)
+	err = app.models.Lessons.DeleteLesson(lesson.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

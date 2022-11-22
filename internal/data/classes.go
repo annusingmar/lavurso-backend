@@ -26,7 +26,7 @@ type Class struct {
 type NClass struct {
 	model.Classes
 	DisplayName *string      `json:"display_name,omitempty" alias:"classes_years.display_name"`
-	Teacher     *model.Users `json:"teacher,omitempty" alias:"teacher.*"`
+	Teacher     *model.Users `json:"teacher,omitempty" alias:"teacher"`
 }
 
 type ClassModel struct {

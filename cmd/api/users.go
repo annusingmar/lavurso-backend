@@ -490,13 +490,7 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parents, err := app.models.Users.GetParentsForChild(student.ID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
-
-	err = app.outputJSON(w, http.StatusOK, envelope{"student": student, "parents": parents})
+	err = app.outputJSON(w, http.StatusOK, envelope{"student": student})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

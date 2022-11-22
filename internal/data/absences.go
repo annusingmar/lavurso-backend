@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 )
 
 var (
@@ -21,13 +23,18 @@ type Excuse struct {
 	At     *time.Time `json:"at,omitempty"`
 }
 
+type NExcuse struct {
+	model.Excuses
+	By *model.Users `json:"by,omitempty" alias:"excuser"`
+}
+
 type AbsenceModel struct {
 	DB *sql.DB
 }
 
 func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
 	stmt := `INSERT INTO excuses
-	(mark_id, excuse, by, at)
+	(mark_id, excuse, user_id, at)
 	VALUES
 	($1, $2, $3, $4)`
 
