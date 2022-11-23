@@ -26,6 +26,16 @@ func (p Password) Validate(check string) (bool, error) {
 	return true, nil
 }
 
+func (p *Password) CreateHash() error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(p.Plaintext), 12)
+	if err != nil {
+		return err
+	}
+	p.Hashed = hashed
+
+	return nil
+}
+
 func (p *Password) Scan(src any) error {
 	p.Hashed = src.([]byte)
 	return nil

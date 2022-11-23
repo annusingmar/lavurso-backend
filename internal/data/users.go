@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
@@ -76,14 +75,6 @@ type Role struct {
 
 type UserModel struct {
 	DB *sql.DB
-}
-
-func (m UserModel) HashPassword(plaintext string) ([]byte, error) {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(plaintext), 12)
-	if err != nil {
-		return nil, err
-	}
-	return hashed, nil
 }
 
 // DATABASE
@@ -178,8 +169,11 @@ func (m UserModel) GetUsersByRole(role string) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m UserModel) InsertUser(u *NUser) error {
-	stmt := table.Users.INSERT(table.Users.MutableColumns).MODEL(u).RETURNING(table.Users.ID)
+func (m UserModel) InsertUser(u *model.Users) error {
+	stmt := table.Users.INSERT(table.Users.MutableColumns.
+		Except(table.Users.CreatedAt, table.Users.Active, table.Users.Archived)).
+		MODEL(u).
+		RETURNING(table.Users.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

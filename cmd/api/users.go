@@ -125,20 +125,18 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		classID = nil
 	}
 
-	user := &data.NUser{
-		Users: model.Users{
-			Name:        &input.Name,
-			Email:       &input.Email,
-			Password:    &types.Password{Plaintext: input.Password},
-			PhoneNumber: input.PhoneNumber,
-			IDCode:      input.IdCode,
-			BirthDate:   input.BirthDate,
-			Role:        &input.Role,
-			ClassID:     classID,
-		},
+	user := &model.Users{
+		Name:        &input.Name,
+		Email:       &input.Email,
+		Password:    &types.Password{Plaintext: input.Password},
+		PhoneNumber: input.PhoneNumber,
+		IDCode:      input.IdCode,
+		BirthDate:   input.BirthDate,
+		Role:        &input.Role,
+		ClassID:     classID,
 	}
 
-	user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
+	err = user.Password.CreateHash()
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -253,7 +251,8 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if input.Password != nil {
-		user.Password.Hashed, err = app.models.Users.HashPassword(*input.Password)
+		user.Password.Plaintext = *input.Password
+		err = user.Password.CreateHash()
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -434,7 +433,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 	}
 
 	user.Password.Plaintext = input.NewPassword
-	user.Password.Hashed, err = app.models.Users.HashPassword(user.Password.Plaintext)
+	err = user.Password.CreateHash()
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
