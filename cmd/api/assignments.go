@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -14,8 +15,8 @@ import (
 )
 
 type AssignmentsByDate struct {
-	Date        string             `json:"date"`
-	Assignments []*data.Assignment `json:"assignments"`
+	Date        string              `json:"date"`
+	Assignments []*data.NAssignment `json:"assignments"`
 }
 
 func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,7 @@ func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
+	journal, err := app.models.Journals.GetJournalByID(*assignment.JournalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -86,13 +87,17 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	assignment := &data.Assignment{
-		Journal:     &data.Journal{ID: input.JournalID},
-		Description: input.Description,
-		Deadline:    input.Deadline,
-		Type:        input.Type,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
+	time := time.Now().UTC()
+
+	assignment := &data.NAssignment{
+		Assignments: model.Assignments{
+			JournalID:   &input.JournalID,
+			Description: &input.Description,
+			Deadline:    &input.Deadline,
+			Type:        &input.Type,
+			CreatedAt:   &time,
+			UpdatedAt:   &time,
+		},
 	}
 
 	if assignment.Deadline.Time.IsZero() {
@@ -100,7 +105,7 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
+	journal, err := app.models.Journals.GetJournalByID(*assignment.JournalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -155,7 +160,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
+	journal, err := app.models.Journals.GetJournalByID(*assignment.JournalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -189,18 +194,18 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 	}
 
 	if input.Description != nil {
-		assignment.Description = *input.Description
+		assignment.Description = input.Description
 	}
 	if input.Deadline != nil {
-		assignment.Deadline = *input.Deadline
+		assignment.Deadline = input.Deadline
 	}
 	if input.Type != nil {
-		assignment.Type = *input.Type
+		assignment.Type = input.Type
 	}
 
 	v := validator.NewValidator()
 
-	v.Check(assignment.Type == data.AssignmentHomework || assignment.Type == data.AssignmentTest, "type", "must be provided and valid")
+	v.Check(*assignment.Type == data.AssignmentHomework || *assignment.Type == data.AssignmentTest, "type", "must be provided and valid")
 	v.Check(assignment.Deadline.After(time.Now().UTC()), "deadline", "must not be in the past")
 
 	if !v.Valid() {
@@ -208,7 +213,7 @@ func (app *application) updateAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	assignment.UpdatedAt = time.Now().UTC()
+	assignment.UpdatedAt = helpers.ToPtr(time.Now().UTC())
 
 	err = app.models.Assignments.UpdateAssignment(assignment)
 	if err != nil {
@@ -249,7 +254,7 @@ func (app *application) deleteAssignment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(assignment.Journal.ID)
+	journal, err := app.models.Journals.GetJournalByID(*assignment.JournalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):
@@ -394,7 +399,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 	for _, a := range assignments {
 		dateString := a.Deadline.String()
 		if val, ok := dateIndexMap[dateString]; !ok {
-			assignmentByDate = append(assignmentByDate, &AssignmentsByDate{Date: dateString, Assignments: []*data.Assignment{a}})
+			assignmentByDate = append(assignmentByDate, &AssignmentsByDate{Date: dateString, Assignments: []*data.NAssignment{a}})
 			dateIndexMap[dateString] = len(assignmentByDate) - 1
 		} else {
 			assignmentByDate[val].Assignments = append(assignmentByDate[val].Assignments, a)
@@ -443,7 +448,7 @@ func (app *application) setAssignmentDoneForStudent(w http.ResponseWriter, r *ht
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, *assignment.JournalID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -501,7 +506,7 @@ func (app *application) removeAssignmentDoneForStudent(w http.ResponseWriter, r 
 		return
 	}
 
-	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, assignment.Journal.ID)
+	ok, err := app.models.Journals.IsUserInJournal(sessionUser.ID, *assignment.JournalID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

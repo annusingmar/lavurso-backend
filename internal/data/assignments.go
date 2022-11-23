@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
 	"github.com/annusingmar/lavurso-backend/internal/types"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 const (
@@ -32,37 +35,31 @@ type Assignment struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
+type NAssignment struct {
+	model.Assignments
+	Done    *bool           `json:"done,omitempty" alias:"assignment.done"`
+	Subject *model.Subjects `json:"subject,omitempty"`
+}
+
 type AssignmentModel struct {
 	DB *sql.DB
 }
 
-func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error) {
-	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at
-	FROM assignments a
-	INNER JOIN journals j
-	ON a.journal_id = j.id
-	WHERE a.id = $1`
+func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*NAssignment, error) {
+	query := postgres.SELECT(table.Assignments.AllColumns).
+		FROM(table.Assignments).
+		WHERE(table.Assignments.ID.EQ(postgres.Int32(int32(assignmentID))))
+
+	var assignment NAssignment
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var assignment Assignment
-	assignment.Journal = new(Journal)
-
-	err := m.DB.QueryRowContext(ctx, query, assignmentID).Scan(
-		&assignment.ID,
-		&assignment.Journal.ID,
-		&assignment.Journal.Name,
-		&assignment.Description,
-		&assignment.Deadline.Time,
-		&assignment.Type,
-		&assignment.CreatedAt,
-		&assignment.UpdatedAt,
-	)
+	err := query.QueryContext(ctx, m.DB, &assignment)
 
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchAssignment
 		default:
 			return nil, err
@@ -72,17 +69,15 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*Assignment, error
 	return &assignment, nil
 }
 
-func (m AssignmentModel) InsertAssignment(a *Assignment) error {
-	stmt := `INSERT INTO assignments
-	(journal_id, description, deadline, type, created_at, updated_at)
-	VALUES
-	($1, $2, $3, $4, $5, $6)
-	RETURNING id`
+func (m AssignmentModel) InsertAssignment(a *NAssignment) error {
+	stmt := table.Assignments.INSERT(table.Assignments.MutableColumns).
+		MODEL(a).
+		RETURNING(table.Assignments.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, a.Journal.ID, a.Description, a.Deadline.Time, a.Type, a.CreatedAt, a.UpdatedAt).Scan(&a.ID)
+	err := stmt.QueryContext(ctx, m.DB, a)
 	if err != nil {
 		return err
 	}
@@ -90,16 +85,15 @@ func (m AssignmentModel) InsertAssignment(a *Assignment) error {
 	return nil
 }
 
-func (m AssignmentModel) UpdateAssignment(a *Assignment) error {
-	stmt := `UPDATE assignments
-	SET (description, deadline, type, updated_at)
-	= ($1, $2, $3, $4)
-	WHERE id = $5`
+func (m AssignmentModel) UpdateAssignment(a *NAssignment) error {
+	stmt := table.Assignments.UPDATE(table.Assignments.Description, table.Assignments.Deadline, table.Assignments.Type, table.Assignments.UpdatedAt).
+		MODEL(a).
+		WHERE(table.Assignments.ID.EQ(postgres.Int32(int32(a.ID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, a.Description, a.Deadline.Time, a.Type, a.UpdatedAt, a.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -108,13 +102,12 @@ func (m AssignmentModel) UpdateAssignment(a *Assignment) error {
 }
 
 func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
-	stmt := `DELETE FROM assignments
-	WHERE id = $1`
+	stmt := table.Assignments.DELETE().WHERE(table.Assignments.ID.EQ(postgres.Int32(int32(assignmentID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, assignmentID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -122,118 +115,56 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 	return nil
 }
 
-func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment, error) {
-	query := `SELECT a.id, a.journal_id, j.name, a.description, a.deadline, a.type, a.created_at, a.updated_at
-	FROM assignments a
-	INNER JOIN journals j
-	ON a.journal_id = j.id
-	WHERE a.journal_id = $1
-	ORDER BY deadline DESC`
+func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*model.Assignments, error) {
+	query := postgres.SELECT(table.Assignments.AllColumns).
+		FROM(table.Assignments).
+		WHERE(table.Assignments.JournalID.EQ(postgres.Int32(int32(journalID)))).
+		ORDER_BY(table.Assignments.Deadline.DESC())
+
+	var assignments []*model.Assignments
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	err := query.QueryContext(ctx, m.DB, &assignments)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var assignments []*Assignment
-
-	for rows.Next() {
-		var assignment Assignment
-		assignment.Journal = new(Journal)
-
-		err = rows.Scan(
-			&assignment.ID,
-			&assignment.Journal.ID,
-			&assignment.Journal.Name,
-			&assignment.Description,
-			&assignment.Deadline.Time,
-			&assignment.Type,
-			&assignment.CreatedAt,
-			&assignment.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		assignments = append(assignments, &assignment)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return assignments, nil
 }
 
-func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *types.Date) ([]*Assignment, error) {
-	sqlQuery := `SELECT a.id, s.id, s.name, a.description, a.deadline, a.type,
-	(CASE WHEN da.user_id is NOT NULL THEN TRUE ELSE FALSE END),
-	a.created_at, a.updated_at
-	FROM assignments a
-	INNER JOIN users_journals uj
-	ON uj.journal_id = a.journal_id
-	INNER JOIN journals j
-	ON a.journal_id = j.id
-	INNER JOIN subjects s
-	ON j.subject_id = s.id
-	LEFT JOIN done_assignments da
-	ON a.id = da.assignment_id AND uj.user_id = da.user_id
-	WHERE uj.user_id = $1 AND %s
-	ORDER BY a.deadline ASC`
+func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *types.Date) ([]*NAssignment, error) {
+	query := postgres.SELECT(table.Assignments.AllColumns, table.Subjects.AllColumns,
+		postgres.CASE().
+			WHEN(table.DoneAssignments.UserID.IS_NOT_NULL()).
+			THEN(postgres.Bool(true)).
+			ELSE(postgres.Bool(false)).
+			AS("assignment.done")).
+		FROM(table.Assignments.
+			INNER_JOIN(table.UsersJournals, table.UsersJournals.JournalID.EQ(table.Assignments.JournalID).
+				AND(table.UsersJournals.UserID.EQ(postgres.Int32(int32(studentID))))).
+			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Assignments.JournalID)).
+			INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID)).
+			LEFT_JOIN(table.DoneAssignments, table.DoneAssignments.AssignmentID.EQ(table.Assignments.ID).
+				AND(table.DoneAssignments.UserID.EQ(table.UsersJournals.UserID))))
+
+	if until != nil {
+		query = query.WHERE(table.Assignments.Deadline.GT_EQ(postgres.DateT(*from.Time)).
+			AND(table.Assignments.Deadline.LT(postgres.DateT(*until.Time))))
+	} else {
+		query = query.WHERE(table.Assignments.Deadline.GT_EQ(postgres.DateT(*from.Time)))
+	}
+
+	query = query.ORDER_BY(table.Assignments.Deadline.ASC())
+
+	var assignments []*NAssignment
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows *sql.Rows
-	var err error
-
-	// can't use parameters for this,
-	// so interpolating it directly into query string;
-	// but still not trusting user input, so using $2 etc
-	if until != nil {
-		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2::date AND a.deadline < $3::date")
-		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time, until.Time)
-	} else {
-		query := fmt.Sprintf(sqlQuery, "a.deadline >= $2::date")
-		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time)
-	}
-
+	err := query.QueryContext(ctx, m.DB, &assignments)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var assignments []*Assignment
-
-	for rows.Next() {
-		var assignment Assignment
-		assignment.Subject = new(Subject)
-
-		err = rows.Scan(
-			&assignment.ID,
-			&assignment.Subject.ID,
-			&assignment.Subject.Name,
-			&assignment.Description,
-			&assignment.Deadline.Time,
-			&assignment.Type,
-			&assignment.Done,
-			&assignment.CreatedAt,
-			&assignment.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		assignments = append(assignments, &assignment)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -241,16 +172,17 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *ty
 }
 
 func (m AssignmentModel) SetAssignmentDoneForUserID(userID, assignmentID int) error {
-	stmt := `INSERT INTO done_assignments
-	(user_id, assignment_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT DO NOTHING`
+	stmt := table.DoneAssignments.INSERT(table.DoneAssignments.AllColumns).
+		MODEL(model.DoneAssignments{
+			UserID:       &userID,
+			AssignmentID: &assignmentID,
+		}).
+		ON_CONFLICT(table.DoneAssignments.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, assignmentID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -259,13 +191,14 @@ func (m AssignmentModel) SetAssignmentDoneForUserID(userID, assignmentID int) er
 }
 
 func (m AssignmentModel) RemoveAssignmentDoneForUserID(userID, assignmentID int) error {
-	stmt := `DELETE FROM done_assignments
-	WHERE user_id = $1 and assignment_id = $2`
+	stmt := table.DoneAssignments.DELETE().
+		WHERE(table.DoneAssignments.UserID.EQ(postgres.Int32(int32(userID))).
+			AND(table.DoneAssignments.AssignmentID.EQ(postgres.Int32(int32(assignmentID)))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, assignmentID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
