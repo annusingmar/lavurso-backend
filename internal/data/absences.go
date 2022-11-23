@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/go-jet/jet/v2/postgres"
 )
 
 var (
@@ -32,16 +34,14 @@ type AbsenceModel struct {
 	DB *sql.DB
 }
 
-func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
-	stmt := `INSERT INTO excuses
-	(mark_id, excuse, user_id, at)
-	VALUES
-	($1, $2, $3, $4)`
+func (m AbsenceModel) InsertExcuse(excuse *model.Excuses) error {
+	stmt := table.Excuses.INSERT(table.Excuses.AllColumns).
+		MODEL(excuse)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, excuse.MarkID, excuse.Excuse, excuse.By.ID, excuse.At)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -50,13 +50,13 @@ func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
 }
 
 func (m AbsenceModel) DeleteExcuseByMarkID(markID int) error {
-	stmt := `DELETE FROM excuses
-	WHERE mark_id = $1`
+	stmt := table.Excuses.DELETE().
+		WHERE(table.Excuses.MarkID.EQ(postgres.Int32(int32(markID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, markID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}

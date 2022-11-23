@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -60,10 +61,10 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 
 	at := time.Now().UTC()
 
-	excuse := &data.Excuse{
+	excuse := &model.Excuses{
 		MarkID: &markID,
 		Excuse: &input.Excuse,
-		By:     &data.User{ID: &sessionUser.ID},
+		UserID: &sessionUser.ID,
 		At:     &at,
 	}
 
