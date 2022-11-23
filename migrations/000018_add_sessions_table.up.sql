@@ -1,5 +1,5 @@
 CREATE TABLE "public"."sessions" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "token_hash" bytea NOT NULL,
     "user_id" integer NOT NULL,
     "expires" timestamptz NOT NULL,

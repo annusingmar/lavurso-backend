@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "public"."messages" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "thread_id" integer NOT NULL,
     "user_id" integer NOT NULL,
     "body" text NOT NULL,

@@ -1,5 +1,5 @@
 CREATE TABLE "public"."years" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "display_name" text NOT NULL,
     "courses" integer NOT NULL,
     "current" boolean NOT NULL

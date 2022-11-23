@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "name" text NOT NULL,
     "email" CITEXT UNIQUE NOT NULL,
     "phone_number" text,

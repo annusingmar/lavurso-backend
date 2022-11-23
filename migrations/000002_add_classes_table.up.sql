@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "classes" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "name" text NOT NULL,
     "teacher_id" integer NOT NULL
 );

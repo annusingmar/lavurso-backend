@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "public"."assignments" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "journal_id" integer NOT NULL,
     "description" text NOT NULL,
     "deadline" date NOT NULL,

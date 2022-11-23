@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "public"."threads" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "user_id" integer NOT NULL,
     "title" text NOT NULL,
     "locked" boolean NOT NULL DEFAULT FALSE,

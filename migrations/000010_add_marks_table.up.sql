@@ -1,5 +1,5 @@
 CREATE TABLE "public"."marks" (
-    "id" serial PRIMARY KEY,
+    "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     "user_id" integer NOT NULL,
     "lesson_id" integer,
     "course" integer,
