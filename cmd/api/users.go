@@ -422,7 +422,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	correct, err := data.ComparePassword(user.Password.Hashed, input.CurrentPassword)
+	correct, err := user.Password.Validate(input.CurrentPassword)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

@@ -46,7 +46,7 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	correct, err := data.ComparePassword(user.Password.Hashed, input.Password)
+	correct, err := user.Password.Validate(input.Password)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
