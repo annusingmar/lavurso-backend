@@ -366,7 +366,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 		}
 
 		for _, u := range users {
-			err = app.models.Journals.InsertUserIntoJournal(*u.ID, journal.ID)
+			err = app.models.Journals.InsertUserIntoJournal(u.ID, journal.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return

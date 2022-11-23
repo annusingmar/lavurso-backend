@@ -77,7 +77,7 @@ func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
 	return years, nil
 }
 
-func (m YearModel) InsertYear(y *NYear) error {
+func (m YearModel) InsertYear(y *model.Years) error {
 	stmt := table.Years.INSERT(table.Years.MutableColumns).
 		MODEL(y).RETURNING(table.Years.ID)
 

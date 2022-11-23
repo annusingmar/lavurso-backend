@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -35,67 +37,50 @@ type ClassModel struct {
 
 // DATABASE
 
-func (m ClassModel) InsertClass(c *Class) (*int, error) {
-	stmt := `INSERT INTO classes
-	(name, teacher_id)
-	VALUES
-	($1, $2)
-	RETURNING id`
+func (m ClassModel) InsertClass(c *model.Classes) error {
+	stmt := table.Classes.INSERT(table.Classes.MutableColumns).
+		MODEL(c).
+		RETURNING(table.Classes.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var id int
-
-	err := m.DB.QueryRowContext(ctx, stmt, c.Name, c.Teacher.ID).Scan(&id)
+	err := stmt.QueryContext(ctx, m.DB, c)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &id, err
+
+	return nil
 }
 
-func (m ClassModel) AllClasses() ([]*Class, error) {
-	query := `SELECT c.id, c.name, cy.display_name, c.teacher_id, u.name, u.role
-	FROM classes c
-	INNER JOIN users u
-	ON c.teacher_id = u.id
-    LEFT JOIN classes_years cy
-    ON cy.class_id = c.id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)`
+func (m ClassModel) AllClasses(current bool) ([]*NClass, error) {
+	teacher := table.Users.AS("teacher")
+
+	query := postgres.SELECT(table.Classes.AllColumns, table.ClassesYears.DisplayName, teacher.ID, teacher.Name, teacher.Role)
+
+	if current {
+		query = query.
+			FROM(table.Classes.
+				LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+				INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+				INNER_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
+					AND(table.ClassesYears.YearID.EQ(table.Years.ID))))
+	} else {
+		query = query.
+			FROM(table.Classes.
+				LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+				INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+				LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
+					AND(table.ClassesYears.YearID.EQ(table.Years.ID))))
+	}
+
+	var classes []*NClass
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var classes []*Class
-
-	rows, err := m.DB.QueryContext(ctx, query)
-
+	err := query.QueryContext(ctx, m.DB, &classes)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var class Class
-		class.Teacher = new(User)
-
-		err = rows.Scan(
-			&class.ID,
-			&class.Name,
-			&class.DisplayName,
-			&class.Teacher.ID,
-			&class.Teacher.Name,
-			&class.Teacher.Role,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		classes = append(classes, &class)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -103,15 +88,15 @@ func (m ClassModel) AllClasses() ([]*Class, error) {
 }
 
 func (m ClassModel) GetAllClassIDs() ([]int, error) {
-	query := `SELECT
-	array(SELECT id	FROM classes)`
+	query := postgres.SELECT(table.Classes.ID).
+		FROM(table.Classes)
+
+	var ids []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var ids []int
-
-	err := m.DB.QueryRowContext(ctx, query).Scan(pgtype.NewMap().SQLScanner(&ids))
+	err := query.QueryContext(ctx, m.DB, &ids)
 	if err != nil {
 		return nil, err
 	}
@@ -119,15 +104,15 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m ClassModel) UpdateClass(c *Class) error {
-	stmt := `UPDATE classes SET (name, teacher_id) =
-	($1, $2)
-	WHERE id = $3`
+func (m ClassModel) UpdateClass(c *NClass) error {
+	stmt := table.Classes.UPDATE(table.Classes.MutableColumns).
+		MODEL(c).
+		WHERE(table.Classes.ID.EQ(postgres.Int32(int32(c.ID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, c.Name, c.Teacher.ID, c.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -136,30 +121,23 @@ func (m ClassModel) UpdateClass(c *Class) error {
 
 }
 
-func (m ClassModel) GetClassByID(classID int) (*Class, error) {
-	query := `SELECT c.id, c.name, c.teacher_id, u.name, u.role
-	FROM classes c
-	INNER JOIN users u
-	ON c.teacher_id = u.id
-	WHERE c.id = $1`
+func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
+	teacher := table.Users.AS("teacher")
+
+	query := postgres.SELECT(table.Classes.AllColumns, teacher.ID, teacher.Name, teacher.Role).
+		FROM(table.Classes.
+			INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID))).
+		WHERE(table.Classes.ID.EQ(postgres.Int32(int32(classID))))
+
+	var class NClass
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var class Class
-	class.Teacher = new(User)
-
-	err := m.DB.QueryRowContext(ctx, query, classID).Scan(
-		&class.ID,
-		&class.Name,
-		&class.Teacher.ID,
-		&class.Teacher.Name,
-		&class.Teacher.Role,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &class)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchClass
 		default:
 			return nil, err
@@ -170,135 +148,43 @@ func (m ClassModel) GetClassByID(classID int) (*Class, error) {
 
 }
 
-func (m ClassModel) GetAllCurrentYearClasses() ([]*Class, error) {
-	query := `SELECT c.id, c.name, cy.display_name, c.teacher_id, u.name, u.role
-	FROM classes c
-	INNER JOIN users u
-	ON c.teacher_id = u.id
-    INNER JOIN classes_years cy
-    ON c.id = cy.class_id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)`
+func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, error) {
+	teacher := table.Users.AS("teacher")
+
+	query := postgres.SELECT(table.Classes.AllColumns, table.ClassesYears.DisplayName, teacher.ID, teacher.Name, teacher.Role).
+		FROM(table.Classes.
+			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+			INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+			INNER_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
+				AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
+		WHERE(table.Classes.TeacherID.EQ(postgres.Int32(int32(teacherID))))
+
+	var classes []*NClass
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var classes []*Class
-
-	rows, err := m.DB.QueryContext(ctx, query)
-
+	err := query.QueryContext(ctx, m.DB, &classes)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var class Class
-		class.Teacher = new(User)
-
-		err = rows.Scan(
-			&class.ID,
-			&class.Name,
-			&class.DisplayName,
-			&class.Teacher.ID,
-			&class.Teacher.Name,
-			&class.Teacher.Role,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		classes = append(classes, &class)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return classes, nil
 }
 
-func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*Class, error) {
-	query := `SELECT c.id, c.name, cy.display_name, c.teacher_id, u.name, u.role
-	FROM classes c
-	INNER JOIN users u
-	ON c.teacher_id = u.id
-    INNER JOIN classes_years cy
-    ON c.id = cy.class_id AND cy.year_id = (SELECT id FROM years WHERE current is TRUE)
-	WHERE c.teacher_id = $1`
+func (m ClassModel) GetUsersForClassID(classID int) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
+		FROM(table.Users).
+		WHERE(table.Users.ClassID.EQ(postgres.Int32(int32(classID)))).
+		ORDER_BY(table.Users.Name.ASC())
+
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var classes []*Class
-
-	rows, err := m.DB.QueryContext(ctx, query, teacherID)
-
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var class Class
-		class.Teacher = new(User)
-
-		err = rows.Scan(
-			&class.ID,
-			&class.Name,
-			&class.DisplayName,
-			&class.Teacher.ID,
-			&class.Teacher.Name,
-			&class.Teacher.Role,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		classes = append(classes, &class)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return classes, nil
-}
-
-func (m ClassModel) GetUsersForClassID(classID int) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.role
-	FROM users u
-	WHERE u.class_id = $1
-	ORDER BY name ASC`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := m.DB.QueryContext(ctx, query, classID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 

@@ -240,7 +240,7 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		}
 
 		for _, u := range users {
-			err = app.models.Groups.InsertUserIntoGroup(*u.ID, group.ID)
+			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return

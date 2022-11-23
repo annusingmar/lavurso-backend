@@ -6,19 +6,20 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
 
 func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
 	var err error
-	var classes []*data.Class
+	var classes []*data.NClass
 
 	current := r.URL.Query().Get("current")
 	if current != "false" {
-		classes, err = app.models.Classes.GetAllCurrentYearClasses()
+		classes, err = app.models.Classes.AllClasses(true)
 	} else {
-		classes, err = app.models.Classes.AllClasses()
+		classes, err = app.models.Classes.AllClasses(false)
 	}
 
 	if err != nil {
@@ -96,12 +97,12 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	class := &data.Class{
-		Name:    &input.Name,
-		Teacher: &data.User{ID: &input.TeacherID},
+	class := &model.Classes{
+		Name:      &input.Name,
+		TeacherID: &input.TeacherID,
 	}
 
-	teacher, err := app.models.Users.GetUserByID(*class.Teacher.ID)
+	teacher, err := app.models.Users.GetUserByID(*class.TeacherID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -117,7 +118,7 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.models.Classes.InsertClass(class)
+	err = app.models.Classes.InsertClass(class)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -188,19 +189,19 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 		class.Name = input.Name
 	}
 	if input.TeacherID != nil {
-		class.Teacher.ID = input.TeacherID
+		class.TeacherID = input.TeacherID
 	}
 
 	v := validator.NewValidator()
 	v.Check(*class.Name != "", "name", "must be provided")
-	v.Check(*class.Teacher.ID > 0, "teacher_id", "must be provided and valid")
+	v.Check(*class.TeacherID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(*class.Teacher.ID)
+	teacher, err := app.models.Users.GetUserByID(*class.TeacherID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUser):
@@ -249,12 +250,12 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if *class.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if *class.TeacherID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
 
-	users, err := app.models.Classes.GetUsersForClassID(*class.ID)
+	users, err := app.models.Classes.GetUsersForClassID(class.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

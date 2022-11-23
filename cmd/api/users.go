@@ -120,7 +120,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		classID = class.ID
+		classID = &class.ID
 	} else {
 		classID = nil
 	}
@@ -284,7 +284,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		user.ClassID = class.ID
+		user.ClassID = &class.ID
 	}
 
 	if input.Archived != nil {
@@ -480,7 +480,7 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	case data.RoleTeacher:
-		if student.Student.Class.Teacher.ID != sessionUser.ID {
+		if *student.Student.Class.TeacherID != sessionUser.ID {
 			app.notAllowed(w, r)
 			return
 		}

@@ -141,15 +141,13 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	// 	}
 	// }
 
-	year := &data.NYear{
-		Years: model.Years{
-			DisplayName: &input.DisplayName,
-			Courses:     &input.Courses,
-			Current:     helpers.ToPtr(false),
-		},
+	year := model.Years{
+		DisplayName: &input.DisplayName,
+		Courses:     &input.Courses,
+		Current:     helpers.ToPtr(false),
 	}
 
-	err = app.models.Years.InsertYear(year)
+	err = app.models.Years.InsertYear(&year)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -158,18 +156,18 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	var classYears []*data.ClassYear
 
 	for _, nc := range input.NewClasses {
-		class := &data.Class{
-			Name:    &nc.Name,
-			Teacher: &data.User{ID: &sessionUser.ID},
+		class := &model.Classes{
+			Name:      &nc.Name,
+			TeacherID: &sessionUser.ID,
 		}
 
-		insertClassID, err := app.models.Classes.InsertClass(class)
+		err := app.models.Classes.InsertClass(class)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
 
-		classYears = append(classYears, &data.ClassYear{YearID: &year.ID, ClassID: insertClassID, DisplayName: &nc.DisplayName})
+		classYears = append(classYears, &data.ClassYear{YearID: &year.ID, ClassID: &class.ID, DisplayName: &nc.DisplayName})
 	}
 
 	for _, tc := range input.TransferredClasses {
