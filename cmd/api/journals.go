@@ -351,7 +351,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 	}
 
 	for _, id := range input.StudentIDs {
-		err = app.models.Journals.InsertUserIntoJournal(id, journal.ID)
+		err = app.models.Journals.InsertStudentIntoJournal(id, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -366,7 +366,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 		}
 
 		for _, u := range users {
-			err = app.models.Journals.InsertUserIntoJournal(u.ID, journal.ID)
+			err = app.models.Journals.InsertStudentIntoJournal(u.ID, journal.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
@@ -438,7 +438,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = app.models.Journals.DeleteUserFromJournal(user.ID, journal.ID)
+	err = app.models.Journals.DeleteStudentFromJournal(user.ID, journal.ID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrUserNotInJournal):
@@ -480,7 +480,7 @@ func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	students, err := app.models.Journals.GetUsersByJournalID(journal.ID)
+	students, err := app.models.Journals.GetStudentsByJournalID(journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

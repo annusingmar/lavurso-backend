@@ -503,7 +503,7 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	students, err := app.models.Journals.GetUsersByJournalID(journal.ID)
+	students, err := app.models.Journals.GetStudentsByJournalID(journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -595,7 +595,7 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	students, err := app.models.Journals.GetUsersByJournalID(journal.ID)
+	students, err := app.models.Journals.GetStudentsByJournalID(journal.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

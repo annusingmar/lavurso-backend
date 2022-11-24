@@ -234,10 +234,10 @@ func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*Journal, 
 	return journals, nil
 }
 
-func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
+func (m JournalModel) InsertStudentIntoJournal(studentID, journalID int) error {
 	stmt := `INSERT INTO
-	users_journals
-	(user_id, journal_id)
+	students_journals
+	(student_id, journal_id)
 	VALUES
 	($1, $2)
 	ON CONFLICT DO NOTHING`
@@ -245,7 +245,7 @@ func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
+	_, err := m.DB.ExecContext(ctx, stmt, studentID, journalID)
 	if err != nil {
 		return err
 	}
@@ -253,15 +253,15 @@ func (m JournalModel) InsertUserIntoJournal(userID, journalID int) error {
 	return nil
 }
 
-func (m JournalModel) DeleteUserFromJournal(userID, journalID int) error {
+func (m JournalModel) DeleteStudentFromJournal(studentID, journalID int) error {
 	stmt := `DELETE FROM
-	users_journals
-	WHERE user_id = $1 and journal_id = $2`
+	students_journals
+	WHERE student_id = $1 and journal_id = $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := m.DB.ExecContext(ctx, stmt, userID, journalID)
+	result, err := m.DB.ExecContext(ctx, stmt, studentID, journalID)
 	if err != nil {
 		return err
 	}
@@ -278,11 +278,11 @@ func (m JournalModel) DeleteUserFromJournal(userID, journalID int) error {
 	return nil
 }
 
-func (m JournalModel) GetUsersByJournalID(journalID int) ([]*User, error) {
+func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*User, error) {
 	query := `SELECT id, name, role
 	FROM users u
-	INNER JOIN users_journals uj
-	ON uj.user_id = u.id
+	INNER JOIN students_journals uj
+	ON uj.student_id = u.id
 	WHERE uj.journal_id = $1
 	ORDER BY name ASC`
 
@@ -325,11 +325,11 @@ func (m JournalModel) GetJournalsByStudent(userID, yearID int) ([]*Journal, erro
 	ON j.teacher_id = u.id
 	INNER JOIN subjects s
 	ON j.subject_id = s.id
-	INNER JOIN users_journals uj
+	INNER JOIN students_journals uj
 	ON uj.journal_id = j.id
 	INNER JOIN years y
 	ON j.year_id = y.id
-	WHERE uj.user_id = $1 AND y.id = $2
+	WHERE uj.student_id = $1 AND y.id = $2
 	ORDER BY s.name ASC`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -377,8 +377,8 @@ func (m JournalModel) GetJournalsByStudent(userID, yearID int) ([]*Journal, erro
 }
 
 func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
-	query := `SELECT COUNT(1) FROM users_journals
-	WHERE user_id = $1 and journal_id = $2`
+	query := `SELECT COUNT(1) FROM students_journals
+	WHERE student_id = $1 and journal_id = $2`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -396,8 +396,8 @@ func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
 func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (bool, error) {
 	query := `SELECT COUNT(1)
 	FROM parents_children pc
-	INNER JOIN users_journals uj
-	ON pc.child_id = uj.user_id
+	INNER JOIN students_journals uj
+	ON pc.child_id = uj.student_id
 	WHERE pc.parent_id = $1
 	AND uj.journal_id = $2`
 
