@@ -142,12 +142,12 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *ty
 			ELSE(postgres.Bool(false)).
 			AS("assignment.done")).
 		FROM(table.Assignments.
-			INNER_JOIN(table.UsersJournals, table.UsersJournals.JournalID.EQ(table.Assignments.JournalID).
-				AND(table.UsersJournals.UserID.EQ(postgres.Int32(int32(studentID))))).
+			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(table.Assignments.JournalID).
+				AND(table.StudentsJournals.StudentID.EQ(postgres.Int32(int32(studentID))))).
 			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Assignments.JournalID)).
 			INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID)).
 			LEFT_JOIN(table.DoneAssignments, table.DoneAssignments.AssignmentID.EQ(table.Assignments.ID).
-				AND(table.DoneAssignments.UserID.EQ(table.UsersJournals.UserID))))
+				AND(table.DoneAssignments.UserID.EQ(table.StudentsJournals.StudentID))))
 
 	if until != nil {
 		query = query.WHERE(table.Assignments.Deadline.GT_EQ(postgres.DateT(*from.Time)).

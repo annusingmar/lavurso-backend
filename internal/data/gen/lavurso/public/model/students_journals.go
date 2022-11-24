@@ -7,7 +7,7 @@
 
 package model
 
-type UsersJournals struct {
-	UserID    *int `sql:"primary_key" json:"user_id,omitempty"`
+type StudentsJournals struct {
+	StudentID *int `sql:"primary_key" json:"student_id,omitempty"`
 	JournalID *int `sql:"primary_key" json:"journal_id,omitempty"`
 }

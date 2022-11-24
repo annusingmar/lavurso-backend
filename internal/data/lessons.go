@@ -174,18 +174,18 @@ func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *type
 	query := postgres.SELECT(table.Lessons.AllColumns, table.Subjects.AllColumns).
 		FROM(table.Lessons.
 			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Lessons.JournalID)).
-			INNER_JOIN(table.UsersJournals, table.UsersJournals.JournalID.EQ(table.Journals.ID)).
+			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(table.Journals.ID)).
 			INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID)))
 
 	if until != nil {
 		query = query.WHERE(postgres.AND(
-			table.UsersJournals.UserID.EQ(postgres.Int32(int32(studentID))),
+			table.StudentsJournals.StudentID.EQ(postgres.Int32(int32(studentID))),
 			table.Lessons.Date.GT(postgres.DateT(*from.Time)),
 			table.Lessons.Date.LT_EQ(postgres.DateT(*until.Time)),
 		)).ORDER_BY(table.Lessons.Date.DESC())
 	} else {
 		query = query.WHERE(postgres.AND(
-			table.UsersJournals.UserID.EQ(postgres.Int32(int32(studentID))),
+			table.StudentsJournals.StudentID.EQ(postgres.Int32(int32(studentID))),
 			table.Lessons.Date.GT(postgres.DateT(*from.Time)),
 		)).ORDER_BY(table.Lessons.Date.DESC())
 	}
