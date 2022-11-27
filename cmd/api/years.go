@@ -82,8 +82,6 @@ func (app *application) getYearsForStudent(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
 	var input struct {
 		DisplayName string `json:"display_name"`
 		Courses     int    `json:"courses"`
@@ -157,8 +155,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 
 	for _, nc := range input.NewClasses {
 		class := &model.Classes{
-			Name:      &nc.Name,
-			TeacherID: &sessionUser.ID,
+			Name: &nc.Name,
 		}
 
 		err := app.models.Classes.InsertClass(class)

@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -98,25 +100,25 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	}
 
 	class := &model.Classes{
-		Name:      &input.Name,
-		TeacherID: &input.TeacherID,
+		Name: &input.Name,
 	}
 
-	teacher, err := app.models.Users.GetUserByID(*class.TeacherID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
+	// todo
+	// teacher, err := app.models.Users.GetUserByID(*class.TeacherID)
+	// if err != nil {
+	// 	switch {
+	// 	case errors.Is(err, data.ErrNoSuchUser):
+	// 		app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+	// 	default:
+	// 		app.writeInternalServerError(w, r, err)
+	// 	}
+	// 	return
+	// }
 
-	if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
-		return
-	}
+	// if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
+	// 	app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
+	// 	return
+	// }
 
 	err = app.models.Classes.InsertClass(class)
 	if err != nil {
@@ -174,9 +176,8 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input struct {
-		Name      *string `json:"name"`
-		TeacherID *int    `json:"teacher_id"`
-		Archived  *bool   `json:"archived"`
+		Name       *string `json:"name"`
+		TeacherIDs []int   `json:"teacher_ids"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -188,36 +189,27 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 	if input.Name != nil {
 		class.Name = input.Name
 	}
-	if input.TeacherID != nil {
-		class.TeacherID = input.TeacherID
-	}
 
 	v := validator.NewValidator()
 	v.Check(*class.Name != "", "name", "must be provided")
-	v.Check(*class.TeacherID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(*class.TeacherID)
+	allUserIDs, err := app.models.Users.GetAllUserIDs()
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	badIDs := helpers.VerifyExistsInSlice(input.TeacherIDs, allUserIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
 		return
 	}
 
-	if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
-		return
-	}
-
-	err = app.models.Classes.UpdateClass(class)
+	err = app.models.Classes.UpdateClass(class, input.TeacherIDs)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -250,9 +242,17 @@ func (app *application) getStudentsInClass(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if *class.TeacherID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
-		app.notAllowed(w, r)
-		return
+	if *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOfClass(sessionUser.ID, class.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
 	}
 
 	users, err := app.models.Classes.GetUsersForClassID(class.ID)

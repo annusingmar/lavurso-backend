@@ -357,17 +357,14 @@ func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 }
 
 func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
-	teacher := table.Users.AS("teacher")
 	parent := table.Users.AS("parents")
 
 	query := postgres.SELECT(
 		table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role, table.Users.ClassID,
 		table.Classes.ID, table.Classes.Name,
-		teacher.ID, teacher.Name, teacher.Role,
 		parent.ID, parent.Name, parent.Email, parent.PhoneNumber, parent.IDCode, parent.BirthDate, parent.Role,
 	).FROM(table.Users.
 		INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
-		LEFT_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
 		LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
 		LEFT_JOIN(parent, parent.ID.EQ(table.ParentsChildren.ParentID))).
 		WHERE(table.Users.ID.EQ(postgres.Int32(int32(userID))).
@@ -433,10 +430,49 @@ func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, 
 	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
 		FROM(table.Users.
 			LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
-			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID))).
+			LEFT_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Users.ClassID))).
 		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))).
 			AND(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(userID))).
-				OR(table.Classes.TeacherID.EQ(postgres.Int32(int32(userID))))))
+				OR(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(userID))))))
+
+	var result []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &result)
+	if err != nil {
+		return false, err
+	}
+
+	return result[0] > 0, nil
+}
+
+func (m UserModel) IsUserTeacherOfStudent(studentID, userID int) (bool, error) {
+	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
+		FROM(table.Users.
+			INNER_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Users.ClassID))).
+		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))).
+			AND(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(userID)))))
+
+	var result []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &result)
+	if err != nil {
+		return false, err
+	}
+
+	return result[0] > 0, nil
+}
+
+func (m UserModel) IsUserTeacherOfClass(userID, classID int) (bool, error) {
+	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
+		FROM(table.TeachersClasses).
+		WHERE(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(userID))).
+			AND(table.TeachersClasses.ClassID.EQ(postgres.Int32(int32(classID)))))
 
 	var result []int
 

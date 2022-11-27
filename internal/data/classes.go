@@ -27,8 +27,8 @@ type Class struct {
 
 type NClass struct {
 	model.Classes
-	DisplayName *string      `json:"display_name,omitempty" alias:"classes_years.display_name"`
-	Teacher     *model.Users `json:"teacher,omitempty" alias:"teacher"`
+	DisplayName *string        `json:"display_name,omitempty" alias:"classes_years.display_name"`
+	Teachers    []*model.Users `json:"teachers,omitempty" alias:"teachers"`
 }
 
 type ClassModel struct {
@@ -54,7 +54,7 @@ func (m ClassModel) InsertClass(c *model.Classes) error {
 }
 
 func (m ClassModel) AllClasses(current bool) ([]*NClass, error) {
-	teacher := table.Users.AS("teacher")
+	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(table.Classes.AllColumns, table.ClassesYears.DisplayName, teacher.ID, teacher.Name, teacher.Role)
 
@@ -62,14 +62,16 @@ func (m ClassModel) AllClasses(current bool) ([]*NClass, error) {
 		query = query.
 			FROM(table.Classes.
 				LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
-				INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+				LEFT_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Classes.ID)).
+				LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID)).
 				INNER_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
 					AND(table.ClassesYears.YearID.EQ(table.Years.ID))))
 	} else {
 		query = query.
 			FROM(table.Classes.
 				LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
-				INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+				LEFT_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Classes.ID)).
+				LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID)).
 				LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
 					AND(table.ClassesYears.YearID.EQ(table.Years.ID))))
 	}
@@ -104,8 +106,8 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m ClassModel) UpdateClass(c *NClass) error {
-	stmt := table.Classes.UPDATE(table.Classes.MutableColumns).
+func (m ClassModel) UpdateClass(c *NClass, teacherIDs []int) error {
+	stmt := table.Classes.UPDATE(table.Classes.Name).
 		MODEL(c).
 		WHERE(table.Classes.ID.EQ(postgres.Int32(int32(c.ID))))
 
@@ -117,16 +119,50 @@ func (m ClassModel) UpdateClass(c *NClass) error {
 		return err
 	}
 
-	return nil
+	var tcs []model.TeachersClasses
+	var tids []postgres.Expression
+	for _, tid := range teacherIDs {
+		tid := tid
+		tcs = append(tcs, model.TeachersClasses{
+			TeacherID: &tid,
+			ClassID:   &c.ID,
+		})
+		tids = append(tids, postgres.Int32(int32(tid)))
+	}
 
+	var deletestmt postgres.DeleteStatement
+
+	if tcs != nil {
+		insertstmt := table.TeachersClasses.INSERT(table.TeachersClasses.AllColumns).
+			MODELS(tcs).
+			ON_CONFLICT(table.TeachersClasses.AllColumns...).DO_NOTHING()
+
+		_, err := insertstmt.ExecContext(ctx, m.DB)
+		if err != nil {
+			return err
+		}
+
+		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.TeacherID.NOT_IN(tids...).
+			AND(table.TeachersClasses.ClassID.EQ(postgres.Int32(int32(c.ID)))))
+	} else {
+		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.ClassID.EQ(postgres.Int32(int32(c.ID))))
+	}
+
+	_, err = deletestmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
-	teacher := table.Users.AS("teacher")
+	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(table.Classes.AllColumns, teacher.ID, teacher.Name, teacher.Role).
 		FROM(table.Classes.
-			INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID))).
+			LEFT_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Classes.ID)).
+			LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID))).
 		WHERE(table.Classes.ID.EQ(postgres.Int32(int32(classID))))
 
 	var class NClass
@@ -149,15 +185,16 @@ func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
 }
 
 func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, error) {
-	teacher := table.Users.AS("teacher")
+	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(table.Classes.AllColumns, table.ClassesYears.DisplayName, teacher.ID, teacher.Name, teacher.Role).
 		FROM(table.Classes.
 			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
-			INNER_JOIN(teacher, teacher.ID.EQ(table.Classes.TeacherID)).
+			INNER_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Classes.ID)).
+			INNER_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID)).
 			INNER_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
 				AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
-		WHERE(table.Classes.TeacherID.EQ(postgres.Int32(int32(teacherID))))
+		WHERE(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(teacherID))))
 
 	var classes []*NClass
 

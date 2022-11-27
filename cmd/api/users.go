@@ -477,16 +477,17 @@ func (app *application) getStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	case data.RoleTeacher:
-		if *student.Student.Class.TeacherID != sessionUser.ID {
+	if *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOfStudent(student.ID, sessionUser.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+
+		if !ok {
 			app.notAllowed(w, r)
 			return
 		}
-	default:
-		app.notAllowed(w, r)
-		return
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"student": student})

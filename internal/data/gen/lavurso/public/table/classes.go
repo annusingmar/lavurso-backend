@@ -17,9 +17,8 @@ type classesTable struct {
 	postgres.Table
 
 	//Columns
-	ID        postgres.ColumnInteger
-	Name      postgres.ColumnString
-	TeacherID postgres.ColumnInteger
+	ID   postgres.ColumnInteger
+	Name postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -60,20 +59,18 @@ func newClassesTable(schemaName, tableName, alias string) *ClassesTable {
 
 func newClassesTableImpl(schemaName, tableName, alias string) classesTable {
 	var (
-		IDColumn        = postgres.IntegerColumn("id")
-		NameColumn      = postgres.StringColumn("name")
-		TeacherIDColumn = postgres.IntegerColumn("teacher_id")
-		allColumns      = postgres.ColumnList{IDColumn, NameColumn, TeacherIDColumn}
-		mutableColumns  = postgres.ColumnList{NameColumn, TeacherIDColumn}
+		IDColumn       = postgres.IntegerColumn("id")
+		NameColumn     = postgres.StringColumn("name")
+		allColumns     = postgres.ColumnList{IDColumn, NameColumn}
+		mutableColumns = postgres.ColumnList{NameColumn}
 	)
 
 	return classesTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		ID:        IDColumn,
-		Name:      NameColumn,
-		TeacherID: TeacherIDColumn,
+		ID:   IDColumn,
+		Name: NameColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
