@@ -38,7 +38,7 @@ type ClassModel struct {
 // DATABASE
 
 func (m ClassModel) InsertClass(c *model.Classes) error {
-	stmt := table.Classes.INSERT(table.Classes.MutableColumns).
+	stmt := table.Classes.INSERT(table.Classes.Name).
 		MODEL(c).
 		RETURNING(table.Classes.ID)
 

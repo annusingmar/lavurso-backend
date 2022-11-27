@@ -79,8 +79,7 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 
 func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name      string `json:"name"`
-		TeacherID int    `json:"teacher_id"`
+		Name string `json:"name"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -92,7 +91,6 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	v.Check(input.Name != "", "name", "must be provided")
-	v.Check(input.TeacherID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
@@ -102,23 +100,6 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	class := &model.Classes{
 		Name: &input.Name,
 	}
-
-	// todo
-	// teacher, err := app.models.Users.GetUserByID(*class.TeacherID)
-	// if err != nil {
-	// 	switch {
-	// 	case errors.Is(err, data.ErrNoSuchUser):
-	// 		app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-	// 	default:
-	// 		app.writeInternalServerError(w, r, err)
-	// 	}
-	// 	return
-	// }
-
-	// if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
-	// 	app.writeErrorResponse(w, r, http.StatusBadRequest, "user not an admin")
-	// 	return
-	// }
 
 	err = app.models.Classes.InsertClass(class)
 	if err != nil {
