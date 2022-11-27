@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS users (
     "archived" boolean NOT NULL DEFAULT FALSE
 );
 
+ALTER TABLE "public"."users"
+    ADD CONSTRAINT "users_relation_1" FOREIGN KEY ("class_id") REFERENCES "public"."classes" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
+
 CREATE INDEX trgm_idx_users_name ON users USING gin (name gin_trgm_ops);
 
 ALTER TABLE users

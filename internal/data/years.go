@@ -28,7 +28,11 @@ type YearStats struct {
 	JournalCount *int `json:"journal_count"`
 }
 
-type ClassYear = model.ClassesYears
+type ClassAndYear struct {
+	YearID    int     `json:"year_id" alias:"years.id"`
+	YearName  string  `json:"year_name" alias:"years.display_name"`
+	ClassName *string `json:"class_name,omitempty" alias:"classes_years.display_name"`
+}
 
 type YearModel struct {
 	DB *sql.DB
@@ -77,6 +81,23 @@ func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
 	return years, nil
 }
 
+func (m YearModel) GetAllYearIDs() ([]int, error) {
+	query := postgres.SELECT(table.Years.ID).
+		FROM(table.Years)
+
+	var ids []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
 func (m YearModel) InsertYear(y *model.Years) error {
 	stmt := table.Years.INSERT(table.Years.MutableColumns).
 		MODEL(y).RETURNING(table.Years.ID)
@@ -92,9 +113,30 @@ func (m YearModel) InsertYear(y *model.Years) error {
 	return nil
 }
 
-func (m YearModel) InsertYearForClass(cy *ClassYear) error {
+func (m YearModel) InsertYearForClass(cy *model.ClassesYears) error {
 	stmt := table.ClassesYears.INSERT(table.ClassesYears.AllColumns).
-		MODEL(cy)
+		MODEL(cy).
+		ON_CONFLICT(table.ClassesYears.ClassID, table.ClassesYears.YearID).
+		DO_UPDATE(postgres.SET(table.ClassesYears.DisplayName.SET(postgres.String(*cy.DisplayName))))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m YearModel) RemoveYearsForClass(yearIDs []int) error {
+	var yids []postgres.Expression
+	for _, id := range yearIDs {
+		yids = append(yids, postgres.Int32(int32(id)))
+	}
+
+	stmt := table.ClassesYears.DELETE().WHERE(table.ClassesYears.YearID.IN(yids...))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -142,6 +184,30 @@ func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {
 	}
 
 	return years, nil
+}
+
+func (m YearModel) GetYearsForClass(classID int) ([]*ClassAndYear, error) {
+	query := postgres.SELECT(
+		table.Years.ID,
+		table.Years.DisplayName,
+		table.ClassesYears.DisplayName,
+	).
+		FROM(table.Years.
+			LEFT_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID).
+				AND(table.ClassesYears.ClassID.EQ(postgres.Int32(int32(classID)))))).
+		ORDER_BY(table.Years.ID.DESC())
+
+	var cy []*ClassAndYear
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &cy)
+	if err != nil {
+		return nil, err
+	}
+
+	return cy, nil
 }
 
 func (m YearModel) RemoveCurrentYear() error {

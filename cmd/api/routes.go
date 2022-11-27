@@ -111,6 +111,10 @@ func (app *application) routes() http.Handler {
 			// new year
 			mux.Post("/years/new", app.newYear)
 
+			mux.Get("/classes/{id}/years", app.getYearsForClass)
+
+			mux.Put("/classes/{id}/years", app.setYearsForClass)
+
 		})
 
 		// requires at least role 'teacher'
