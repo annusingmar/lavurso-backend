@@ -130,13 +130,14 @@ func (m YearModel) InsertYearForClass(cy *model.ClassesYears) error {
 	return nil
 }
 
-func (m YearModel) RemoveYearsForClass(yearIDs []int) error {
+func (m YearModel) RemoveYearsForClass(id int, yearIDs []int) error {
 	var yids []postgres.Expression
 	for _, id := range yearIDs {
 		yids = append(yids, postgres.Int32(int32(id)))
 	}
 
-	stmt := table.ClassesYears.DELETE().WHERE(table.ClassesYears.YearID.IN(yids...))
+	stmt := table.ClassesYears.DELETE().WHERE(table.ClassesYears.ClassID.EQ(postgres.Int32(int32(id))).
+		AND(table.ClassesYears.YearID.IN(yids...)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

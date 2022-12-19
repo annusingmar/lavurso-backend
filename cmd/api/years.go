@@ -184,7 +184,7 @@ func (app *application) setYearsForClass(w http.ResponseWriter, r *http.Request)
 	}
 
 	if removedYears != nil {
-		err = app.models.Years.RemoveYearsForClass(removedYears)
+		err = app.models.Years.RemoveYearsForClass(class.ID, removedYears)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
