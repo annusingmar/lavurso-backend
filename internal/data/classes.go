@@ -8,6 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 )
@@ -109,7 +110,7 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 func (m ClassModel) UpdateClass(c *NClass, teacherIDs []int) error {
 	stmt := table.Classes.UPDATE(table.Classes.Name).
 		MODEL(c).
-		WHERE(table.Classes.ID.EQ(postgres.Int32(int32(c.ID))))
+		WHERE(table.Classes.ID.EQ(helpers.PostgresInt(c.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -127,7 +128,7 @@ func (m ClassModel) UpdateClass(c *NClass, teacherIDs []int) error {
 			TeacherID: &tid,
 			ClassID:   &c.ID,
 		})
-		tids = append(tids, postgres.Int32(int32(tid)))
+		tids = append(tids, helpers.PostgresInt(tid))
 	}
 
 	var deletestmt postgres.DeleteStatement
@@ -143,9 +144,9 @@ func (m ClassModel) UpdateClass(c *NClass, teacherIDs []int) error {
 		}
 
 		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.TeacherID.NOT_IN(tids...).
-			AND(table.TeachersClasses.ClassID.EQ(postgres.Int32(int32(c.ID)))))
+			AND(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(c.ID))))
 	} else {
-		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.ClassID.EQ(postgres.Int32(int32(c.ID))))
+		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(c.ID)))
 	}
 
 	_, err = deletestmt.ExecContext(ctx, m.DB)
@@ -163,7 +164,7 @@ func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
 		FROM(table.Classes.
 			LEFT_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Classes.ID)).
 			LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID))).
-		WHERE(table.Classes.ID.EQ(postgres.Int32(int32(classID))))
+		WHERE(table.Classes.ID.EQ(helpers.PostgresInt(classID)))
 
 	var class NClass
 
@@ -194,7 +195,11 @@ func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, e
 			INNER_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID)).
 			INNER_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
 				AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
-		WHERE(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(teacherID))))
+		WHERE(table.Classes.ID.IN(
+			postgres.SELECT(table.Classes.ID).FROM(table.Classes.
+				INNER_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Classes.ID))).
+				WHERE(table.TeachersClasses.TeacherID.EQ(helpers.PostgresInt(teacherID))),
+		))
 
 	var classes []*NClass
 
@@ -212,7 +217,7 @@ func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, e
 func (m ClassModel) GetUsersForClassID(classID int) ([]*NUser, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Users).
-		WHERE(table.Users.ClassID.EQ(postgres.Int32(int32(classID)))).
+		WHERE(table.Users.ClassID.EQ(helpers.PostgresInt(classID))).
 		ORDER_BY(table.Users.Name.ASC())
 
 	var users []*NUser

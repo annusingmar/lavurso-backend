@@ -1,6 +1,9 @@
 package helpers
 
-import "golang.org/x/exp/slices"
+import (
+	"github.com/go-jet/jet/v2/postgres"
+	"golang.org/x/exp/slices"
+)
 
 func VerifyExistsInSlice(toCheck, checkFrom []int) []int {
 	var notFound []int
@@ -17,4 +20,8 @@ func VerifyExistsInSlice(toCheck, checkFrom []int) []int {
 
 func ToPtr[T any](v T) *T {
 	return &v
+}
+
+func PostgresInt(i int) postgres.IntegerExpression {
+	return postgres.Int32(int32(i))
 }

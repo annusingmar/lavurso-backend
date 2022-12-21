@@ -7,6 +7,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/go-jet/jet/v2/postgres"
 )
 
@@ -56,11 +57,11 @@ func (m YearModel) ListAllYears() ([]*NYear, error) {
 }
 
 func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
-	journalCount := postgres.SELECT(postgres.COUNT(postgres.Int32(int32(1)))).
+	journalCount := postgres.SELECT(postgres.COUNT(helpers.PostgresInt(1))).
 		FROM(table.Journals).
 		WHERE(table.Journals.YearID.EQ(table.Years.ID))
 
-	studentCount := postgres.SELECT(postgres.COUNT(postgres.Int32(int32(1)))).
+	studentCount := postgres.SELECT(postgres.COUNT(helpers.PostgresInt(1))).
 		FROM(table.Users.
 			INNER_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID))).
 		WHERE(table.Users.ClassID.EQ(table.ClassesYears.ClassID))
@@ -133,10 +134,10 @@ func (m YearModel) InsertYearForClass(cy *model.ClassesYears) error {
 func (m YearModel) RemoveYearsForClass(id int, yearIDs []int) error {
 	var yids []postgres.Expression
 	for _, id := range yearIDs {
-		yids = append(yids, postgres.Int32(int32(id)))
+		yids = append(yids, helpers.PostgresInt(id))
 	}
 
-	stmt := table.ClassesYears.DELETE().WHERE(table.ClassesYears.ClassID.EQ(postgres.Int32(int32(id))).
+	stmt := table.ClassesYears.DELETE().WHERE(table.ClassesYears.ClassID.EQ(helpers.PostgresInt(id)).
 		AND(table.ClassesYears.YearID.IN(yids...)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -172,7 +173,7 @@ func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {
 			INNER_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID)).
 			INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.ClassesYears.ClassID)).
 			INNER_JOIN(table.Users, table.Users.ClassID.EQ(table.ClassesYears.ClassID))).
-		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))))
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(studentID)))
 
 	var years []*NYear
 
@@ -195,7 +196,7 @@ func (m YearModel) GetYearsForClass(classID int) ([]*ClassAndYear, error) {
 	).
 		FROM(table.Years.
 			LEFT_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID).
-				AND(table.ClassesYears.ClassID.EQ(postgres.Int32(int32(classID)))))).
+				AND(table.ClassesYears.ClassID.EQ(helpers.PostgresInt(classID))))).
 		ORDER_BY(table.Years.ID.DESC())
 
 	var cy []*ClassAndYear
@@ -230,7 +231,7 @@ func (m YearModel) RemoveCurrentYear() error {
 func (m YearModel) SetYearAsCurrent(yearID int) error {
 	stmt := table.Years.UPDATE(table.Years.Current).
 		SET(postgres.Bool(true)).
-		WHERE(table.Years.ID.EQ(postgres.Int32(int32(yearID))))
+		WHERE(table.Years.ID.EQ(helpers.PostgresInt(yearID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

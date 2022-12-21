@@ -14,6 +14,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
@@ -135,7 +136,7 @@ func (m UserModel) GetUserByID(userID int) (*NUser, error) {
 			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
 			LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
 				AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
-		WHERE(table.Users.ID.EQ(postgres.Int32(int32(userID))))
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)))
 
 	var user NUser
 
@@ -200,7 +201,7 @@ func (m UserModel) InsertUser(u *model.Users) error {
 func (m UserModel) UpdateUser(u *NUser) error {
 	stmt := table.Users.UPDATE(table.Users.MutableColumns).
 		MODEL(u).
-		WHERE(table.Users.ID.EQ(postgres.Int32(int32(u.ID))))
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(u.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -342,8 +343,8 @@ func (m UserModel) AddParentToChild(parentID, childID int) error {
 
 func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 	stmt := table.ParentsChildren.DELETE().
-		WHERE(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(parentID))).
-			AND(table.ParentsChildren.ChildID.EQ(postgres.Int32(int32(childID)))))
+		WHERE(table.ParentsChildren.ParentID.EQ(helpers.PostgresInt(parentID)).
+			AND(table.ParentsChildren.ChildID.EQ(helpers.PostgresInt(childID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -367,7 +368,7 @@ func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
 		INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
 		LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
 		LEFT_JOIN(parent, parent.ID.EQ(table.ParentsChildren.ParentID))).
-		WHERE(table.Users.ID.EQ(postgres.Int32(int32(userID))).
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)).
 			AND(table.Users.Role.EQ(postgres.String(RoleStudent))))
 
 	var user NUser
@@ -392,7 +393,7 @@ func (m UserModel) GetParentsForChild(childID int) ([]*NUser, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role).
 		FROM(table.Users.
 			INNER_JOIN(table.ParentsChildren, table.ParentsChildren.ParentID.EQ(table.Users.ID))).
-		WHERE(table.ParentsChildren.ChildID.EQ(postgres.Int32(int32(childID))))
+		WHERE(table.ParentsChildren.ChildID.EQ(helpers.PostgresInt(childID)))
 
 	var users []*NUser
 
@@ -411,7 +412,7 @@ func (m UserModel) GetChildrenForParent(parentID int) ([]*NUser, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Users.
 			INNER_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID))).
-		WHERE(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(parentID))))
+		WHERE(table.ParentsChildren.ParentID.EQ(helpers.PostgresInt(parentID)))
 
 	var users []*NUser
 
@@ -431,9 +432,9 @@ func (m UserModel) IsUserTeacherOrParentOfStudent(studentID, userID int) (bool, 
 		FROM(table.Users.
 			LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
 			LEFT_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Users.ClassID))).
-		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))).
-			AND(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(userID))).
-				OR(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(userID))))))
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(studentID)).
+			AND(table.ParentsChildren.ParentID.EQ(helpers.PostgresInt(userID)).
+				OR(table.TeachersClasses.TeacherID.EQ(helpers.PostgresInt(userID)))))
 
 	var result []int
 
@@ -452,8 +453,8 @@ func (m UserModel) IsUserTeacherOfStudent(studentID, userID int) (bool, error) {
 	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
 		FROM(table.Users.
 			INNER_JOIN(table.TeachersClasses, table.TeachersClasses.ClassID.EQ(table.Users.ClassID))).
-		WHERE(table.Users.ID.EQ(postgres.Int32(int32(studentID))).
-			AND(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(userID)))))
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(studentID)).
+			AND(table.TeachersClasses.TeacherID.EQ(helpers.PostgresInt(userID))))
 
 	var result []int
 
@@ -471,8 +472,8 @@ func (m UserModel) IsUserTeacherOfStudent(studentID, userID int) (bool, error) {
 func (m UserModel) IsUserTeacherOfClass(userID, classID int) (bool, error) {
 	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
 		FROM(table.TeachersClasses).
-		WHERE(table.TeachersClasses.TeacherID.EQ(postgres.Int32(int32(userID))).
-			AND(table.TeachersClasses.ClassID.EQ(postgres.Int32(int32(classID)))))
+		WHERE(table.TeachersClasses.TeacherID.EQ(helpers.PostgresInt(userID)).
+			AND(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(classID))))
 
 	var result []int
 
@@ -490,8 +491,8 @@ func (m UserModel) IsUserTeacherOfClass(userID, classID int) (bool, error) {
 func (m UserModel) IsUserParentOfStudent(studentID, userID int) (bool, error) {
 	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
 		FROM(table.ParentsChildren).
-		WHERE(table.ParentsChildren.ChildID.EQ(postgres.Int32(int32(studentID))).
-			AND(table.ParentsChildren.ParentID.EQ(postgres.Int32(int32(userID)))))
+		WHERE(table.ParentsChildren.ChildID.EQ(helpers.PostgresInt(studentID)).
+			AND(table.ParentsChildren.ParentID.EQ(helpers.PostgresInt(userID))))
 
 	var result []int
 
@@ -509,7 +510,7 @@ func (m UserModel) IsUserParentOfStudent(studentID, userID int) (bool, error) {
 func (m UserModel) ArchiveUsersByClassID(classID int) error {
 	stmt := table.Users.UPDATE(table.Users.Archived).
 		SET(postgres.Bool(true)).
-		WHERE(table.Users.ClassID.EQ(postgres.Int32(int32(classID))))
+		WHERE(table.Users.ClassID.EQ(helpers.PostgresInt(classID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

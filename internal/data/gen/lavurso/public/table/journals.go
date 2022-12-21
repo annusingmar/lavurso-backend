@@ -19,7 +19,6 @@ type journalsTable struct {
 	//Columns
 	ID          postgres.ColumnInteger
 	Name        postgres.ColumnString
-	TeacherID   postgres.ColumnInteger
 	SubjectID   postgres.ColumnInteger
 	YearID      postgres.ColumnInteger
 	LastUpdated postgres.ColumnTimestampz
@@ -65,12 +64,11 @@ func newJournalsTableImpl(schemaName, tableName, alias string) journalsTable {
 	var (
 		IDColumn          = postgres.IntegerColumn("id")
 		NameColumn        = postgres.StringColumn("name")
-		TeacherIDColumn   = postgres.IntegerColumn("teacher_id")
 		SubjectIDColumn   = postgres.IntegerColumn("subject_id")
 		YearIDColumn      = postgres.IntegerColumn("year_id")
 		LastUpdatedColumn = postgres.TimestampzColumn("last_updated")
-		allColumns        = postgres.ColumnList{IDColumn, NameColumn, TeacherIDColumn, SubjectIDColumn, YearIDColumn, LastUpdatedColumn}
-		mutableColumns    = postgres.ColumnList{NameColumn, TeacherIDColumn, SubjectIDColumn, YearIDColumn, LastUpdatedColumn}
+		allColumns        = postgres.ColumnList{IDColumn, NameColumn, SubjectIDColumn, YearIDColumn, LastUpdatedColumn}
+		mutableColumns    = postgres.ColumnList{NameColumn, SubjectIDColumn, YearIDColumn, LastUpdatedColumn}
 	)
 
 	return journalsTable{
@@ -79,7 +77,6 @@ func newJournalsTableImpl(schemaName, tableName, alias string) journalsTable {
 		//Columns
 		ID:          IDColumn,
 		Name:        NameColumn,
-		TeacherID:   TeacherIDColumn,
 		SubjectID:   SubjectIDColumn,
 		YearID:      YearIDColumn,
 		LastUpdated: LastUpdatedColumn,

@@ -14,7 +14,6 @@ import (
 type Journals struct {
 	ID          int        `sql:"primary_key" json:"id,omitempty"`
 	Name        *string    `json:"name,omitempty"`
-	TeacherID   *int       `json:"teacher_id,omitempty"`
 	SubjectID   *int       `json:"subject_id,omitempty"`
 	YearID      *int       `json:"year_id,omitempty"`
 	LastUpdated *time.Time `json:"last_updated,omitempty"`

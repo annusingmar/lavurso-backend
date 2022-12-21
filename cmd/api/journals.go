@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -50,7 +51,7 @@ func (app *application) getJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -77,21 +78,20 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	journal := &data.Journal{
-		Name:    &input.Name,
-		Teacher: &data.User{ID: &sessionUser.ID},
-		Subject: &data.Subject{ID: &input.SubjectID},
+	journal := &model.Journals{
+		Name:      &input.Name,
+		SubjectID: &input.SubjectID,
 	}
 
 	v.Check(*journal.Name != "", "name", "must be provided")
-	v.Check(*journal.Subject.ID > 0, "subject_id", "must be provided and valid")
+	v.Check(*journal.SubjectID > 0, "subject_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	_, err = app.models.Subjects.GetSubjectByID(*journal.Subject.ID)
+	_, err = app.models.Subjects.GetSubjectByID(*journal.SubjectID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
@@ -108,9 +108,9 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal.Year.ID = year.ID
+	journal.YearID = &year.ID
 
-	err = app.models.Journals.InsertJournal(journal)
+	err = app.models.Journals.InsertJournal(journal, sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -143,14 +143,14 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
 
 	var input struct {
-		Name      *string `json:"name"`
-		TeacherID *int    `json:"teacher_id"`
+		Name       *string `json:"name"`
+		TeacherIDs []int   `json:"teacher_ids"`
 	}
 
 	err = app.inputJSON(w, r, &input)
@@ -162,47 +162,29 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 	if input.Name != nil {
 		journal.Name = input.Name
 	}
-	if input.TeacherID != nil {
-		if *input.TeacherID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
-			app.notAllowed(w, r)
-			return
-		}
-		journal.Teacher.ID = input.TeacherID
-	}
 
 	v := validator.NewValidator()
 
 	v.Check(*journal.Name != "", "name", "must be provided")
-	v.Check(*journal.Teacher.ID > 0, "teacher_id", "must be provided and valid")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	teacher, err := app.models.Users.GetUserByID(*journal.Teacher.ID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	if *teacher.Role != data.RoleAdministrator && *teacher.Role != data.RoleTeacher {
-		app.writeErrorResponse(w, r, http.StatusBadRequest, "user not a teacher")
-		return
-	}
-
-	err = app.models.Journals.UpdateJournal(journal)
+	allUserIDs, err := app.models.Users.GetAllUserIDs()
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	err = app.models.Journals.SetJournalLastUpdated(journal.ID)
+	badIDs := helpers.VerifyExistsInSlice(input.TeacherIDs, allUserIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
+		return
+	}
+
+	err = app.models.Journals.UpdateJournal(journal, input.TeacherIDs)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -312,7 +294,7 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -400,7 +382,7 @@ func (app *application) removeStudentFromJournal(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}
@@ -475,7 +457,7 @@ func (app *application) getStudentsForJournal(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if *journal.Teacher.ID != sessionUser.ID && *sessionUser.Role != data.RoleAdministrator {
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
 		app.notAllowed(w, r)
 		return
 	}

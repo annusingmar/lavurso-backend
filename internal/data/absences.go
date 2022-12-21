@@ -8,7 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
-	"github.com/go-jet/jet/v2/postgres"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 )
 
 var (
@@ -51,7 +51,7 @@ func (m AbsenceModel) InsertExcuse(excuse *model.Excuses) error {
 
 func (m AbsenceModel) DeleteExcuseByMarkID(markID int) error {
 	stmt := table.Excuses.DELETE().
-		WHERE(table.Excuses.MarkID.EQ(postgres.Int32(int32(markID))))
+		WHERE(table.Excuses.MarkID.EQ(helpers.PostgresInt(markID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

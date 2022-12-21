@@ -8,6 +8,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
@@ -48,7 +49,7 @@ type AssignmentModel struct {
 func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*NAssignment, error) {
 	query := postgres.SELECT(table.Assignments.AllColumns).
 		FROM(table.Assignments).
-		WHERE(table.Assignments.ID.EQ(postgres.Int32(int32(assignmentID))))
+		WHERE(table.Assignments.ID.EQ(helpers.PostgresInt(assignmentID)))
 
 	var assignment NAssignment
 
@@ -88,7 +89,7 @@ func (m AssignmentModel) InsertAssignment(a *NAssignment) error {
 func (m AssignmentModel) UpdateAssignment(a *NAssignment) error {
 	stmt := table.Assignments.UPDATE(table.Assignments.Description, table.Assignments.Deadline, table.Assignments.Type, table.Assignments.UpdatedAt).
 		MODEL(a).
-		WHERE(table.Assignments.ID.EQ(postgres.Int32(int32(a.ID))))
+		WHERE(table.Assignments.ID.EQ(helpers.PostgresInt(a.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -102,7 +103,7 @@ func (m AssignmentModel) UpdateAssignment(a *NAssignment) error {
 }
 
 func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
-	stmt := table.Assignments.DELETE().WHERE(table.Assignments.ID.EQ(postgres.Int32(int32(assignmentID))))
+	stmt := table.Assignments.DELETE().WHERE(table.Assignments.ID.EQ(helpers.PostgresInt(assignmentID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -118,7 +119,7 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*model.Assignments, error) {
 	query := postgres.SELECT(table.Assignments.AllColumns).
 		FROM(table.Assignments).
-		WHERE(table.Assignments.JournalID.EQ(postgres.Int32(int32(journalID)))).
+		WHERE(table.Assignments.JournalID.EQ(helpers.PostgresInt(journalID))).
 		ORDER_BY(table.Assignments.Deadline.DESC())
 
 	var assignments []*model.Assignments
@@ -143,7 +144,7 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *ty
 			AS("assignment.done")).
 		FROM(table.Assignments.
 			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(table.Assignments.JournalID).
-				AND(table.StudentsJournals.StudentID.EQ(postgres.Int32(int32(studentID))))).
+				AND(table.StudentsJournals.StudentID.EQ(helpers.PostgresInt(studentID)))).
 			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Assignments.JournalID)).
 			INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID)).
 			LEFT_JOIN(table.DoneAssignments, table.DoneAssignments.AssignmentID.EQ(table.Assignments.ID).
@@ -192,8 +193,8 @@ func (m AssignmentModel) SetAssignmentDoneForUserID(userID, assignmentID int) er
 
 func (m AssignmentModel) RemoveAssignmentDoneForUserID(userID, assignmentID int) error {
 	stmt := table.DoneAssignments.DELETE().
-		WHERE(table.DoneAssignments.UserID.EQ(postgres.Int32(int32(userID))).
-			AND(table.DoneAssignments.AssignmentID.EQ(postgres.Int32(int32(assignmentID)))))
+		WHERE(table.DoneAssignments.UserID.EQ(helpers.PostgresInt(userID)).
+			AND(table.DoneAssignments.AssignmentID.EQ(helpers.PostgresInt(assignmentID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
