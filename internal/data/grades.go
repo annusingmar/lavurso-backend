@@ -5,6 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -21,64 +27,38 @@ type GradeModel struct {
 	DB *sql.DB
 }
 
-func (m GradeModel) AllGrades() ([]*Grade, error) {
-	query := `SELECT id, identifier, value
-	FROM grades
-	ORDER BY id ASC`
+func (m GradeModel) AllGrades() ([]*model.Grades, error) {
+	query := postgres.SELECT(table.Grades.AllColumns).
+		FROM(table.Grades).
+		ORDER_BY(table.Grades.ID.ASC())
+
+	var grades []*model.Grades
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	err := query.QueryContext(ctx, m.DB, &grades)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var grades []*Grade
-
-	for rows.Next() {
-		var grade Grade
-		err := rows.Scan(
-			&grade.ID,
-			&grade.Identifier,
-			&grade.Value,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		grades = append(grades, &grade)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return grades, nil
-
 }
 
-func (m GradeModel) GetGradeByID(gradeID int) (*Grade, error) {
-	query := `SELECT id, identifier, value
-	FROM grades
-	WHERE id = $1`
+func (m GradeModel) GetGradeByID(gradeID int) (*model.Grades, error) {
+	query := postgres.SELECT(table.Grades.AllColumns).
+		FROM(table.Grades).
+		WHERE(table.Grades.ID.EQ(helpers.PostgresInt(gradeID)))
+
+	var grade model.Grades
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var grade Grade
-
-	err := m.DB.QueryRowContext(ctx, query, gradeID).Scan(
-		&grade.ID,
-		&grade.Identifier,
-		&grade.Value,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &grade)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchGrade
 		default:
 			return nil, err
@@ -88,16 +68,15 @@ func (m GradeModel) GetGradeByID(gradeID int) (*Grade, error) {
 	return &grade, nil
 }
 
-func (m GradeModel) UpdateGrade(g *Grade) error {
-	stmt := `UPDATE grades
-	SET (identifier, value)
-	= ($1, $2)
-	WHERE id = $3`
+func (m GradeModel) UpdateGrade(g *model.Grades) error {
+	stmt := table.Grades.UPDATE(table.Grades.Identifier, table.Grades.Value).
+		MODEL(g).
+		WHERE(table.Grades.ID.EQ(helpers.PostgresInt(g.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, g.Identifier, g.Value, g.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -106,16 +85,14 @@ func (m GradeModel) UpdateGrade(g *Grade) error {
 }
 
 func (m GradeModel) InsertGrade(g *Grade) error {
-	stmt := `INSERT INTO grades
-	(identifier, value)
-	VALUES
-	($1, $2)
-	RETURNING id`
+	stmt := table.Grades.INSERT(table.Grades.Identifier, table.Grades.Value).
+		MODEL(g).
+		RETURNING(table.Grades.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, g.Identifier, g.Value).Scan(&g.ID)
+	err := stmt.QueryContext(ctx, m.DB, g)
 	if err != nil {
 		return err
 	}
