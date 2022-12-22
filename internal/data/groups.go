@@ -6,7 +6,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -22,30 +26,30 @@ type Group struct {
 	MemberCount *int   `json:"member_count,omitempty"`
 }
 
+type NGroup struct {
+	model.Groups
+	MemberCount *int `json:"member_count,omitempty"`
+}
+
 type GroupModel struct {
 	DB *sql.DB
 }
 
-func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
-	query := `SELECT id, name, archived
-	FROM groups
-	WHERE id = $1`
+func (m GroupModel) GetGroupByID(groupID int) (*model.Groups, error) {
+	query := postgres.SELECT(table.Groups.AllColumns).
+		FROM(table.Groups).
+		WHERE(table.Groups.ID.EQ(helpers.PostgresInt(groupID)))
+
+	var group model.Groups
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var group Group
-
-	err := m.DB.QueryRowContext(ctx, query, groupID).Scan(
-		&group.ID,
-		&group.Name,
-		&group.Archived,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &group)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrNoSuchGroup
+		case errors.Is(err, qrm.ErrNoRows):
+			return nil, ErrNoSuchLesson
 		default:
 			return nil, err
 		}
@@ -54,59 +58,36 @@ func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 	return &group, nil
 }
 
-func (m GroupModel) GetUserCountForGroup(groupID int) (*int, error) {
-	query := `SELECT COUNT (*) FROM users_groups WHERE group_id = $1`
+func (m GroupModel) UpdateGroup(g *model.Groups) error {
+	stmt := table.Groups.UPDATE(table.Groups.Name, table.Groups.Archived).
+		MODEL(g).
+		WHERE(table.Groups.ID.EQ(helpers.PostgresInt(g.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var count int
-
-	err := m.DB.QueryRowContext(ctx, query, groupID).Scan(&count)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &count, nil
+	return nil
 }
 
-func (m GroupModel) GetAllGroups(archived bool) ([]*Group, error) {
-	query := `SELECT g.id, g.name, g.archived, COUNT(ug.user_id)
-	FROM groups g
-	LEFT JOIN users_groups ug
-	ON ug.group_id = g.id
-	WHERE g.archived = $1
-    GROUP BY g.id`
+func (m GroupModel) GetAllGroups(archived bool) ([]*NGroup, error) {
+	query := postgres.SELECT(table.Groups.AllColumns, postgres.COUNT(table.UsersGroups.UserID).AS("ngroup.member_count")).
+		FROM(table.Groups.
+			LEFT_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.Groups.ID))).
+		WHERE(table.Groups.Archived.EQ(postgres.Bool(archived))).
+		GROUP_BY(table.Groups.ID)
+
+	var groups []*NGroup
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var groups []*Group
-
-	rows, err := m.DB.QueryContext(ctx, query, archived)
+	err := query.QueryContext(ctx, m.DB, &groups)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var group Group
-
-		err = rows.Scan(
-			&group.ID,
-			&group.Name,
-			&group.Archived,
-			&group.MemberCount,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		groups = append(groups, &group)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -114,22 +95,18 @@ func (m GroupModel) GetAllGroups(archived bool) ([]*Group, error) {
 }
 
 func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
-	query := `SELECT
-	array(
-		SELECT g.id
-		FROM groups g
-		INNER JOIN users_groups ug
-		ON ug.group_id = g.id
-		WHERE g.archived is FALSE
-		AND ug.user_id = $1
-	)`
+	query := postgres.SELECT(table.Groups.ID).
+		FROM(table.Groups.
+			INNER_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.Groups.ID))).
+		WHERE(table.Groups.Archived.IS_FALSE().
+			AND(table.UsersGroups.UserID.EQ(helpers.PostgresInt(userID))))
+
+	var ids []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var ids []int
-
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(pgtype.NewMap().SQLScanner(&ids))
+	err := query.QueryContext(ctx, m.DB, &ids)
 	if err != nil {
 		return nil, err
 	}
@@ -137,80 +114,43 @@ func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
 	return ids, nil
 }
 
-func (m GroupModel) GetUsersByGroupID(groupID int) ([]*User, error) {
-	query := `SELECT u.id, u.name, u.role
-	FROM users_groups ug
-	INNER JOIN users u
-	ON ug.user_id = u.id
-	WHERE ug.group_id = $1
-	ORDER BY id ASC`
+func (m GroupModel) GetUsersByGroupID(groupID int) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Users.ClassID, table.Classes.Name, table.ClassesYears.DisplayName).
+		FROM(table.Users.
+			INNER_JOIN(table.UsersGroups, table.UsersGroups.UserID.EQ(table.Users.ID)).
+			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+			LEFT_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+			LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
+		WHERE(table.UsersGroups.GroupID.EQ(helpers.PostgresInt(groupID))).
+		ORDER_BY(table.Users.Name.ASC())
+
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, groupID)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return users, nil
 }
 
-func (m GroupModel) GetGroupsByUserID(userID int) ([]*Group, error) {
-	query := `SELECT g.id, g.name
-	FROM groups g
-	INNER JOIN users_groups ug
-	ON g.id = ug.group_id
-	WHERE ug.user_id = $1 AND g.archived is FALSE`
+func (m GroupModel) GetGroupsByUserID(userID int) ([]*model.Groups, error) {
+	query := postgres.SELECT(table.Groups.ID, table.Groups.Name).
+		FROM(table.Groups.
+			INNER_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.Groups.ID))).
+		WHERE(table.UsersGroups.UserID.EQ(helpers.PostgresInt(userID)).
+			AND(table.Groups.Archived.IS_FALSE()))
+
+	var groups []*model.Groups
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var groups []*Group
-
-	rows, err := m.DB.QueryContext(ctx, query, userID)
+	err := query.QueryContext(ctx, m.DB, &groups)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var group Group
-
-		err = rows.Scan(
-			&group.ID,
-			&group.Name,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		groups = append(groups, &group)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -218,14 +158,14 @@ func (m GroupModel) GetGroupsByUserID(userID int) ([]*Group, error) {
 }
 
 func (m GroupModel) InsertGroup(g *Group) error {
-	stmt := `INSERT INTO groups
-	(name) VALUES ($1)
-	RETURNING id`
+	stmt := table.Groups.INSERT(table.Groups.Name).
+		MODEL(g).
+		RETURNING(table.Groups.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, g.Name).Scan(&g.ID)
+	err := stmt.QueryContext(ctx, m.DB, g)
 	if err != nil {
 		return err
 	}
@@ -233,15 +173,24 @@ func (m GroupModel) InsertGroup(g *Group) error {
 	return nil
 }
 
-func (m GroupModel) UpdateGroup(g *Group) error {
-	stmt := `UPDATE groups
-	SET (name, archived) = ($1, $2)
-	WHERE id = $3`
+func (m GroupModel) InsertUsersIntoGroup(userIDs []int, groupID int) error {
+	var ug []model.UsersGroups
+	for _, uid := range userIDs {
+		uid := uid
+		ug = append(ug, model.UsersGroups{
+			UserID:  &uid,
+			GroupID: &groupID,
+		})
+	}
+
+	stmt := table.UsersGroups.INSERT(table.UsersGroups.AllColumns).
+		MODELS(ug).
+		ON_CONFLICT(table.UsersGroups.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, g.Name, g.Archived, g.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -249,32 +198,20 @@ func (m GroupModel) UpdateGroup(g *Group) error {
 	return nil
 }
 
-func (m GroupModel) InsertUserIntoGroup(userID, groupID int) error {
-	stmt := `INSERT INTO users_groups
-	(user_id, group_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT DO NOTHING`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.ExecContext(ctx, stmt, userID, groupID)
-	if err != nil {
-		return err
+func (m GroupModel) RemoveUsersFromGroup(userIDs []int, groupID int) error {
+	var uids []postgres.Expression
+	for _, id := range userIDs {
+		uids = append(uids, helpers.PostgresInt(id))
 	}
 
-	return nil
-}
-
-func (m GroupModel) RemoveUserFromGroup(userID, groupID int) error {
-	stmt := `DELETE FROM users_groups
-	WHERE user_id = $1 and group_id = $2`
+	stmt := table.UsersGroups.DELETE().
+		WHERE(table.UsersGroups.UserID.IN(uids...).
+			AND(table.UsersGroups.GroupID.EQ(helpers.PostgresInt(groupID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, groupID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}

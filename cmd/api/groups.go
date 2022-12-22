@@ -53,15 +53,6 @@ func (app *application) getAllGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, group := range groups {
-		count, err := app.models.Groups.GetUserCountForGroup(group.ID)
-		if err != nil {
-			app.writeInternalServerError(w, r, err)
-			return
-		}
-		group.MemberCount = count
-	}
-
 	err = app.outputJSON(w, http.StatusOK, envelope{"groups": groups})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -136,13 +127,13 @@ func (app *application) updateGroup(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	if input.Name != nil {
-		group.Name = *input.Name
+		group.Name = input.Name
 	}
 	if input.Archived != nil {
-		group.Archived = *input.Archived
+		group.Archived = input.Archived
 	}
 
-	v.Check(group.Name != "", "name", "must be provided")
+	v.Check(*group.Name != "", "name", "must be provided")
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
@@ -178,7 +169,7 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if group.Archived {
+	if *group.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrGroupArchived.Error())
 		return
 	}
@@ -224,8 +215,8 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	for _, id := range input.UserIDs {
-		err = app.models.Groups.InsertUserIntoGroup(id, group.ID)
+	if len(input.UserIDs) > 0 {
+		err = app.models.Groups.InsertUsersIntoGroup(input.UserIDs, group.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -239,8 +230,13 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
+		var ids []int
 		for _, u := range users {
-			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
+			ids = append(ids, u.ID)
+		}
+
+		if len(ids) > 0 {
+			err = app.models.Groups.InsertUsersIntoGroup(ids, group.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
@@ -255,8 +251,13 @@ func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
+		var ids []int
 		for _, u := range users {
-			err = app.models.Groups.InsertUserIntoGroup(u.ID, group.ID)
+			ids = append(ids, u.ID)
+		}
+
+		if len(ids) > 0 {
+			err = app.models.Groups.InsertUsersIntoGroup(ids, group.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return
@@ -288,7 +289,7 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if group.Archived {
+	if *group.Archived {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrGroupArchived.Error())
 		return
 	}
@@ -315,8 +316,8 @@ func (app *application) removeUsersFromGroup(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	for _, id := range input.UserIDs {
-		err = app.models.Groups.RemoveUserFromGroup(id, group.ID)
+	if len(input.UserIDs) > 0 {
+		err = app.models.Groups.RemoveUsersFromGroup(input.UserIDs, group.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
