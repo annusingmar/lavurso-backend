@@ -450,11 +450,17 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	for _, j := range journals {
-		j.Marks = make(map[int][]*data.Mark)
-		for _, c := range j.Courses {
-			j.Marks[c] = make([]*data.Mark, 0)
-		}
+	type jwm struct {
+		*data.NJournal
+		Marks map[int][]*data.Mark `json:"marks,omitempty"`
+	}
+
+	journalsWithMarks := make([]*jwm, len(journals))
+	for i, j := range journals {
+		journalsWithMarks[i] = &jwm{j, make(map[int][]*data.Mark)}
+	}
+
+	for _, j := range journalsWithMarks {
 		for _, m := range marks {
 			if j.ID == *m.JournalID {
 				if m.Course != nil {
@@ -466,7 +472,7 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"journals": journals})
+	err = app.outputJSON(w, http.StatusOK, envelope{"journals": journalsWithMarks})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -545,15 +551,25 @@ func (app *application) getMarksForJournal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	type swm struct {
+		*data.NUser
+		Marks []*data.Mark `json:"marks,omitempty"`
+	}
+	studentsWithMarks := make([]*swm, len(students))
+
+	for i, s := range students {
+		studentsWithMarks[i] = &swm{s, make([]*data.Mark, 0)}
+	}
+
 	for _, mark := range marks {
-		for _, student := range students {
-			if *student.ID == mark.UserID {
+		for _, student := range studentsWithMarks {
+			if student.ID == mark.UserID {
 				student.Marks = append(student.Marks, mark)
 			}
 		}
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
+	err = app.outputJSON(w, http.StatusOK, envelope{"students": studentsWithMarks})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -607,15 +623,25 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	type swm struct {
+		*data.NUser
+		Marks []*data.Mark `json:"marks,omitempty"`
+	}
+	studentsWithMarks := make([]*swm, len(students))
+
+	for i, s := range students {
+		studentsWithMarks[i] = &swm{s, make([]*data.Mark, 0)}
+	}
+
 	for _, mark := range marks {
-		for _, student := range students {
-			if *student.ID == mark.UserID {
+		for _, student := range studentsWithMarks {
+			if student.ID == mark.UserID {
 				student.Marks = append(student.Marks, mark)
 			}
 		}
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
+	err = app.outputJSON(w, http.StatusOK, envelope{"students": studentsWithMarks})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

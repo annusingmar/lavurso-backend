@@ -51,7 +51,7 @@ func (m LessonModel) InsertLesson(l *NLesson) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := stmt.QueryContext(ctx, m.DB, &l)
+	err := stmt.QueryContext(ctx, m.DB, l)
 	if err != nil {
 		return err
 	}

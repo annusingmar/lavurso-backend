@@ -11,7 +11,6 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
@@ -24,7 +23,7 @@ type NJournal struct {
 	Subject  *model.Subjects `json:"subject,omitempty"`
 	Teachers []*model.Users  `json:"teachers,omitempty" alias:"teachers"`
 	Year     *model.Years    `json:"year,omitempty"`
-	Course   int             `json:"course,omitempty" alias:"coursenr"`
+	Course   *int            `json:"course,omitempty" alias:"coursenr"`
 }
 
 type Journal struct {
@@ -191,16 +190,17 @@ func (m JournalModel) UpdateJournal(j *NJournal, teacherIDs []int) error {
 }
 
 func (m JournalModel) DeleteJournal(journalID int) error {
-	stmt := `DELETE FROM journals
-	WHERE id = $1`
+	stmt := table.Journals.DELETE().
+		WHERE(table.Journals.ID.EQ(helpers.PostgresInt(journalID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, journalID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -238,18 +238,24 @@ func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*NJournal,
 	return journals, nil
 }
 
-func (m JournalModel) InsertStudentIntoJournal(studentID, journalID int) error {
-	stmt := `INSERT INTO
-	students_journals
-	(student_id, journal_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT DO NOTHING`
+func (m JournalModel) InsertStudentsIntoJournal(studentIDs []int, journalID int) error {
+	var sjs []model.StudentsJournals
+	for _, sid := range studentIDs {
+		sid := sid
+		sjs = append(sjs, model.StudentsJournals{
+			StudentID: &sid,
+			JournalID: &journalID,
+		})
+	}
+
+	stmt := table.StudentsJournals.INSERT(table.StudentsJournals.AllColumns).
+		MODELS(sjs).
+		ON_CONFLICT(table.StudentsJournals.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, studentID, journalID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -258,14 +264,14 @@ func (m JournalModel) InsertStudentIntoJournal(studentID, journalID int) error {
 }
 
 func (m JournalModel) DeleteStudentFromJournal(studentID, journalID int) error {
-	stmt := `DELETE FROM
-	students_journals
-	WHERE student_id = $1 and journal_id = $2`
+	stmt := table.StudentsJournals.DELETE().
+		WHERE(table.StudentsJournals.StudentID.EQ(helpers.PostgresInt(studentID)).
+			AND(table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := m.DB.ExecContext(ctx, stmt, studentID, journalID)
+	result, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -282,151 +288,110 @@ func (m JournalModel) DeleteStudentFromJournal(studentID, journalID int) error {
 	return nil
 }
 
-func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*User, error) {
-	query := `SELECT id, name, role
-	FROM users u
-	INNER JOIN students_journals uj
-	ON uj.student_id = u.id
-	WHERE uj.journal_id = $1
-	ORDER BY name ASC`
+func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Classes.ID, table.Classes.Name, table.ClassesYears.DisplayName).
+		FROM(table.Users.
+			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.StudentID.EQ(table.Users.ID)).
+			INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+			LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
+		WHERE(table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))).
+		ORDER_BY(table.Users.Name.ASC())
+
+	var students []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID)
+	err := query.QueryContext(ctx, m.DB, &students)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return users, nil
+	return students, nil
 }
 
-func (m JournalModel) GetJournalsByStudent(userID, yearID int) ([]*Journal, error) {
-	query := `SELECT j.id, j.teacher_id, u.name, u.role, j.subject_id, s.name, y.id, y.display_name, j.last_updated, array(SELECT DISTINCT course FROM lessons WHERE journal_id = j.id)
-	FROM journals j
-	INNER JOIN users u
-	ON j.teacher_id = u.id
-	INNER JOIN subjects s
-	ON j.subject_id = s.id
-	INNER JOIN students_journals uj
-	ON uj.journal_id = j.id
-	INNER JOIN years y
-	ON j.year_id = y.id
-	WHERE uj.student_id = $1 AND y.id = $2
-	ORDER BY s.name ASC`
+func (m JournalModel) GetJournalsByStudent(studentID, yearID int) ([]*NJournal, error) {
+	teacher := table.Users.AS("teachers")
+
+	query := postgres.SELECT(
+		table.Journals.ID,
+		teacher.ID,
+		teacher.Name,
+		table.Subjects.ID,
+		table.Subjects.Name,
+	).FROM(table.Journals.
+		INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(table.Journals.ID)).
+		INNER_JOIN(table.Years, table.Years.ID.EQ(table.Journals.YearID)).
+		LEFT_JOIN(table.TeachersJournals, table.TeachersJournals.JournalID.EQ(table.Journals.ID)).
+		LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersJournals.TeacherID)).
+		INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID))).
+		WHERE(table.StudentsJournals.StudentID.EQ(helpers.PostgresInt(studentID)).
+			AND(table.Years.ID.EQ(helpers.PostgresInt(yearID)))).
+		ORDER_BY(table.Subjects.Name.ASC())
+
+	var journals []*NJournal
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, userID, yearID)
+	err := query.QueryContext(ctx, m.DB, &journals)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var journals []*Journal
-
-	for rows.Next() {
-		var journal Journal
-		journal.Teacher = new(User)
-		journal.Subject = new(Subject)
-		journal.Year = new(Year)
-
-		err = rows.Scan(
-			&journal.ID,
-			&journal.Teacher.ID,
-			&journal.Teacher.Name,
-			&journal.Teacher.Role,
-			&journal.Subject.ID,
-			&journal.Subject.Name,
-			&journal.Year.ID,
-			&journal.Year.DisplayName,
-			&journal.LastUpdated,
-			pgtype.NewMap().SQLScanner(&journal.Courses),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		journals = append(journals, &journal)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return journals, nil
 }
 
-func (m JournalModel) IsUserInJournal(userID, journalID int) (bool, error) {
-	query := `SELECT COUNT(1) FROM students_journals
-	WHERE student_id = $1 and journal_id = $2`
+func (m JournalModel) IsUserInJournal(studentID, journalID int) (bool, error) {
+	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
+		FROM(table.StudentsJournals).
+		WHERE(table.StudentsJournals.StudentID.EQ(helpers.PostgresInt(studentID)).
+			AND(table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))))
+
+	var result []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var result int
-
-	err := m.DB.QueryRowContext(ctx, query, userID, journalID).Scan(&result)
+	err := query.QueryContext(ctx, m.DB, &result)
 	if err != nil {
 		return false, err
 	}
 
-	return result == 1, nil
+	return result[0] > 0, nil
 }
 
-func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (bool, error) {
-	query := `SELECT COUNT(1)
-	FROM parents_children pc
-	INNER JOIN students_journals uj
-	ON pc.child_id = uj.student_id
-	WHERE pc.parent_id = $1
-	AND uj.journal_id = $2`
+// todo: not needed?
+// func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (bool, error) {
+// 	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).
+// 		FROM(table.ParentsChildren.
+// 			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.StudentID.EQ(table.ParentsChildren.ChildID))).
+// 		WHERE(table.ParentsChildren.ParentID.EQ(helpers.PostgresInt(parentID)).
+// 			AND(table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+// 	var result []int
 
-	var result int
+// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, query, parentID, journalID).Scan(&result)
-	if err != nil {
-		return false, err
-	}
+// 	err := query.QueryContext(ctx, m.DB, &result)
+// 	if err != nil {
+// 		return false, err
+// 	}
 
-	return result > 0, nil
-}
+// 	return result[0] > 0, nil
+// }
 
 func (m JournalModel) SetJournalLastUpdated(journalID int) error {
-	stmt := `UPDATE journals
-	SET last_updated = $1
-	WHERE id = $2`
+	stmt := table.Journals.UPDATE(table.Journals.LastUpdated).
+		SET(time.Now().UTC()).
+		WHERE(table.Journals.ID.EQ(helpers.PostgresInt(journalID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, time.Now().UTC(), journalID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}

@@ -332,8 +332,8 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	for _, id := range input.StudentIDs {
-		err = app.models.Journals.InsertStudentIntoJournal(id, journal.ID)
+	if len(input.StudentIDs) > 0 {
+		err = app.models.Journals.InsertStudentsIntoJournal(input.StudentIDs, journal.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -347,8 +347,13 @@ func (app *application) addStudentsToJournal(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
+		var ids []int
 		for _, u := range users {
-			err = app.models.Journals.InsertStudentIntoJournal(u.ID, journal.ID)
+			ids = append(ids, u.ID)
+		}
+
+		if len(ids) > 0 {
+			err = app.models.Journals.InsertStudentsIntoJournal(ids, journal.ID)
 			if err != nil {
 				app.writeInternalServerError(w, r, err)
 				return

@@ -57,7 +57,7 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	journal, err := app.models.Journals.GetJournalByID(lesson.Journal.ID)
+	journal, err := app.models.Journals.GetJournalByID(*lesson.JournalID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchJournal):

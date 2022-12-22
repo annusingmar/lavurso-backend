@@ -48,9 +48,6 @@ func (app *application) routes() http.Handler {
 			// update user
 			mux.Patch("/users/{id}", app.updateUserAdmin)
 
-			// list all classes
-			mux.Get("/classes", app.listAllClasses)
-
 			// get class by id
 			mux.Get("/classes/{id}", app.getClass)
 
@@ -202,6 +199,9 @@ func (app *application) routes() http.Handler {
 
 			// list all subjects
 			mux.Get("/subjects", app.listAllSubjects)
+
+			// list all classes
+			mux.Get("/classes", app.listAllClasses)
 		})
 
 		// search for user with query param 'name' (minimum 4 characters)

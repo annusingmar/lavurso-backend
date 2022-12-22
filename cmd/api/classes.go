@@ -14,11 +14,13 @@ import (
 )
 
 func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
 	var err error
 	var classes []*data.NClass
 
 	current := r.URL.Query().Get("current")
-	if current != "false" {
+	if *sessionUser.Role != data.RoleAdministrator || current != "false" {
 		classes, err = app.models.Classes.AllClasses(true)
 	} else {
 		classes, err = app.models.Classes.AllClasses(false)
