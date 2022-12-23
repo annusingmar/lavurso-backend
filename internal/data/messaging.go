@@ -340,70 +340,48 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*NMessage, err
 	return messages, nil
 }
 
-func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*Thread, error) {
-	baseQuery := `SELECT DISTINCT t.id, t.user_id, u.name, u.role, t.title, t.locked, (CASE WHEN r.user_id is NOT NULL THEN TRUE ELSE FALSE END), t.created_at, t.updated_at, (SELECT COUNT(id) FROM messages WHERE thread_id = t.id)
-	FROM threads t
-	INNER JOIN threads_recipients tr
-	ON t.id = tr.thread_id
-    LEFT JOIN users_groups ug
-    ON ug.group_id = tr.group_id AND ug.user_id = $1
-    LEFT JOIN threads_read r
-    ON r.thread_id = t.id AND r.user_id = $1
-    INNER JOIN users u
-	ON t.user_id = u.id
-	INNER JOIN messages m
-	ON m.thread_id = t.id
-    WHERE (tr.user_id = $1 OR ug.user_id = $1)%s
-	ORDER BY updated_at DESC`
+func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*NThread, error) {
+	uid := helpers.PostgresInt(userID)
 
-	var query string
+	from := table.Threads.
+		INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.ThreadID.EQ(table.Threads.ID)).
+		LEFT_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.ThreadsRecipients.GroupID).
+			AND(table.UsersGroups.UserID.EQ(uid))).
+		LEFT_JOIN(table.ThreadsRead, table.ThreadsRead.ThreadID.EQ(table.Threads.ID).
+			AND(table.ThreadsRead.UserID.EQ(uid))).
+		INNER_JOIN(table.Users, table.Users.ID.EQ(table.Threads.UserID))
+
+	var where postgres.BoolExpression
+	if search != "" {
+		from = from.LEFT_JOIN(table.Messages, table.Messages.ThreadID.EQ(table.Threads.ID))
+		where = postgres.AND(
+			table.ThreadsRecipients.UserID.EQ(uid).OR(table.UsersGroups.UserID.EQ(uid)),
+			postgres.CAST(
+				postgres.Raw("(to_tsvector('simple', threads.title) @@ plainto_tsquery('simple', #search)) OR (to_tsvector('simple', messages.body) @@ plainto_tsquery('simple', #search))",
+					postgres.RawArgs{"#search": search}),
+			).AS_BOOL(),
+		)
+	} else {
+		where = table.ThreadsRecipients.UserID.EQ(uid).OR(table.UsersGroups.UserID.EQ(uid))
+	}
+
+	query := postgres.SELECT(
+		table.Threads.ID, table.Threads.UserID, table.Threads.Title, table.Threads.Locked, table.Threads.CreatedAt, table.Threads.UpdatedAt,
+		table.Users.ID, table.Users.Name, table.Users.Role,
+		postgres.CASE().WHEN(table.ThreadsRead.UserID.IS_NOT_NULL()).THEN(postgres.Bool(true)).ELSE(postgres.Bool(false)).AS("nthread.read"),
+		postgres.SELECT(postgres.COUNT(table.Messages.ID)).FROM(table.Messages).WHERE(table.Messages.ThreadID.EQ(table.Threads.ID)).AS("nthread.message_count"),
+	).DISTINCT().
+		FROM(from).
+		WHERE(where).
+		ORDER_BY(table.Threads.UpdatedAt.DESC())
+
+	var threads []*NThread
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var rows *sql.Rows
-	var err error
-
-	if search != "" {
-		query = fmt.Sprintf(baseQuery, " AND ((to_tsvector('simple', t.title) @@ plainto_tsquery('simple', $2)) OR (to_tsvector('simple', m.body) @@ plainto_tsquery('simple', $2)))")
-		rows, err = m.DB.QueryContext(ctx, query, userID, search)
-	} else {
-		query = fmt.Sprintf(baseQuery, "")
-		rows, err = m.DB.QueryContext(ctx, query, userID)
-	}
-
+	err := query.QueryContext(ctx, m.DB, &threads)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var threads []*Thread
-
-	for rows.Next() {
-		var thread Thread
-		thread.User = new(User)
-
-		err = rows.Scan(
-			&thread.ID,
-			&thread.User.ID,
-			&thread.User.Name,
-			&thread.User.Role,
-			&thread.Title,
-			&thread.Locked,
-			&thread.Read,
-			&thread.CreatedAt,
-			&thread.UpdatedAt,
-			&thread.MessageCount,
-		)
-	if err != nil {
-			return nil, err
-		}
-
-		threads = append(threads, &thread)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -411,62 +389,68 @@ func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*Thread,
 }
 
 func (m MessagingModel) DoesUserHaveUnread(userID int) (bool, error) {
-	query := `SELECT COUNT(1)
-	FROM threads t
-	INNER JOIN threads_recipients tr
-	ON t.id = tr.thread_id
-    LEFT JOIN users_groups ug
-    ON ug.group_id = tr.group_id AND ug.user_id = $1
-    LEFT JOIN threads_read r
-    ON r.thread_id = t.id AND r.user_id = $1
-    WHERE ( tr.user_id = $1 OR ug.user_id = $1 ) AND r.user_id IS NULL`
+	uid := helpers.PostgresInt(userID)
+
+	query := postgres.SELECT(postgres.COUNT(postgres.STAR)).
+		FROM(table.Threads.
+			INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.ThreadID.EQ(table.Threads.ID)).
+			LEFT_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.ThreadsRecipients.GroupID).
+				AND(table.UsersGroups.UserID.EQ(uid))).
+			LEFT_JOIN(table.ThreadsRead, table.ThreadsRead.ThreadID.EQ(table.Threads.ID).
+				AND(table.ThreadsRead.UserID.EQ(uid)))).
+		WHERE(postgres.AND(
+			table.ThreadsRecipients.UserID.EQ(uid).OR(table.UsersGroups.UserID.EQ(uid)),
+			table.ThreadsRead.UserID.IS_NULL(),
+		))
+
+	var result []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var result int
-
-	err := m.DB.QueryRowContext(ctx, query, userID).Scan(&result)
+	err := query.QueryContext(ctx, m.DB, &result)
 	if err != nil {
 		return false, err
 	}
 
-	return result > 0, nil
+	return result[0] > 0, nil
 }
 
 func (m MessagingModel) IsUserInThread(userID, threadID int) (bool, error) {
-	query := `SELECT COUNT(1)
-	FROM threads t
-	INNER JOIN threads_recipients tr
-	ON t.id = tr.thread_id
-    LEFT JOIN users_groups ug
-    ON ug.group_id = tr.group_id AND ug.user_id = $1
-    WHERE ( tr.user_id = $1 OR ug.user_id = $1 ) AND t.id = $2`
+	uid := helpers.PostgresInt(userID)
+
+	query := postgres.SELECT(postgres.COUNT(postgres.STAR)).
+		FROM(table.Threads.
+			INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.ThreadID.EQ(table.Threads.ID)).
+			LEFT_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.ThreadsRecipients.GroupID).
+				AND(table.UsersGroups.UserID.EQ(uid)))).
+		WHERE(postgres.AND(
+			table.ThreadsRecipients.UserID.EQ(uid).OR(table.UsersGroups.UserID.EQ(uid)),
+			table.Threads.ID.EQ(helpers.PostgresInt(threadID)),
+		))
+
+	var result []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var result int
-
-	err := m.DB.QueryRowContext(ctx, query, userID, threadID).Scan(&result)
+	err := query.QueryContext(ctx, m.DB, &result)
 	if err != nil {
 		return false, err
 	}
 
-	return result > 0, nil
+	return result[0] > 0, nil
 }
 
 func (m MessagingModel) SetThreadAsReadForUser(threadID, userID int) error {
-	stmt := `INSERT INTO threads_read
-	(thread_id, user_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT DO NOTHING`
+	stmt := table.ThreadsRead.INSERT(table.ThreadsRead.AllColumns).
+		MODEL(model.ThreadsRead{ThreadID: &threadID, UserID: &userID}).
+		ON_CONFLICT(table.ThreadsRead.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, threadID, userID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -475,13 +459,13 @@ func (m MessagingModel) SetThreadAsReadForUser(threadID, userID int) error {
 }
 
 func (m MessagingModel) SetThreadAsUnreadForAll(threadID int) error {
-	stmt := `DELETE FROM threads_read
-	WHERE thread_id = $1`
+	stmt := table.ThreadsRead.DELETE().
+		WHERE(table.ThreadsRead.ThreadID.EQ(helpers.PostgresInt(threadID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, threadID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -490,14 +474,14 @@ func (m MessagingModel) SetThreadAsUnreadForAll(threadID int) error {
 }
 
 func (m MessagingModel) SetThreadLocked(threadID int, locked bool) error {
-	stmt := `UPDATE threads
-	SET locked = $1
-	WHERE id = $2`
+	stmt := table.Threads.UPDATE(table.Threads.Locked).
+		SET(locked).
+		WHERE(table.Threads.ID.EQ(helpers.PostgresInt(threadID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, locked, threadID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -506,14 +490,14 @@ func (m MessagingModel) SetThreadLocked(threadID int, locked bool) error {
 }
 
 func (m MessagingModel) SetThreadUpdatedAt(threadID int) error {
-	stmt := `UPDATE threads
-	SET updated_at = $1
-	WHERE id = $2`
+	stmt := table.Threads.UPDATE(table.Threads.UpdatedAt).
+		SET(time.Now().UTC()).
+		WHERE(table.Threads.ID.EQ(helpers.PostgresInt(threadID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, time.Now().UTC(), threadID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
