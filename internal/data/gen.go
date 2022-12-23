@@ -30,9 +30,12 @@ func main() {
 							UseField(func(columnMetaData metadata.Column) template.TableModelField {
 								defaultTableModelField := template.DefaultTableModelField(columnMetaData)
 
-								if columnMetaData.Name == "password" {
+								if table.Name == "users" && columnMetaData.Name == "password" {
 									defaultTableModelField.Tags = append(defaultTableModelField.Tags, `json:"-"`)
 									defaultTableModelField.Type = template.NewType(new(types.Password))
+								} else if table.Name == "sessions" && columnMetaData.Name == "token" {
+									defaultTableModelField.Tags = append(defaultTableModelField.Tags, `json:"token"`)
+									defaultTableModelField.Type = template.NewType(new(types.Token))
 								} else {
 									defaultTableModelField.Tags = append(defaultTableModelField.Tags, fmt.Sprintf(`json:"%s,omitempty"`, columnMetaData.Name))
 								}

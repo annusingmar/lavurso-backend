@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 )
 
@@ -63,16 +66,23 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	session := &data.Session{
-		UserID:       user.ID,
-		Expires:      time.Now().UTC().Add(72 * time.Hour),
-		LoginIP:      ip,
-		LoginBrowser: r.UserAgent(),
-		LoggedIn:     time.Now().UTC(),
-		LastSeen:     time.Now().UTC(),
+	currentTime := time.Now().UTC()
+
+	session := &model.Sessions{
+		UserID:       &user.ID,
+		Token:        new(types.Token),
+		Expires:      helpers.ToPtr(currentTime.Add(72 * time.Hour)),
+		LoginIP:      &ip,
+		LoginBrowser: helpers.ToPtr(r.UserAgent()),
+		LoggedIn:     &currentTime,
+		LastSeen:     &currentTime,
 	}
 
-	session.AddNewTokenToSession()
+	err = session.Token.NewToken()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
 
 	err = app.models.Sessions.InsertSession(session)
 	if err != nil {

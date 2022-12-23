@@ -272,7 +272,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) 
 		WHERE(postgres.AND(
 			table.Users.Archived.IS_FALSE(),
 			table.Users.Active.IS_TRUE(),
-			table.Sessions.TokenHash.EQ(postgres.Bytea(hash[:])),
+			table.Sessions.Token.EQ(postgres.Bytea(hash[:])),
 			table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
 
 	var user NUser

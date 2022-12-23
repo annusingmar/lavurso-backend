@@ -2,12 +2,15 @@ package data
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base32"
 	"errors"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -31,48 +34,35 @@ type SessionModel struct {
 	DB *sql.DB
 }
 
-func (s *Session) AddNewTokenToSession() error {
-	randomData := make([]byte, 16)
+func (m SessionModel) InsertSession(s *model.Sessions) error {
+	stmt := table.Sessions.INSERT(table.Sessions.MutableColumns).
+		MODEL(s).
+		RETURNING(table.Sessions.ID)
 
-	_, err := rand.Read(randomData)
-	if err != nil {
-		return err
-	}
-
-	s.TokenPlaintext = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomData)
-	hash := sha256.Sum256([]byte(s.TokenPlaintext))
-	s.TokenHash = hash[:]
-
-	return nil
-}
-
-func (m SessionModel) InsertSession(session *Session) error {
-	stmt := `INSERT INTO sessions
-	(token_hash, user_id, expires, login_ip, login_browser, logged_in, last_seen)
-	VALUES
-	($1, $2, $3, $4, $5, $6, $7)
-	RETURNING id`
+	var id []int
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, session.TokenHash, session.UserID, session.Expires, session.LoginIP, session.LoginBrowser, session.LoggedIn, session.LastSeen).Scan(&session.ID)
+	err := stmt.QueryContext(ctx, m.DB, &id)
 	if err != nil {
 		return err
 	}
+
+	s.ID = id[0]
 
 	return nil
 }
 
 func (m SessionModel) UpdateLastSeen(sessionID int) error {
-	stmt := `UPDATE sessions
-	SET last_seen = $1
-	WHERE id = $2`
+	stmt := table.Sessions.UPDATE(table.Sessions.LastSeen).
+		SET(time.Now().UTC()).
+		WHERE(table.Sessions.ID.EQ(helpers.PostgresInt(sessionID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, time.Now().UTC(), sessionID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -81,13 +71,13 @@ func (m SessionModel) UpdateLastSeen(sessionID int) error {
 }
 
 func (m SessionModel) RemoveSessionByID(sessionID int) error {
-	stmt := `DELETE FROM sessions
-	WHERE id = $1`
+	stmt := table.Sessions.DELETE().
+		WHERE(table.Sessions.ID.EQ(helpers.PostgresInt(sessionID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, sessionID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -96,13 +86,13 @@ func (m SessionModel) RemoveSessionByID(sessionID int) error {
 }
 
 func (m SessionModel) RemoveAllSessionsByUserID(userID int) error {
-	stmt := `DELETE FROM sessions
-	WHERE user_id = $1`
+	stmt := table.Sessions.DELETE().
+		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -111,13 +101,14 @@ func (m SessionModel) RemoveAllSessionsByUserID(userID int) error {
 }
 
 func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) error {
-	stmt := `DELETE FROM sessions
-	WHERE user_id = $1 AND id != $2`
+	stmt := table.Sessions.DELETE().
+		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
+			AND(table.Sessions.ID.NOT_EQ(helpers.PostgresInt(sessionID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, userID, sessionID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -125,76 +116,44 @@ func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) 
 	return nil
 }
 
-func (m SessionModel) GetSessionsByUserID(userID int) ([]*Session, error) {
-	query := `SELECT
-	id, token_hash, user_id, expires, login_ip, login_browser, logged_in, last_seen
-	FROM sessions
-	WHERE user_id = $1
-	AND expires > $2`
+func (m SessionModel) GetSessionsByUserID(userID int) ([]*model.Sessions, error) {
+	query := postgres.SELECT(table.Sessions.AllColumns).
+		FROM(table.Sessions).
+		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
+			AND(table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
+
+	var sessions []*model.Sessions
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, userID, time.Now().UTC())
+	err := query.QueryContext(ctx, m.DB, &sessions)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var sessions []*Session
-
-	for rows.Next() {
-		var session Session
-
-		err = rows.Scan(
-			&session.ID,
-			&session.TokenHash,
-			&session.UserID,
-			&session.Expires,
-			&session.LoginIP,
-			&session.LoginBrowser,
-			&session.LoggedIn,
-			&session.LastSeen,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		sessions = append(sessions, &session)
-	}
-
-	if rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return sessions, nil
 }
 
-func (m SessionModel) GetSessionByID(sessionID int) (*Session, error) {
-	query := `SELECT
-	id, token_hash, user_id, expires, login_ip, login_browser, logged_in, last_seen
-	FROM sessions
-	WHERE id = $1
-	AND expires > $2`
+func (m SessionModel) GetSessionByID(sessionID int) (*model.Sessions, error) {
+	query := postgres.SELECT(table.Sessions.AllColumns).
+		FROM(table.Sessions).
+		WHERE(table.Sessions.ID.EQ(helpers.PostgresInt(sessionID)).
+			AND(table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
+
+	var session model.Sessions
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var session Session
-
-	err := m.DB.QueryRowContext(ctx, query, sessionID, time.Now().UTC()).Scan(
-		&session.ID,
-		&session.TokenHash,
-		&session.UserID,
-		&session.Expires,
-		&session.LoginIP,
-		&session.LoginBrowser,
-		&session.LoggedIn,
-		&session.LastSeen,
-	)
+	err := query.QueryContext(ctx, m.DB, &session)
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(err, qrm.ErrNoRows):
+			return nil, ErrNoSuchSession
+		default:
+			return nil, err
+		}
 	}
 
 	return &session, nil

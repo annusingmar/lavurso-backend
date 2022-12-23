@@ -114,7 +114,7 @@ func (app *application) removeSession(w http.ResponseWriter, r *http.Request) {
 	switch *sessionUser.Role {
 	case data.RoleAdministrator:
 	default:
-		if sessionUser.ID != session.UserID {
+		if sessionUser.ID != *session.UserID {
 			app.notAllowed(w, r)
 			return
 		}

@@ -18,7 +18,7 @@ type sessionsTable struct {
 
 	//Columns
 	ID           postgres.ColumnInteger
-	TokenHash    postgres.ColumnString
+	Token        postgres.ColumnString
 	UserID       postgres.ColumnInteger
 	Expires      postgres.ColumnTimestampz
 	LoginIP      postgres.ColumnString
@@ -66,15 +66,15 @@ func newSessionsTable(schemaName, tableName, alias string) *SessionsTable {
 func newSessionsTableImpl(schemaName, tableName, alias string) sessionsTable {
 	var (
 		IDColumn           = postgres.IntegerColumn("id")
-		TokenHashColumn    = postgres.StringColumn("token_hash")
+		TokenColumn        = postgres.StringColumn("token")
 		UserIDColumn       = postgres.IntegerColumn("user_id")
 		ExpiresColumn      = postgres.TimestampzColumn("expires")
 		LoginIPColumn      = postgres.StringColumn("login_ip")
 		LoginBrowserColumn = postgres.StringColumn("login_browser")
 		LoggedInColumn     = postgres.TimestampzColumn("logged_in")
 		LastSeenColumn     = postgres.TimestampzColumn("last_seen")
-		allColumns         = postgres.ColumnList{IDColumn, TokenHashColumn, UserIDColumn, ExpiresColumn, LoginIPColumn, LoginBrowserColumn, LoggedInColumn, LastSeenColumn}
-		mutableColumns     = postgres.ColumnList{TokenHashColumn, UserIDColumn, ExpiresColumn, LoginIPColumn, LoginBrowserColumn, LoggedInColumn, LastSeenColumn}
+		allColumns         = postgres.ColumnList{IDColumn, TokenColumn, UserIDColumn, ExpiresColumn, LoginIPColumn, LoginBrowserColumn, LoggedInColumn, LastSeenColumn}
+		mutableColumns     = postgres.ColumnList{TokenColumn, UserIDColumn, ExpiresColumn, LoginIPColumn, LoginBrowserColumn, LoggedInColumn, LastSeenColumn}
 	)
 
 	return sessionsTable{
@@ -82,7 +82,7 @@ func newSessionsTableImpl(schemaName, tableName, alias string) sessionsTable {
 
 		//Columns
 		ID:           IDColumn,
-		TokenHash:    TokenHashColumn,
+		Token:        TokenColumn,
 		UserID:       UserIDColumn,
 		Expires:      ExpiresColumn,
 		LoginIP:      LoginIPColumn,

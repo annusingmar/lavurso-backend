@@ -1,6 +1,6 @@
 CREATE TABLE "public"."sessions" (
     "id" integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    "token_hash" bytea NOT NULL,
+    "token" bytea NOT NULL,
     "user_id" integer NOT NULL,
     "expires" timestamptz NOT NULL,
     "login_ip" text NOT NULL,
