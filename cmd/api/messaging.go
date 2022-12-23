@@ -101,13 +101,13 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadMessage := &data.Message{
-		ThreadID:  thread.ID,
-		User:      &data.User{ID: &sessionUser.ID},
-		Body:      input.Body,
-		Type:      data.MsgTypeThreadStart,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
+	threadMessage := &model.Messages{
+		ThreadID:  &thread.ID,
+		UserID:    &sessionUser.ID,
+		Body:      &input.Body,
+		Type:      helpers.ToPtr(data.MsgTypeThreadStart),
+		CreatedAt: &currentTime,
+		UpdatedAt: &currentTime,
 	}
 
 	err = app.models.Messaging.InsertMessage(threadMessage)
@@ -486,13 +486,15 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := &data.Message{
-		ThreadID:  thread.ID,
-		User:      &data.User{ID: &sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
-		Body:      input.Body,
-		Type:      data.MsgTypeNormal,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+	currentTime := time.Now().UTC()
+
+	message := &model.Messages{
+		ThreadID:  &thread.ID,
+		UserID:    &sessionUser.ID,
+		Body:      &input.Body,
+		Type:      helpers.ToPtr(data.MsgTypeNormal),
+		CreatedAt: &currentTime,
+		UpdatedAt: &currentTime,
 	}
 
 	err = app.models.Messaging.InsertMessage(message)
@@ -545,13 +547,13 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, message.ThreadID)
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, *message.ThreadID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	if *message.User.ID != sessionUser.ID || !ok {
+	if *message.UserID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
@@ -575,9 +577,9 @@ func (app *application) updateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if message.Body != input.Body {
-		message.Body = input.Body
-		message.UpdatedAt = time.Now().UTC()
+	if *message.Body != input.Body {
+		message.Body = &input.Body
+		message.UpdatedAt = helpers.ToPtr(time.Now().UTC())
 
 		err = app.models.Messaging.UpdateMessage(message)
 		if err != nil {
@@ -612,18 +614,18 @@ func (app *application) deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, message.ThreadID)
+	ok, err := app.models.Messaging.IsUserInThread(sessionUser.ID, *message.ThreadID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
 	}
 
-	if *message.User.ID != sessionUser.ID || !ok {
+	if *message.UserID != sessionUser.ID || !ok {
 		app.notAllowed(w, r)
 		return
 	}
 
-	if message.Type == data.MsgTypeThreadStart {
+	if *message.Type == data.MsgTypeThreadStart {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrCantDeleteFirstMessage.Error())
 		return
 	}

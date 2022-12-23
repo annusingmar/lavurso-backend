@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -50,8 +49,9 @@ type Message struct {
 
 type NThread struct {
 	model.Threads
-	User *model.Users `json:"user"`
-	Read *bool        `json:"read,omitempty"`
+	User         *model.Users `json:"user"`
+	Read         *bool        `json:"read,omitempty"`
+	MessageCount *int         `json:"message_count,omitempty"`
 }
 
 type NMessage struct {
@@ -210,112 +210,60 @@ func (m MessagingModel) RemoveGroupsFromThread(threadID int, groupIDs []int) err
 	return nil
 }
 
-func (m MessagingModel) GetUsersInThread(threadID int) ([]*User, error) {
-	query := `SELECT tr.user_id, u.name, u.role
-	FROM threads_recipients tr
-	INNER JOIN users u
-	ON tr.user_id = u.id
-	WHERE tr.thread_id = $1 and tr.group_id is NULL
-	ORDER BY u.name ASC`
+func (m MessagingModel) GetUsersInThread(threadID int) ([]*NUser, error) {
+	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
+		FROM(table.Users.
+			INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.UserID.EQ(table.Users.ID))).
+		WHERE(table.ThreadsRecipients.ThreadID.EQ(helpers.PostgresInt(threadID))).
+		ORDER_BY(table.Users.Name.ASC())
+
+	var users []*NUser
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, threadID)
+	err := query.QueryContext(ctx, m.DB, &users)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var users []*User
-
-	for rows.Next() {
-		var user User
-		err = rows.Scan(
-			&user.ID,
-			&user.Name,
-			&user.Role,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return users, nil
 }
 
-func (m MessagingModel) GetGroupsInThread(threadID int) ([]*Group, error) {
-	query := `SELECT tr.group_id, g.name
-	FROM threads_recipients tr
-	INNER JOIN groups g
-	ON tr.group_id = g.id
-	WHERE tr.thread_id = $1 and tr.group_id is NOT NULL
-	ORDER BY g.name ASC`
+func (m MessagingModel) GetGroupsInThread(threadID int) ([]*model.Groups, error) {
+	query := postgres.SELECT(table.Groups.ID, table.Groups.Name).
+		FROM(table.Groups.
+			INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.GroupID.EQ(table.Groups.ID))).
+		WHERE(table.ThreadsRecipients.ThreadID.EQ(helpers.PostgresInt(threadID))).
+		ORDER_BY(table.Groups.Name.ASC())
+
+	var groups []*model.Groups
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, threadID)
+	err := query.QueryContext(ctx, m.DB, &groups)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var groups []*Group
-
-	for rows.Next() {
-		var group Group
-		err := rows.Scan(
-			&group.ID,
-			&group.Name,
-		)
-		if err != nil {
-			return nil, err
-		}
-		groups = append(groups, &group)
-	}
-
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return groups, nil
 }
 
-func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
-	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at
-	FROM messages m
-	INNER JOIN users u
-	ON m.user_id = u.id
-	WHERE m.id = $1`
+func (m MessagingModel) GetMessageByID(messageID int) (*model.Messages, error) {
+	query := postgres.SELECT(table.Messages.AllColumns).
+		FROM(table.Messages).
+		WHERE(table.Messages.ID.EQ(helpers.PostgresInt(messageID)))
+
+	var message model.Messages
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var message Message
-	message.User = new(User)
-
-	err := m.DB.QueryRowContext(ctx, query, messageID).Scan(
-		&message.ID,
-		&message.ThreadID,
-		&message.User.ID,
-		&message.User.Name,
-		&message.User.Role,
-		&message.Body,
-		&message.Type,
-		&message.CreatedAt,
-		&message.UpdatedAt,
-	)
+	err := query.QueryContext(ctx, m.DB, &message)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchMessage
 		default:
 			return nil, err
@@ -325,96 +273,67 @@ func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	return &message, nil
 }
 
-func (m MessagingModel) InsertMessage(ms *Message) error {
-	stmt := `INSERT INTO messages
-	(thread_id, user_id, body, type, created_at, updated_at)
-	VALUES
-	($1, $2, $3, $4, $5, $6)
-	RETURNING id`
+func (m MessagingModel) InsertMessage(ms *model.Messages) error {
+	stmt := table.Messages.INSERT(table.Messages.MutableColumns).
+		MODEL(ms).
+		RETURNING(table.Messages.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, ms.ThreadID, ms.User.ID, ms.Body, ms.Type, ms.CreatedAt, ms.UpdatedAt).Scan(&ms.ID)
+	err := stmt.QueryContext(ctx, m.DB, ms)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (m MessagingModel) DeleteMessage(messageID int) error {
-	stmt := `DELETE FROM messages
-	WHERE id = $1`
+	stmt := table.Messages.DELETE().
+		WHERE(table.Messages.ID.EQ(helpers.PostgresInt(messageID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, messageID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (m MessagingModel) UpdateMessage(ms *Message) error {
-	stmt := `UPDATE messages
-	SET (body, updated_at)
-	= ($1, $2)
-	WHERE id = $3`
+func (m MessagingModel) UpdateMessage(ms *model.Messages) error {
+	stmt := table.Messages.UPDATE(table.Messages.Body, table.Messages.UpdatedAt).
+		MODEL(ms).
+		WHERE(table.Messages.ID.EQ(helpers.PostgresInt(ms.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, ms.Body, ms.UpdatedAt, ms.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*Message, error) {
-	query := `SELECT m.id, m.thread_id, m.user_id, u.name, u.role, m.body, m.type, m.created_at, m.updated_at
-	FROM messages m
-	INNER JOIN users u
-	ON m.user_id = u.id
-	WHERE thread_id = $1
-	ORDER BY created_at ASC`
+func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*NMessage, error) {
+	query := postgres.SELECT(table.Messages.AllColumns, table.Users.ID, table.Users.Name, table.Users.Role).
+		FROM(table.Messages.
+			INNER_JOIN(table.Users, table.Users.ID.EQ(table.Messages.UserID))).
+		WHERE(table.Messages.ThreadID.EQ(helpers.PostgresInt(threadID))).
+		ORDER_BY(table.Messages.CreatedAt.ASC())
+
+	var messages []*NMessage
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, threadID)
+	err := query.QueryContext(ctx, m.DB, &messages)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var messages []*Message
-
-	for rows.Next() {
-		var message Message
-		message.User = new(User)
-
-		err = rows.Scan(
-			&message.ID,
-			&message.ThreadID,
-			&message.User.ID,
-			&message.User.Name,
-			&message.User.Role,
-			&message.Body,
-			&message.Type,
-			&message.CreatedAt,
-			&message.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		messages = append(messages, &message)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -477,7 +396,7 @@ func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*Thread,
 			&thread.UpdatedAt,
 			&thread.MessageCount,
 		)
-		if err != nil {
+	if err != nil {
 			return nil, err
 		}
 
