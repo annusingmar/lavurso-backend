@@ -49,7 +49,7 @@ func (m GroupModel) GetGroupByID(groupID int) (*model.Groups, error) {
 	if err != nil {
 		switch {
 		case errors.Is(err, qrm.ErrNoRows):
-			return nil, ErrNoSuchLesson
+			return nil, ErrNoSuchGroup
 		default:
 			return nil, err
 		}

@@ -5,6 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -20,92 +26,70 @@ type SubjectModel struct {
 	DB *sql.DB
 }
 
-func (m SubjectModel) AllSubjects() ([]*Subject, error) {
-	query := `SELECT id, name
-	FROM subjects
-	ORDER BY id ASC`
+func (m SubjectModel) AllSubjects() ([]*model.Subjects, error) {
+	query := postgres.SELECT(table.Subjects.AllColumns).
+		FROM(table.Subjects).
+		ORDER_BY(table.Subjects.ID.ASC())
+
+	var subjects []*model.Subjects
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query)
+	err := query.QueryContext(ctx, m.DB, &subjects)
 	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var subjects []*Subject
-
-	for rows.Next() {
-		var subject Subject
-		err = rows.Scan(
-			&subject.ID,
-			&subject.Name,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		subjects = append(subjects, &subject)
-	}
-
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return subjects, nil
 }
 
-func (m SubjectModel) InsertSubject(s *Subject) error {
-	stmt := `INSERT INTO subjects
-	(name) VALUES ($1)
-	RETURNING id`
+func (m SubjectModel) InsertSubject(s *model.Subjects) error {
+	stmt := table.Subjects.INSERT(table.Subjects.MutableColumns).
+		MODEL(s).
+		RETURNING(table.Subjects.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, s.Name).Scan(&s.ID)
+	err := stmt.QueryContext(ctx, m.DB, s)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (m SubjectModel) UpdateSubject(s *Subject) error {
-	stmt := `UPDATE subjects
-	SET name
-	= $1
-	WHERE id = $2`
+func (m SubjectModel) UpdateSubject(s *model.Subjects) error {
+	stmt := table.Subjects.UPDATE(table.Subjects.Name).
+		MODEL(s).
+		WHERE(table.Subjects.ID.EQ(helpers.PostgresInt(s.ID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, s.Name, s.ID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (m SubjectModel) GetSubjectByID(subjectID int) (*Subject, error) {
-	query := `SELECT id, name
-	FROM subjects
-	WHERE id = $1`
+func (m SubjectModel) GetSubjectByID(subjectID int) (*model.Subjects, error) {
+	query := postgres.SELECT(table.Subjects.AllColumns).
+		FROM(table.Subjects).
+		WHERE(table.Subjects.ID.EQ(helpers.PostgresInt(subjectID)))
+
+	var subject model.Subjects
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var subject Subject
-
-	err := m.DB.QueryRowContext(ctx, query, subjectID).Scan(
-		&subject.ID,
-		&subject.Name,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &subject)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchSubject
 		default:
 			return nil, err
