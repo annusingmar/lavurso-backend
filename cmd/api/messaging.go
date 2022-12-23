@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -68,12 +69,14 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thread := &data.Thread{
-		User:      &data.User{ID: &sessionUser.ID},
-		Title:     input.Title,
-		Locked:    false,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+	currentTime := time.Now().UTC()
+
+	thread := &model.Threads{
+		UserID:    &sessionUser.ID,
+		Title:     &input.Title,
+		Locked:    helpers.ToPtr(false),
+		CreatedAt: &currentTime,
+		UpdatedAt: &currentTime,
 	}
 
 	if !slices.Contains(input.UserIDs, sessionUser.ID) {
@@ -103,8 +106,8 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		User:      &data.User{ID: &sessionUser.ID},
 		Body:      input.Body,
 		Type:      data.MsgTypeThreadStart,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
 	}
 
 	err = app.models.Messaging.InsertMessage(threadMessage)
@@ -113,16 +116,16 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, id := range input.UserIDs {
-		err = app.models.Messaging.AddUserToThread(thread.ID, id)
+	if len(input.UserIDs) > 0 {
+		err = app.models.Messaging.AddUsersToThread(thread.ID, input.UserIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
 	}
 
-	for _, id := range input.GroupIDs {
-		err = app.models.Messaging.AddGroupToThread(thread.ID, id)
+	if len(input.GroupIDs) > 0 {
+		err = app.models.Messaging.AddGroupsToThread(thread.ID, input.GroupIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -156,7 +159,7 @@ func (app *application) deleteThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *thread.User.ID != sessionUser.ID {
+	if *thread.UserID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -193,12 +196,12 @@ func (app *application) lockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *thread.User.ID != sessionUser.ID {
+	if *thread.UserID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
 
-	if thread.Locked {
+	if *thread.Locked {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrThreadAlreadyLocked.Error())
 		return
 	}
@@ -235,12 +238,12 @@ func (app *application) unlockThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if *thread.User.ID != sessionUser.ID {
+	if *thread.UserID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
 
-	if !thread.Locked {
+	if !*thread.Locked {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrThreadAlreadyUnlocked.Error())
 		return
 	}
@@ -277,7 +280,7 @@ func (app *application) addMembersToThread(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if *thread.User.ID != sessionUser.ID {
+	if *thread.UserID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -305,16 +308,16 @@ func (app *application) addMembersToThread(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	for _, id := range input.UserIDs {
-		err = app.models.Messaging.AddUserToThread(thread.ID, id)
+	if len(input.UserIDs) > 0 {
+		err = app.models.Messaging.AddUsersToThread(thread.ID, input.UserIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
 	}
 
-	for _, id := range input.GroupIDs {
-		err = app.models.Messaging.AddGroupToThread(thread.ID, id)
+	if len(input.GroupIDs) > 0 {
+		err = app.models.Messaging.AddGroupsToThread(thread.ID, input.GroupIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -347,7 +350,7 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if *thread.User.ID != sessionUser.ID {
+	if *thread.UserID != sessionUser.ID {
 		app.notAllowed(w, r)
 		return
 	}
@@ -375,19 +378,25 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 		}
 	}
 
+	var removeUserIDs []int
+
 	for _, id := range input.UserIDs {
 		if id == sessionUser.ID {
 			continue
 		}
-		err = app.models.Messaging.RemoveUserFromThread(thread.ID, id)
+		removeUserIDs = append(removeUserIDs, id)
+	}
+
+	if len(removeUserIDs) > 0 {
+		err = app.models.Messaging.RemoveUsersFromThread(thread.ID, removeUserIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
 		}
 	}
 
-	for _, id := range input.GroupIDs {
-		err = app.models.Messaging.RemoveGroupFromThread(thread.ID, id)
+	if len(input.GroupIDs) > 0 {
+		err = app.models.Messaging.RemoveGroupsFromThread(thread.ID, input.GroupIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

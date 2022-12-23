@@ -182,7 +182,6 @@ func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
 	}
 
 	return &class, nil
-
 }
 
 func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, error) {

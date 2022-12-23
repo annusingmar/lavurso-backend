@@ -6,6 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -42,36 +48,36 @@ type Message struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type NThread struct {
+	model.Threads
+	User *model.Users `json:"user"`
+	Read *bool        `json:"read,omitempty"`
+}
+
+type NMessage struct {
+	model.Messages
+	User *model.Users `json:"user"`
+}
+
 type MessagingModel struct {
 	DB *sql.DB
 }
 
-func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
-	query := `SELECT t.id, t.user_id, u.name, u.role, t.title, t.locked, t.created_at, t.updated_at
-	FROM threads t
-	INNER JOIN users u
-	ON t.user_id = u.id
-	WHERE t.id = $1`
+func (m MessagingModel) GetThreadByID(threadID int) (*NThread, error) {
+	query := postgres.SELECT(table.Threads.AllColumns, table.Users.ID, table.Users.Name, table.Users.Role).
+		FROM(table.Threads.
+			INNER_JOIN(table.Users, table.Users.ID.EQ(table.Threads.UserID))).
+		WHERE(table.Threads.ID.EQ(helpers.PostgresInt(threadID)))
+
+	var thread NThread
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var thread Thread
-	thread.User = new(User)
-
-	err := m.DB.QueryRowContext(ctx, query, threadID).Scan(
-		&thread.ID,
-		&thread.User.ID,
-		&thread.User.Name,
-		&thread.User.Role,
-		&thread.Title,
-		&thread.Locked,
-		&thread.CreatedAt,
-		&thread.UpdatedAt,
-	)
+	err := query.QueryContext(ctx, m.DB, &thread)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchThread
 		default:
 			return nil, err
@@ -81,47 +87,30 @@ func (m MessagingModel) GetThreadByID(threadID int) (*Thread, error) {
 	return &thread, nil
 }
 
-func (m MessagingModel) InsertThread(t *Thread) error {
-	stmt := `INSERT INTO threads
-	(user_id, title, locked, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5)
-	RETURNING id`
+func (m MessagingModel) InsertThread(t *model.Threads) error {
+	stmt := table.Threads.INSERT(table.Threads.MutableColumns).
+		MODEL(t).
+		RETURNING(table.Threads.ID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := m.DB.QueryRowContext(ctx, stmt, t.User.ID, t.Title, t.Locked, t.CreatedAt, t.UpdatedAt).Scan(&t.ID)
+	err := stmt.QueryContext(ctx, m.DB, t)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (m MessagingModel) DeleteThread(threadID int) error {
-	stmt := `DELETE FROM threads
-	WHERE id = $1`
+	stmt := table.Threads.DELETE().
+		WHERE(table.Threads.ID.EQ(helpers.PostgresInt(threadID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, threadID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m MessagingModel) AddUserToThread(threadID, userID int) error {
-	stmt := `INSERT INTO threads_recipients
-	(thread_id, user_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT	DO NOTHING`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := m.DB.ExecContext(ctx, stmt, threadID, userID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -129,14 +118,24 @@ func (m MessagingModel) AddUserToThread(threadID, userID int) error {
 	return nil
 }
 
-func (m MessagingModel) RemoveUserFromThread(threadID, userID int) error {
-	stmt := `DELETE FROM threads_recipients
-	WHERE thread_id = $1 and user_id = $2`
+func (m MessagingModel) AddUsersToThread(threadID int, userIDs []int) error {
+	var ut []model.ThreadsRecipients
+	for _, uid := range userIDs {
+		uid := uid
+		ut = append(ut, model.ThreadsRecipients{
+			UserID:   &uid,
+			ThreadID: &threadID,
+		})
+	}
+
+	stmt := table.ThreadsRecipients.INSERT(table.ThreadsRecipients.UserID, table.ThreadsRecipients.ThreadID).
+		MODELS(ut).
+		ON_CONFLICT(table.ThreadsRecipients.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, threadID, userID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -144,17 +143,20 @@ func (m MessagingModel) RemoveUserFromThread(threadID, userID int) error {
 	return nil
 }
 
-func (m MessagingModel) AddGroupToThread(threadID, groupID int) error {
-	stmt := `INSERT INTO threads_recipients
-	(thread_id, group_id)
-	VALUES
-	($1, $2)
-	ON CONFLICT	DO NOTHING`
+func (m MessagingModel) RemoveUsersFromThread(threadID int, userIDs []int) error {
+	var uids []postgres.Expression
+	for _, id := range userIDs {
+		uids = append(uids, helpers.PostgresInt(id))
+	}
+
+	stmt := table.ThreadsRecipients.DELETE().
+		WHERE(table.ThreadsRecipients.UserID.IN(uids...).
+			AND(table.ThreadsRecipients.ThreadID.EQ(helpers.PostgresInt(threadID))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, threadID, groupID)
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
@@ -162,14 +164,45 @@ func (m MessagingModel) AddGroupToThread(threadID, groupID int) error {
 	return nil
 }
 
-func (m MessagingModel) RemoveGroupFromThread(threadID, groupID int) error {
-	stmt := `DELETE FROM threads_recipients
-	WHERE thread_id = $1 and group_id = $2`
+func (m MessagingModel) AddGroupsToThread(threadID int, groupIDs []int) error {
+	var gt []model.ThreadsRecipients
+	for _, gid := range groupIDs {
+		gid := gid
+		gt = append(gt, model.ThreadsRecipients{
+			GroupID:  &gid,
+			ThreadID: &threadID,
+		})
+	}
+
+	stmt := table.ThreadsRecipients.INSERT(table.ThreadsRecipients.GroupID, table.ThreadsRecipients.ThreadID).
+		MODELS(gt).
+		ON_CONFLICT(table.ThreadsRecipients.AllColumns...).DO_NOTHING()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := m.DB.ExecContext(ctx, stmt, threadID, groupID)
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m MessagingModel) RemoveGroupsFromThread(threadID int, groupIDs []int) error {
+	var gids []postgres.Expression
+	for _, id := range groupIDs {
+		gids = append(gids, helpers.PostgresInt(id))
+	}
+
+	stmt := table.ThreadsRecipients.DELETE().
+		WHERE(table.ThreadsRecipients.GroupID.IN(gids...).
+			AND(table.ThreadsRecipients.ThreadID.EQ(helpers.PostgresInt(threadID))))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
 		return err
 	}
