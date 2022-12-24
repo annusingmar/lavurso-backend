@@ -24,20 +24,10 @@ var (
 	ErrNoSuchAssignmentType = errors.New("no such assignment type")
 )
 
-type Assignment struct {
-	ID          int        `json:"id"`
-	Journal     *Journal   `json:"journal,omitempty"`
-	Subject     *Subject   `json:"subject,omitempty"`
-	Description string     `json:"description"`
-	Deadline    types.Date `json:"deadline"`
-	Type        string     `json:"type"`
-	Done        *bool      `json:"done,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-}
+type Assignment = model.Assignments
 
-type NAssignment struct {
-	model.Assignments
+type AssignmentExt struct {
+	Assignment
 	Done    *bool           `json:"done,omitempty" alias:"assignment.done"`
 	Subject *model.Subjects `json:"subject,omitempty"`
 }
@@ -46,12 +36,12 @@ type AssignmentModel struct {
 	DB *sql.DB
 }
 
-func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*NAssignment, error) {
+func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*AssignmentExt, error) {
 	query := postgres.SELECT(table.Assignments.AllColumns).
 		FROM(table.Assignments).
 		WHERE(table.Assignments.ID.EQ(helpers.PostgresInt(assignmentID)))
 
-	var assignment NAssignment
+	var assignment AssignmentExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -70,7 +60,7 @@ func (m AssignmentModel) GetAssignmentByID(assignmentID int) (*NAssignment, erro
 	return &assignment, nil
 }
 
-func (m AssignmentModel) InsertAssignment(a *NAssignment) error {
+func (m AssignmentModel) InsertAssignment(a *AssignmentExt) error {
 	stmt := table.Assignments.INSERT(table.Assignments.MutableColumns).
 		MODEL(a).
 		RETURNING(table.Assignments.ID)
@@ -86,7 +76,7 @@ func (m AssignmentModel) InsertAssignment(a *NAssignment) error {
 	return nil
 }
 
-func (m AssignmentModel) UpdateAssignment(a *NAssignment) error {
+func (m AssignmentModel) UpdateAssignment(a *AssignmentExt) error {
 	stmt := table.Assignments.UPDATE(table.Assignments.Description, table.Assignments.Deadline, table.Assignments.Type, table.Assignments.UpdatedAt).
 		MODEL(a).
 		WHERE(table.Assignments.ID.EQ(helpers.PostgresInt(a.ID)))
@@ -116,13 +106,13 @@ func (m AssignmentModel) DeleteAssignment(assignmentID int) error {
 	return nil
 }
 
-func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*model.Assignments, error) {
+func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*Assignment, error) {
 	query := postgres.SELECT(table.Assignments.AllColumns).
 		FROM(table.Assignments).
 		WHERE(table.Assignments.JournalID.EQ(helpers.PostgresInt(journalID))).
 		ORDER_BY(table.Assignments.Deadline.DESC())
 
-	var assignments []*model.Assignments
+	var assignments []*Assignment
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -135,7 +125,7 @@ func (m AssignmentModel) GetAssignmentsByJournalID(journalID int) ([]*model.Assi
 	return assignments, nil
 }
 
-func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *types.Date) ([]*NAssignment, error) {
+func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *types.Date) ([]*AssignmentExt, error) {
 	query := postgres.SELECT(table.Assignments.AllColumns, table.Subjects.AllColumns,
 		postgres.CASE().
 			WHEN(table.DoneAssignments.UserID.IS_NOT_NULL()).
@@ -159,7 +149,7 @@ func (m AssignmentModel) GetAssignmentsForStudent(studentID int, from, until *ty
 
 	query = query.ORDER_BY(table.Assignments.Deadline.ASC())
 
-	var assignments []*NAssignment
+	var assignments []*AssignmentExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -15,8 +14,8 @@ import (
 )
 
 type AssignmentsByDate struct {
-	Date        string              `json:"date"`
-	Assignments []*data.NAssignment `json:"assignments"`
+	Date        string                `json:"date"`
+	Assignments []*data.AssignmentExt `json:"assignments"`
 }
 
 func (app *application) getAssignment(w http.ResponseWriter, r *http.Request) {
@@ -89,8 +88,8 @@ func (app *application) createAssignment(w http.ResponseWriter, r *http.Request)
 
 	time := time.Now().UTC()
 
-	assignment := &data.NAssignment{
-		Assignments: model.Assignments{
+	assignment := &data.AssignmentExt{
+		Assignment: data.Assignment{
 			JournalID:   &input.JournalID,
 			Description: &input.Description,
 			Deadline:    &input.Deadline,
@@ -399,7 +398,7 @@ func (app *application) getAssignmentsForStudent(w http.ResponseWriter, r *http.
 	for _, a := range assignments {
 		dateString := a.Deadline.String()
 		if val, ok := dateIndexMap[dateString]; !ok {
-			assignmentByDate = append(assignmentByDate, &AssignmentsByDate{Date: dateString, Assignments: []*data.NAssignment{a}})
+			assignmentByDate = append(assignmentByDate, &AssignmentsByDate{Date: dateString, Assignments: []*data.AssignmentExt{a}})
 			dateIndexMap[dateString] = len(assignmentByDate) - 1
 		} else {
 			assignmentByDate[val].Assignments = append(assignmentByDate[val].Assignments, a)
