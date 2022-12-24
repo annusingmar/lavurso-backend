@@ -54,9 +54,11 @@ func (m SessionModel) InsertSession(s *model.Sessions) error {
 	return nil
 }
 
-func (m SessionModel) UpdateLastSeen(sessionID int) error {
-	stmt := table.Sessions.UPDATE(table.Sessions.LastSeen).
-		SET(time.Now().UTC()).
+func (m SessionModel) ExtendSession(sessionID int) error {
+	current := time.Now().UTC()
+
+	stmt := table.Sessions.UPDATE(table.Sessions.LastSeen, table.Sessions.Expires).
+		SET(current, current.Add(3*time.Minute)).
 		WHERE(table.Sessions.ID.EQ(helpers.PostgresInt(sessionID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

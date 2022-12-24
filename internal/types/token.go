@@ -13,7 +13,7 @@ type Token struct {
 }
 
 func (t *Token) NewToken() error {
-	randomData := make([]byte, 16)
+	randomData := make([]byte, 32)
 
 	_, err := rand.Read(randomData)
 	if err != nil {

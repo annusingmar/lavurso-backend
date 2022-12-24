@@ -38,7 +38,7 @@ func (app *application) authenticateSession(next http.Handler) http.Handler {
 			return
 		}
 
-		err = app.models.Sessions.UpdateLastSeen(*user.SessionID)
+		err = app.models.Sessions.ExtendSession(*user.SessionID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
