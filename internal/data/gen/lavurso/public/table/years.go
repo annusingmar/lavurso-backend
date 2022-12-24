@@ -19,7 +19,6 @@ type yearsTable struct {
 	//Columns
 	ID          postgres.ColumnInteger
 	DisplayName postgres.ColumnString
-	Courses     postgres.ColumnInteger
 	Current     postgres.ColumnBool
 
 	AllColumns     postgres.ColumnList
@@ -63,10 +62,9 @@ func newYearsTableImpl(schemaName, tableName, alias string) yearsTable {
 	var (
 		IDColumn          = postgres.IntegerColumn("id")
 		DisplayNameColumn = postgres.StringColumn("display_name")
-		CoursesColumn     = postgres.IntegerColumn("courses")
 		CurrentColumn     = postgres.BoolColumn("current")
-		allColumns        = postgres.ColumnList{IDColumn, DisplayNameColumn, CoursesColumn, CurrentColumn}
-		mutableColumns    = postgres.ColumnList{DisplayNameColumn, CoursesColumn, CurrentColumn}
+		allColumns        = postgres.ColumnList{IDColumn, DisplayNameColumn, CurrentColumn}
+		mutableColumns    = postgres.ColumnList{DisplayNameColumn, CurrentColumn}
 	)
 
 	return yearsTable{
@@ -75,7 +73,6 @@ func newYearsTableImpl(schemaName, tableName, alias string) yearsTable {
 		//Columns
 		ID:          IDColumn,
 		DisplayName: DisplayNameColumn,
-		Courses:     CoursesColumn,
 		Current:     CurrentColumn,
 
 		AllColumns:     allColumns,

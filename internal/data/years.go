@@ -15,7 +15,6 @@ type Year struct {
 	ID          int        `json:"id"`
 	DisplayName string     `json:"display_name"`
 	Courses     *int       `json:"courses"`
-	Current     bool       `json:"current"`
 	Stats       *YearStats `json:"stats"`
 }
 
@@ -168,7 +167,7 @@ func (m YearModel) GetCurrentYear() (*NYear, error) {
 
 func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {
 
-	query := postgres.SELECT(table.Years.ID, table.Years.DisplayName, table.Years.Courses, table.Years.Current).DISTINCT().
+	query := postgres.SELECT(table.Years.ID, table.Years.DisplayName, table.Years.Current).DISTINCT().
 		FROM(table.Years.
 			INNER_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID)).
 			INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.ClassesYears.ClassID)).

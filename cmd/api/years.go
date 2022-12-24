@@ -200,7 +200,6 @@ func (app *application) setYearsForClass(w http.ResponseWriter, r *http.Request)
 func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		DisplayName string `json:"display_name"`
-		Courses     int    `json:"courses"`
 		NewClasses  []struct {
 			Name        string `json:"name"`
 			DisplayName string `json:"display_name"`
@@ -220,7 +219,6 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	v := validator.NewValidator()
 
 	v.Check(input.DisplayName != "", "display_name", "cannot be empty")
-	v.Check(input.Courses > 0, "courses", "must be valid")
 
 	var classIDs []int
 
@@ -257,7 +255,6 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 
 	year := model.Years{
 		DisplayName: &input.DisplayName,
-		Courses:     &input.Courses,
 		Current:     helpers.ToPtr(false),
 	}
 
