@@ -11,6 +11,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/exp/slices"
 )
 
 func (app *application) listAllJournals(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +186,10 @@ func (app *application) updateJournal(w http.ResponseWriter, r *http.Request) {
 	if badIDs != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
 		return
+	}
+
+	if !slices.Contains(input.TeacherIDs, sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
+		input.TeacherIDs = append(input.TeacherIDs, sessionUser.ID)
 	}
 
 	err = app.models.Journals.UpdateJournal(journal, input.TeacherIDs)
