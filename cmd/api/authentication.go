@@ -71,7 +71,7 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 	session := &model.Sessions{
 		UserID:       &user.ID,
 		Token:        new(types.Token),
-		Expires:      helpers.ToPtr(currentTime.Add(72 * time.Hour)),
+		Expires:      helpers.ToPtr(currentTime.Add(3 * time.Minute)),
 		LoginIP:      &ip,
 		LoginBrowser: helpers.ToPtr(r.UserAgent()),
 		LoggedIn:     &currentTime,

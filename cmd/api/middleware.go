@@ -22,7 +22,7 @@ func (app *application) authenticateSession(next http.Handler) http.Handler {
 		}
 
 		splitHeader := strings.Split(authHeader, " ")
-		if len(splitHeader) != 2 || splitHeader[0] != "Bearer" || len(splitHeader[1]) != 26 {
+		if len(splitHeader) != 2 || splitHeader[0] != "Bearer" || len(splitHeader[1]) != 52 {
 			app.writeErrorResponse(w, r, http.StatusUnauthorized, data.ErrInvalidToken.Error())
 			return
 		}
