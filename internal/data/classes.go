@@ -54,6 +54,63 @@ func (m ClassModel) InsertClass(c *model.Classes) error {
 	return nil
 }
 
+func (m ClassModel) UpdateClass(c *NClass) error {
+	stmt := table.Classes.UPDATE(table.Classes.Name).
+		MODEL(c).
+		WHERE(table.Classes.ID.EQ(helpers.PostgresInt(c.ID)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m ClassModel) SetClassTeachers(classID int, teacherIDs []int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var tcs []model.TeachersClasses
+	var tids []postgres.Expression
+	for _, tid := range teacherIDs {
+		tid := tid
+		tcs = append(tcs, model.TeachersClasses{
+			TeacherID: &tid,
+			ClassID:   &classID,
+		})
+		tids = append(tids, helpers.PostgresInt(tid))
+	}
+
+	var deletestmt postgres.DeleteStatement
+
+	if tcs != nil {
+		insertstmt := table.TeachersClasses.INSERT(table.TeachersClasses.AllColumns).
+			MODELS(tcs).
+			ON_CONFLICT(table.TeachersClasses.AllColumns...).DO_NOTHING()
+
+		_, err := insertstmt.ExecContext(ctx, m.DB)
+		if err != nil {
+			return err
+		}
+
+		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.TeacherID.NOT_IN(tids...).
+			AND(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(classID))))
+	} else {
+		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(classID)))
+	}
+
+	_, err := deletestmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m ClassModel) AllClasses(current bool) ([]*NClass, error) {
 	teacher := table.Users.AS("teachers")
 
@@ -105,56 +162,6 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 	}
 
 	return ids, nil
-}
-
-func (m ClassModel) UpdateClass(c *NClass, teacherIDs []int) error {
-	stmt := table.Classes.UPDATE(table.Classes.Name).
-		MODEL(c).
-		WHERE(table.Classes.ID.EQ(helpers.PostgresInt(c.ID)))
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	_, err := stmt.ExecContext(ctx, m.DB)
-	if err != nil {
-		return err
-	}
-
-	var tcs []model.TeachersClasses
-	var tids []postgres.Expression
-	for _, tid := range teacherIDs {
-		tid := tid
-		tcs = append(tcs, model.TeachersClasses{
-			TeacherID: &tid,
-			ClassID:   &c.ID,
-		})
-		tids = append(tids, helpers.PostgresInt(tid))
-	}
-
-	var deletestmt postgres.DeleteStatement
-
-	if tcs != nil {
-		insertstmt := table.TeachersClasses.INSERT(table.TeachersClasses.AllColumns).
-			MODELS(tcs).
-			ON_CONFLICT(table.TeachersClasses.AllColumns...).DO_NOTHING()
-
-		_, err := insertstmt.ExecContext(ctx, m.DB)
-		if err != nil {
-			return err
-		}
-
-		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.TeacherID.NOT_IN(tids...).
-			AND(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(c.ID))))
-	} else {
-		deletestmt = table.TeachersClasses.DELETE().WHERE(table.TeachersClasses.ClassID.EQ(helpers.PostgresInt(c.ID)))
-	}
-
-	_, err = deletestmt.ExecContext(ctx, m.DB)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (m ClassModel) GetClassByID(classID int) (*NClass, error) {

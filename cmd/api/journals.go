@@ -103,8 +103,11 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	year, err := app.models.Years.GetCurrentYear()
-	if err != nil || year == nil {
+	if err != nil {
 		app.writeInternalServerError(w, r, err)
+		return
+	} else if year == nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrNoCurrentYear.Error())
 		return
 	}
 

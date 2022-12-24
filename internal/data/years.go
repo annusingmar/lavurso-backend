@@ -3,13 +3,17 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
+
+var ErrNoCurrentYear = errors.New("no current year set")
 
 type Year struct {
 	ID          int        `json:"id"`
@@ -161,8 +165,16 @@ func (m YearModel) GetCurrentYear() (*NYear, error) {
 	defer cancel()
 
 	err := query.QueryContext(ctx, m.DB, &year)
+	if err != nil {
+		switch {
+		case errors.Is(err, qrm.ErrNoRows):
+			return nil, nil
+		default:
+			return nil, err
+		}
+	}
 
-	return &year, err
+	return &year, nil
 }
 
 func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {

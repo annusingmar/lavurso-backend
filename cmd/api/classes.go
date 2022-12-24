@@ -81,7 +81,8 @@ func (app *application) getClassesForTeacher(w http.ResponseWriter, r *http.Requ
 
 func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name string `json:"name"`
+		Name       string `json:"name"`
+		TeacherIDs []int  `json:"teacher_ids"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -92,15 +93,26 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	v.Check(input.Name != "", "name", "must be provided")
+	class := &model.Classes{
+		Name: &input.Name,
+	}
+
+	v.Check(*class.Name != "", "name", "must be provided")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
 		return
 	}
 
-	class := &model.Classes{
-		Name: &input.Name,
+	allUserIDs, err := app.models.Users.GetAllUserIDs()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	badIDs := helpers.VerifyExistsInSlice(input.TeacherIDs, allUserIDs)
+	if badIDs != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", data.ErrNoSuchUsers.Error(), badIDs))
+		return
 	}
 
 	err = app.models.Classes.InsertClass(class)
@@ -109,7 +121,15 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
+	if len(input.TeacherIDs) > 0 {
+		err = app.models.Classes.SetClassTeachers(class.ID, input.TeacherIDs)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"class": class})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -192,7 +212,13 @@ func (app *application) updateClass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = app.models.Classes.UpdateClass(class, input.TeacherIDs)
+	err = app.models.Classes.UpdateClass(class)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.models.Classes.SetClassTeachers(class.ID, input.TeacherIDs)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
