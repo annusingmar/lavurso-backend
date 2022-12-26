@@ -11,10 +11,13 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
-	ErrNoSuchGrade = errors.New("no such grade")
+	ErrNoSuchGrade             = errors.New("no such grade")
+	ErrIdentifierAlreadyExists = errors.New("identifier already exists")
 )
 
 type Grade struct {
@@ -78,7 +81,12 @@ func (m GradeModel) UpdateGrade(g *model.Grades) error {
 
 	_, err := stmt.ExecContext(ctx, m.DB)
 	if err != nil {
-		return err
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return ErrIdentifierAlreadyExists
+		} else {
+			return err
+		}
 	}
 
 	return nil
@@ -94,7 +102,12 @@ func (m GradeModel) InsertGrade(g *Grade) error {
 
 	err := stmt.QueryContext(ctx, m.DB, g)
 	if err != nil {
-		return err
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return ErrIdentifierAlreadyExists
+		} else {
+			return err
+		}
 	}
 
 	return nil

@@ -77,8 +77,14 @@ func (app *application) createGrade(w http.ResponseWriter, r *http.Request) {
 
 	err = app.models.Grades.InsertGrade(grade)
 	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
+		switch {
+		case errors.Is(err, data.ErrIdentifierAlreadyExists):
+			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
+			return
+		default:
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
@@ -135,8 +141,14 @@ func (app *application) updateGrade(w http.ResponseWriter, r *http.Request) {
 
 	err = app.models.Grades.UpdateGrade(grade)
 	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
+		switch {
+		case errors.Is(err, data.ErrIdentifierAlreadyExists):
+			app.writeErrorResponse(w, r, http.StatusConflict, err.Error())
+			return
+		default:
+			app.writeInternalServerError(w, r, err)
+			return
+		}
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
