@@ -185,6 +185,9 @@ func (app *application) routes() http.Handler {
 			// get students and marks for lesson
 			mux.Get("/lessons/{id}/marks", app.getMarksForLesson)
 
+			// save marks for lesson
+			mux.Patch("/lessons/{id}/marks", app.setMarksForLesson)
+
 			// add mark
 			mux.Post("/marks", app.addMark)
 

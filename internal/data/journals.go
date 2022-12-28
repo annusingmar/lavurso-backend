@@ -362,6 +362,24 @@ func (m JournalModel) IsUserInJournal(studentID, journalID int) (bool, error) {
 	return result[0] > 0, nil
 }
 
+func (m JournalModel) GetStudentIDsForJournal(journalID int) ([]int, error) {
+	query := postgres.SELECT(table.StudentsJournals.StudentID).
+		FROM(table.StudentsJournals).
+		WHERE(table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID)))
+
+	var result []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // todo: not needed?
 // func (m JournalModel) DoesParentHaveChildInJournal(parentID, journalID int) (bool, error) {
 // 	query := postgres.SELECT(postgres.COUNT(postgres.Int32(1))).

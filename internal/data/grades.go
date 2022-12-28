@@ -48,6 +48,23 @@ func (m GradeModel) AllGrades() ([]*model.Grades, error) {
 	return grades, nil
 }
 
+func (m GradeModel) GetAllGradeIDs() ([]int, error) {
+	query := postgres.SELECT(table.Grades.ID).
+		FROM(table.Grades)
+
+	var ids []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
 func (m GradeModel) GetGradeByID(gradeID int) (*model.Grades, error) {
 	query := postgres.SELECT(table.Grades.AllColumns).
 		FROM(table.Grades).

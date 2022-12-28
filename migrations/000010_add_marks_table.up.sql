@@ -27,20 +27,20 @@ ALTER TABLE "public"."marks"
 ALTER TABLE "public"."marks"
     ADD CONSTRAINT "marks_relation_5" FOREIGN KEY ("teacher_id") REFERENCES "public"."users" ("id") ON UPDATE NO ACTION ON DELETE NO ACTION;
 
-CREATE INDEX "marks_index_2" ON "public"."marks" ("user_id" ASC);
-
 ALTER TABLE marks
-    ADD CONSTRAINT lesson_mark_required_fields CHECK ( CASE WHEN TYPE IN ('lesson_grade', 'not_done', 'notice_good', 'notice_neutral', 'notice_bad', 'absent', 'late') THEN
+    ADD CONSTRAINT lesson_mark_required_fields CHECK ( CASE WHEN type IN ('lesson_grade', 'not_done', 'notice_good', 'notice_neutral', 'notice_bad', 'absent', 'late') THEN
         lesson_id IS NOT NULL AND course IS NOT NULL
     END);
 
 ALTER TABLE marks
-    ADD CONSTRAINT grade_required_fields CHECK ( CASE WHEN TYPE IN ('lesson_grade', 'course_grade', 'subject_grade') THEN
+    ADD CONSTRAINT grade_required_fields CHECK ( CASE WHEN type IN ('lesson_grade', 'course_grade', 'subject_grade') THEN
         grade_id IS NOT NULL
     END);
 
 ALTER TABLE marks
-    ADD CONSTRAINT course_grade_required_field CHECK ( CASE WHEN TYPE = 'course_grade' THEN
+    ADD CONSTRAINT course_grade_required_field CHECK ( CASE WHEN type = 'course_grade' THEN
         course IS NOT NULL
     END);
+
+CREATE UNIQUE INDEX "only_one_per_student_per_lesson" ON marks (user_id, lesson_id, type) WHERE (type IN ('absent', 'late', 'not_done'));
 
