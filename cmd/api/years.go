@@ -17,7 +17,7 @@ func (app *application) getAllYears(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	var err error
-	var years []*data.NYear
+	var years []*data.YearExt
 
 	if *sessionUser.Role == data.RoleAdministrator && r.URL.Query().Get("stats") == "true" {
 		years, err = app.models.Years.ListAllYearsWithStats()
@@ -144,7 +144,7 @@ func (app *application) setYearsForClass(w http.ResponseWriter, r *http.Request)
 
 	var yearIDs []int
 	var removedYears []int
-	var classesYears []*model.ClassesYears
+	var classesYears []*data.ClassYear
 
 	for _, i := range input {
 		i := i
@@ -153,7 +153,7 @@ func (app *application) setYearsForClass(w http.ResponseWriter, r *http.Request)
 		if i.Name == nil || *i.Name == "" {
 			removedYears = append(removedYears, i.YearID)
 		} else {
-			classesYears = append(classesYears, &model.ClassesYears{
+			classesYears = append(classesYears, &data.ClassYear{
 				ClassID:     &class.ID,
 				YearID:      &i.YearID,
 				DisplayName: i.Name,
@@ -253,7 +253,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	// 	}
 	// }
 
-	year := model.Years{
+	year := data.Year{
 		DisplayName: &input.DisplayName,
 		Current:     helpers.ToPtr(false),
 	}
@@ -267,7 +267,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	var classYears []*model.ClassesYears
 
 	for _, nc := range input.NewClasses {
-		class := &model.Classes{
+		class := &data.Class{
 			Name: &nc.Name,
 		}
 

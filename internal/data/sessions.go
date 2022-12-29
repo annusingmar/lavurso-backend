@@ -18,11 +18,13 @@ var (
 	ErrNoSuchSession = errors.New("no such session")
 )
 
+type Session = model.Sessions
+
 type SessionModel struct {
 	DB *sql.DB
 }
 
-func (m SessionModel) InsertSession(s *model.Sessions) error {
+func (m SessionModel) InsertSession(s *Session) error {
 	stmt := table.Sessions.INSERT(table.Sessions.MutableColumns).
 		MODEL(s).
 		RETURNING(table.Sessions.ID)
@@ -106,13 +108,13 @@ func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) 
 	return nil
 }
 
-func (m SessionModel) GetSessionsByUserID(userID int) ([]*model.Sessions, error) {
+func (m SessionModel) GetSessionsByUserID(userID int) ([]*Session, error) {
 	query := postgres.SELECT(table.Sessions.AllColumns).
 		FROM(table.Sessions).
 		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
 			AND(table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
 
-	var sessions []*model.Sessions
+	var sessions []*Session
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -125,13 +127,13 @@ func (m SessionModel) GetSessionsByUserID(userID int) ([]*model.Sessions, error)
 	return sessions, nil
 }
 
-func (m SessionModel) GetSessionByID(sessionID int) (*model.Sessions, error) {
+func (m SessionModel) GetSessionByID(sessionID int) (*Session, error) {
 	query := postgres.SELECT(table.Sessions.AllColumns).
 		FROM(table.Sessions).
 		WHERE(table.Sessions.ID.EQ(helpers.PostgresInt(sessionID)).
 			AND(table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
 
-	var session model.Sessions
+	var session Session
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

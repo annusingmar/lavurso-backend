@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -32,8 +31,8 @@ func (app *application) createLesson(w http.ResponseWriter, r *http.Request) {
 
 	time := time.Now().UTC()
 
-	lesson := &data.NLesson{
-		Lessons: model.Lessons{
+	lesson := &data.LessonExt{
+		Lesson: data.Lesson{
 			JournalID:   &input.JournalID,
 			Description: &input.Description,
 			Date:        &input.Date,

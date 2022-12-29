@@ -17,16 +17,18 @@ var (
 	ErrNoSuchSubject = errors.New("no such subject")
 )
 
+type Subject = model.Subjects
+
 type SubjectModel struct {
 	DB *sql.DB
 }
 
-func (m SubjectModel) AllSubjects() ([]*model.Subjects, error) {
+func (m SubjectModel) AllSubjects() ([]*Subject, error) {
 	query := postgres.SELECT(table.Subjects.AllColumns).
 		FROM(table.Subjects).
 		ORDER_BY(table.Subjects.ID.ASC())
 
-	var subjects []*model.Subjects
+	var subjects []*Subject
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -39,7 +41,7 @@ func (m SubjectModel) AllSubjects() ([]*model.Subjects, error) {
 	return subjects, nil
 }
 
-func (m SubjectModel) InsertSubject(s *model.Subjects) error {
+func (m SubjectModel) InsertSubject(s *Subject) error {
 	stmt := table.Subjects.INSERT(table.Subjects.MutableColumns).
 		MODEL(s).
 		RETURNING(table.Subjects.ID)
@@ -55,7 +57,7 @@ func (m SubjectModel) InsertSubject(s *model.Subjects) error {
 	return nil
 }
 
-func (m SubjectModel) UpdateSubject(s *model.Subjects) error {
+func (m SubjectModel) UpdateSubject(s *Subject) error {
 	stmt := table.Subjects.UPDATE(table.Subjects.Name).
 		MODEL(s).
 		WHERE(table.Subjects.ID.EQ(helpers.PostgresInt(s.ID)))
@@ -71,12 +73,12 @@ func (m SubjectModel) UpdateSubject(s *model.Subjects) error {
 	return nil
 }
 
-func (m SubjectModel) GetSubjectByID(subjectID int) (*model.Subjects, error) {
+func (m SubjectModel) GetSubjectByID(subjectID int) (*Subject, error) {
 	query := postgres.SELECT(table.Subjects.AllColumns).
 		FROM(table.Subjects).
 		WHERE(table.Subjects.ID.EQ(helpers.PostgresInt(subjectID)))
 
-	var subject model.Subjects
+	var subject Subject
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

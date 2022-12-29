@@ -39,13 +39,15 @@ var (
 
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
 
+type User = model.Users
+
 type Student struct {
-	Class   *NClass        `json:"class,omitempty"`
-	Parents []*model.Users `json:"parents,omitempty" alias:"parents"`
+	Class   *ClassExt `json:"class,omitempty"`
+	Parents []*User   `json:"parents,omitempty" alias:"parents"`
 }
 
-type NUser struct {
-	model.Users
+type UserExt struct {
+	User
 	Student   *Student `json:"student,omitempty"`
 	SessionID *int     `json:"-" alias:"sessions.id"`
 }
@@ -61,7 +63,7 @@ type UserModel struct {
 
 // DATABASE
 
-func (m UserModel) AllUsers(archived bool) ([]*NUser, error) {
+func (m UserModel) AllUsers(archived bool) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.AllColumns.Except(table.Users.Password), table.Classes.Name, table.ClassesYears.DisplayName).
 		FROM(table.Users.
 			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
@@ -72,7 +74,7 @@ func (m UserModel) AllUsers(archived bool) ([]*NUser, error) {
 		WHERE(table.Users.Archived.EQ(postgres.Bool(archived))).
 		ORDER_BY(table.Users.ID.ASC())
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -85,7 +87,7 @@ func (m UserModel) AllUsers(archived bool) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m UserModel) SearchUser(name string) ([]*NUser, error) {
+func (m UserModel) SearchUser(name string) ([]*UserExt, error) {
 	// todo: LIKE + LOWER -> ILIKE
 
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Users.ClassID, table.Classes.Name, table.ClassesYears.DisplayName).
@@ -97,7 +99,7 @@ func (m UserModel) SearchUser(name string) ([]*NUser, error) {
 			AND(table.Users.Archived.IS_FALSE())).
 		ORDER_BY(table.Users.Name.ASC())
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -110,7 +112,7 @@ func (m UserModel) SearchUser(name string) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m UserModel) GetUserByID(userID int) (*NUser, error) {
+func (m UserModel) GetUserByID(userID int) (*UserExt, error) {
 	query := postgres.SELECT(table.Users.AllColumns, table.Classes.ID, table.Classes.Name, table.ClassesYears.DisplayName).
 		FROM(table.Users.
 			LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
@@ -119,7 +121,7 @@ func (m UserModel) GetUserByID(userID int) (*NUser, error) {
 				AND(table.ClassesYears.YearID.EQ(table.Years.ID)))).
 		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)))
 
-	var user NUser
+	var user UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -132,13 +134,13 @@ func (m UserModel) GetUserByID(userID int) (*NUser, error) {
 	return &user, nil
 }
 
-func (m UserModel) GetUsersByRole(role string) ([]*NUser, error) {
+func (m UserModel) GetUsersByRole(role string) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Users).
 		WHERE(table.Users.Role.EQ(postgres.String(role))).
 		ORDER_BY(table.Users.ID.ASC())
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -151,7 +153,7 @@ func (m UserModel) GetUsersByRole(role string) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m UserModel) InsertUser(u *model.Users) error {
+func (m UserModel) InsertUser(u *User) error {
 	stmt := table.Users.INSERT(table.Users.MutableColumns.
 		Except(table.Users.CreatedAt, table.Users.Active, table.Users.Archived)).
 		MODEL(u).
@@ -179,7 +181,7 @@ func (m UserModel) InsertUser(u *model.Users) error {
 	return nil
 }
 
-func (m UserModel) UpdateUser(u *NUser) error {
+func (m UserModel) UpdateUser(u *UserExt) error {
 	stmt := table.Users.UPDATE(table.Users.MutableColumns).
 		MODEL(u).
 		WHERE(table.Users.ID.EQ(helpers.PostgresInt(u.ID)))
@@ -243,7 +245,7 @@ func (m UserModel) GetAllStudentIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) {
+func (m UserModel) GetUserBySessionToken(plaintextToken string) (*UserExt, error) {
 	hash := sha256.Sum256([]byte(plaintextToken))
 
 	query := postgres.SELECT(table.Users.AllColumns, table.Classes.Name, table.Sessions.ID).
@@ -256,7 +258,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) 
 			table.Sessions.Token.EQ(postgres.Bytea(hash[:])),
 			table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
 
-	var user NUser
+	var user UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -275,7 +277,7 @@ func (m UserModel) GetUserBySessionToken(plaintextToken string) (*NUser, error) 
 	return &user, nil
 }
 
-func (m UserModel) GetUserByEmail(email string) (*NUser, error) {
+func (m UserModel) GetUserByEmail(email string) (*UserExt, error) {
 	query := postgres.SELECT(table.Users.AllColumns).
 		FROM(table.Users).
 		WHERE(postgres.AND(
@@ -284,7 +286,7 @@ func (m UserModel) GetUserByEmail(email string) (*NUser, error) {
 			table.Users.Active.IS_TRUE(),
 		))
 
-	var user NUser
+	var user UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -338,7 +340,7 @@ func (m UserModel) RemoveParentFromChild(parentID, childID int) error {
 	return nil
 }
 
-func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
+func (m UserModel) GetStudentByID(userID int) (*UserExt, error) {
 	parent := table.Users.AS("parents")
 
 	query := postgres.SELECT(
@@ -352,7 +354,7 @@ func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
 		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)).
 			AND(table.Users.Role.EQ(postgres.String(RoleStudent))))
 
-	var user NUser
+	var user UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -370,13 +372,13 @@ func (m UserModel) GetStudentByID(userID int) (*NUser, error) {
 	return &user, nil
 }
 
-func (m UserModel) GetParentsForChild(childID int) ([]*NUser, error) {
+func (m UserModel) GetParentsForChild(childID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role).
 		FROM(table.Users.
 			INNER_JOIN(table.ParentsChildren, table.ParentsChildren.ParentID.EQ(table.Users.ID))).
 		WHERE(table.ParentsChildren.ChildID.EQ(helpers.PostgresInt(childID)))
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -389,13 +391,13 @@ func (m UserModel) GetParentsForChild(childID int) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m UserModel) GetChildrenForParent(parentID int) ([]*NUser, error) {
+func (m UserModel) GetChildrenForParent(parentID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Users.
 			INNER_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID))).
 		WHERE(table.ParentsChildren.ParentID.EQ(helpers.PostgresInt(parentID)))
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

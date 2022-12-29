@@ -26,29 +26,33 @@ const (
 	MsgTypeThreadStart = "thread_start"
 )
 
-type NThread struct {
-	model.Threads
-	User         *model.Users `json:"user"`
-	Read         *bool        `json:"read,omitempty"`
-	MessageCount *int         `json:"message_count,omitempty"`
+type Thread = model.Threads
+
+type ThreadExt struct {
+	Thread
+	User         *User `json:"user"`
+	Read         *bool `json:"read,omitempty"`
+	MessageCount *int  `json:"message_count,omitempty"`
 }
 
-type NMessage struct {
-	model.Messages
-	User *model.Users `json:"user"`
+type Message = model.Messages
+
+type MessageExt struct {
+	Message
+	User *User `json:"user"`
 }
 
 type MessagingModel struct {
 	DB *sql.DB
 }
 
-func (m MessagingModel) GetThreadByID(threadID int) (*NThread, error) {
+func (m MessagingModel) GetThreadByID(threadID int) (*ThreadExt, error) {
 	query := postgres.SELECT(table.Threads.AllColumns, table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Threads.
 			INNER_JOIN(table.Users, table.Users.ID.EQ(table.Threads.UserID))).
 		WHERE(table.Threads.ID.EQ(helpers.PostgresInt(threadID)))
 
-	var thread NThread
+	var thread ThreadExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -66,7 +70,7 @@ func (m MessagingModel) GetThreadByID(threadID int) (*NThread, error) {
 	return &thread, nil
 }
 
-func (m MessagingModel) InsertThread(t *model.Threads) error {
+func (m MessagingModel) InsertThread(t *Thread) error {
 	stmt := table.Threads.INSERT(table.Threads.MutableColumns).
 		MODEL(t).
 		RETURNING(table.Threads.ID)
@@ -189,14 +193,14 @@ func (m MessagingModel) RemoveGroupsFromThread(threadID int, groupIDs []int) err
 	return nil
 }
 
-func (m MessagingModel) GetUsersInThread(threadID int) ([]*NUser, error) {
+func (m MessagingModel) GetUsersInThread(threadID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Users.
 			INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.UserID.EQ(table.Users.ID))).
 		WHERE(table.ThreadsRecipients.ThreadID.EQ(helpers.PostgresInt(threadID))).
 		ORDER_BY(table.Users.Name.ASC())
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -209,14 +213,14 @@ func (m MessagingModel) GetUsersInThread(threadID int) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m MessagingModel) GetGroupsInThread(threadID int) ([]*model.Groups, error) {
+func (m MessagingModel) GetGroupsInThread(threadID int) ([]*Group, error) {
 	query := postgres.SELECT(table.Groups.ID, table.Groups.Name).
 		FROM(table.Groups.
 			INNER_JOIN(table.ThreadsRecipients, table.ThreadsRecipients.GroupID.EQ(table.Groups.ID))).
 		WHERE(table.ThreadsRecipients.ThreadID.EQ(helpers.PostgresInt(threadID))).
 		ORDER_BY(table.Groups.Name.ASC())
 
-	var groups []*model.Groups
+	var groups []*Group
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -229,12 +233,12 @@ func (m MessagingModel) GetGroupsInThread(threadID int) ([]*model.Groups, error)
 	return groups, nil
 }
 
-func (m MessagingModel) GetMessageByID(messageID int) (*model.Messages, error) {
+func (m MessagingModel) GetMessageByID(messageID int) (*Message, error) {
 	query := postgres.SELECT(table.Messages.AllColumns).
 		FROM(table.Messages).
 		WHERE(table.Messages.ID.EQ(helpers.PostgresInt(messageID)))
 
-	var message model.Messages
+	var message Message
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -252,7 +256,7 @@ func (m MessagingModel) GetMessageByID(messageID int) (*model.Messages, error) {
 	return &message, nil
 }
 
-func (m MessagingModel) InsertMessage(ms *model.Messages) error {
+func (m MessagingModel) InsertMessage(ms *Message) error {
 	stmt := table.Messages.INSERT(table.Messages.MutableColumns).
 		MODEL(ms).
 		RETURNING(table.Messages.ID)
@@ -283,7 +287,7 @@ func (m MessagingModel) DeleteMessage(messageID int) error {
 	return nil
 }
 
-func (m MessagingModel) UpdateMessage(ms *model.Messages) error {
+func (m MessagingModel) UpdateMessage(ms *Message) error {
 	stmt := table.Messages.UPDATE(table.Messages.Body, table.Messages.UpdatedAt).
 		MODEL(ms).
 		WHERE(table.Messages.ID.EQ(helpers.PostgresInt(ms.ID)))
@@ -299,14 +303,14 @@ func (m MessagingModel) UpdateMessage(ms *model.Messages) error {
 	return nil
 }
 
-func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*NMessage, error) {
+func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*MessageExt, error) {
 	query := postgres.SELECT(table.Messages.AllColumns, table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Messages.
 			INNER_JOIN(table.Users, table.Users.ID.EQ(table.Messages.UserID))).
 		WHERE(table.Messages.ThreadID.EQ(helpers.PostgresInt(threadID))).
 		ORDER_BY(table.Messages.CreatedAt.ASC())
 
-	var messages []*NMessage
+	var messages []*MessageExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -319,7 +323,7 @@ func (m MessagingModel) GetAllMessagesByThreadID(threadID int) ([]*NMessage, err
 	return messages, nil
 }
 
-func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*NThread, error) {
+func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*ThreadExt, error) {
 	uid := helpers.PostgresInt(userID)
 
 	from := table.Threads.
@@ -347,14 +351,14 @@ func (m MessagingModel) GetThreadsForUser(userID int, search string) ([]*NThread
 	query := postgres.SELECT(
 		table.Threads.ID, table.Threads.UserID, table.Threads.Title, table.Threads.Locked, table.Threads.CreatedAt, table.Threads.UpdatedAt,
 		table.Users.ID, table.Users.Name, table.Users.Role,
-		postgres.CASE().WHEN(table.ThreadsRead.UserID.IS_NOT_NULL()).THEN(postgres.Bool(true)).ELSE(postgres.Bool(false)).AS("nthread.read"),
-		postgres.SELECT(postgres.COUNT(table.Messages.ID)).FROM(table.Messages).WHERE(table.Messages.ThreadID.EQ(table.Threads.ID)).AS("nthread.message_count"),
+		postgres.CASE().WHEN(table.ThreadsRead.UserID.IS_NOT_NULL()).THEN(postgres.Bool(true)).ELSE(postgres.Bool(false)).AS("threadext.read"),
+		postgres.SELECT(postgres.COUNT(table.Messages.ID)).FROM(table.Messages).WHERE(table.Messages.ThreadID.EQ(table.Threads.ID)).AS("threadext.message_count"),
 	).DISTINCT().
 		FROM(from).
 		WHERE(where).
 		ORDER_BY(table.Threads.UpdatedAt.DESC())
 
-	var threads []*NThread
+	var threads []*ThreadExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -37,7 +36,7 @@ func (app *application) createSubject(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	subject := &model.Subjects{
+	subject := &data.Subject{
 		Name: &input.Name,
 	}
 

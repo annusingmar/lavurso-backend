@@ -19,13 +19,15 @@ var (
 	ErrNoSuchType = errors.New("no such mark type")
 )
 
-type NMark struct {
-	model.Marks
-	Lesson  *model.Lessons  `json:"lesson,omitempty" alias:"mark_lesson"`
-	Grade   *model.Grades   `json:"grade,omitempty"`
-	Subject *model.Subjects `json:"subject,omitempty"`
-	Excuse  *NExcuse        `json:"excuse,omitempty"`
-	Teacher *model.Users    `json:"teacher,omitempty" alias:"teacher"`
+type Mark = model.Marks
+
+type MarkExt struct {
+	Mark
+	Lesson  *Lesson    `json:"lesson,omitempty" alias:"mark_lesson"`
+	Grade   *Grade     `json:"grade,omitempty"`
+	Subject *Subject   `json:"subject,omitempty"`
+	Excuse  *ExcuseExt `json:"excuse,omitempty"`
+	Teacher *User      `json:"teacher,omitempty" alias:"teacher"`
 }
 
 type MinimalMark struct {
@@ -48,15 +50,15 @@ type LessonMarks struct {
 }
 
 type LessonStudent struct {
-	NUser
+	UserExt
 	Lesson LessonMarks    `json:"lesson"`
 	Marks  []*MinimalMark `json:"marks,omitempty"`
 }
 
 type StudentWithLowerMarks struct {
-	NUser
+	UserExt
 	Marks      []*HigherMinimalGradeMark `json:"marks,omitempty"`
-	LowerMarks []*NMark                  `json:"lower_marks,omitempty"`
+	LowerMarks []*MarkExt                `json:"lower_marks,omitempty"`
 }
 
 type MarkByStudentIDType struct {
@@ -81,7 +83,7 @@ const (
 	MarkLate          = "late"
 )
 
-func (m MarkModel) GetMarkAndExcuseByID(markID int) (*NMark, error) {
+func (m MarkModel) GetMarkAndExcuseByID(markID int) (*MarkExt, error) {
 	query := postgres.SELECT(
 		table.Marks.AllColumns,
 		table.Excuses.AllColumns).
@@ -89,7 +91,7 @@ func (m MarkModel) GetMarkAndExcuseByID(markID int) (*NMark, error) {
 			LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(table.Marks.ID))).
 		WHERE(table.Marks.ID.EQ(helpers.PostgresInt(markID)))
 
-	var mark NMark
+	var mark MarkExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -107,7 +109,7 @@ func (m MarkModel) GetMarkAndExcuseByID(markID int) (*NMark, error) {
 	return &mark, nil
 }
 
-func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*NMark, error) {
+func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*MarkExt, error) {
 	teacher := table.Users.AS("teacher")
 	excuser := table.Users.AS("excuser")
 	lesson := table.Lessons.AS("mark_lesson")
@@ -129,7 +131,7 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*NMark, error) {
 			AND(table.Journals.YearID.EQ(helpers.PostgresInt(yearID)))).
 		ORDER_BY(table.Marks.UpdatedAt.ASC())
 
-	var marks []*NMark
+	var marks []*MarkExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -142,7 +144,7 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*NMark, error) {
 	return marks, nil
 }
 
-func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Date) ([]*NMark, error) {
+func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Date) ([]*MarkExt, error) {
 	teacher := table.Users.AS("teacher")
 	excuser := table.Users.AS("excuser")
 	lesson := table.Lessons.AS("mark_lesson")
@@ -177,7 +179,7 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Da
 		WHERE(where).
 		ORDER_BY(table.Marks.UpdatedAt.DESC())
 
-	var marks []*NMark
+	var marks []*MarkExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -190,7 +192,7 @@ func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Da
 	return marks, nil
 }
 
-func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*NMark, error) {
+func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*MarkExt, error) {
 	teacher := table.Users.AS("teacher")
 	excuser := table.Users.AS("excuser")
 	lesson := table.Lessons.AS("mark_lesson")
@@ -215,7 +217,7 @@ func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalI
 		)).
 		ORDER_BY(table.Marks.UpdatedAt.ASC())
 
-	var marks []*NMark
+	var marks []*MarkExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -228,7 +230,7 @@ func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalI
 	return marks, nil
 }
 
-func (m MarkModel) InsertMarks(tx *sql.Tx, marks []*model.Marks) error {
+func (m MarkModel) InsertMarks(tx *sql.Tx, marks []*Mark) error {
 	stmt := table.Marks.INSERT(table.Marks.MutableColumns).
 		MODELS(marks).
 		ON_CONFLICT(table.Marks.UserID, table.Marks.LessonID, table.Marks.Type).
@@ -246,7 +248,7 @@ func (m MarkModel) InsertMarks(tx *sql.Tx, marks []*model.Marks) error {
 	return nil
 }
 
-func (m MarkModel) UpdateMarks(tx *sql.Tx, marks []*model.Marks) error {
+func (m MarkModel) UpdateMarks(tx *sql.Tx, marks []*Mark) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

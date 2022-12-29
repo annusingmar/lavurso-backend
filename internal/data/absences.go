@@ -18,16 +18,18 @@ var (
 	ErrNoSuchExcuse    = errors.New("no such excuse")
 )
 
-type NExcuse struct {
-	model.Excuses
-	By *model.Users `json:"by,omitempty" alias:"excuser"`
+type Excuse = model.Excuses
+
+type ExcuseExt struct {
+	Excuse
+	By *User `json:"by,omitempty" alias:"excuser"`
 }
 
 type AbsenceModel struct {
 	DB *sql.DB
 }
 
-func (m AbsenceModel) InsertExcuse(excuse *model.Excuses) error {
+func (m AbsenceModel) InsertExcuse(excuse *Excuse) error {
 	stmt := table.Excuses.INSERT(table.Excuses.AllColumns).
 		MODEL(excuse)
 

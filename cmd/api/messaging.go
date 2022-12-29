@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -71,7 +70,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 
 	currentTime := time.Now().UTC()
 
-	thread := &model.Threads{
+	thread := &data.Thread{
 		UserID:    &sessionUser.ID,
 		Title:     &input.Title,
 		Locked:    helpers.ToPtr(false),
@@ -101,7 +100,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadMessage := &model.Messages{
+	threadMessage := &data.Message{
 		ThreadID:  &thread.ID,
 		UserID:    &sessionUser.ID,
 		Body:      &input.Body,
@@ -488,7 +487,7 @@ func (app *application) createMessage(w http.ResponseWriter, r *http.Request) {
 
 	currentTime := time.Now().UTC()
 
-	message := &model.Messages{
+	message := &data.Message{
 		ThreadID:  &thread.ID,
 		UserID:    &sessionUser.ID,
 		Body:      &input.Body,

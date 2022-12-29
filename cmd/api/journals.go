@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -79,7 +78,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	journal := &model.Journals{
+	journal := &data.Journal{
 		Name:      &input.Name,
 		SubjectID: &input.SubjectID,
 	}

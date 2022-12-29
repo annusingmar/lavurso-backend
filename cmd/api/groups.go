@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -71,7 +70,7 @@ func (app *application) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	group := &model.Groups{
+	group := &data.Group{
 		Name: &input.Name,
 	}
 

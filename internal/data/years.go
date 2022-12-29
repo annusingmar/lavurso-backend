@@ -15,15 +15,19 @@ import (
 
 var ErrNoCurrentYear = errors.New("no current year set")
 
-type NYear struct {
-	model.Years
-	Stats *YearStats `json:"stats,omitempty" alias:"stats.*"`
+type Year = model.Years
+
+type YearExt struct {
+	Year
+	Stats *YearStats `json:"stats,omitempty" alias:"stats"`
 }
 
 type YearStats struct {
 	StudentCount *int `json:"student_count"`
 	JournalCount *int `json:"journal_count"`
 }
+
+type ClassYear = model.ClassesYears
 
 type ClassAndYear struct {
 	YearID    int     `json:"year_id" alias:"years.id"`
@@ -35,11 +39,11 @@ type YearModel struct {
 	DB *sql.DB
 }
 
-func (m YearModel) ListAllYears() ([]*NYear, error) {
+func (m YearModel) ListAllYears() ([]*YearExt, error) {
 	query := postgres.SELECT(table.Years.AllColumns).
 		FROM(table.Years)
 
-	var years []*NYear
+	var years []*YearExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -52,7 +56,7 @@ func (m YearModel) ListAllYears() ([]*NYear, error) {
 	return years, nil
 }
 
-func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
+func (m YearModel) ListAllYearsWithStats() ([]*YearExt, error) {
 	journalCount := postgres.SELECT(postgres.COUNT(helpers.PostgresInt(1))).
 		FROM(table.Journals).
 		WHERE(table.Journals.YearID.EQ(table.Years.ID))
@@ -65,7 +69,7 @@ func (m YearModel) ListAllYearsWithStats() ([]*NYear, error) {
 	query := postgres.SELECT(table.Years.AllColumns, journalCount.AS("stats.journal_count"), studentCount.AS("stats.student_count")).
 		FROM(table.Years)
 
-	var years []*NYear
+	var years []*YearExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -95,7 +99,7 @@ func (m YearModel) GetAllYearIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m YearModel) InsertYear(y *model.Years) error {
+func (m YearModel) InsertYear(y *Year) error {
 	stmt := table.Years.INSERT(table.Years.MutableColumns).
 		MODEL(y).RETURNING(table.Years.ID)
 
@@ -147,12 +151,12 @@ func (m YearModel) RemoveYearsForClass(id int, yearIDs []int) error {
 	return nil
 }
 
-func (m YearModel) GetCurrentYear() (*NYear, error) {
+func (m YearModel) GetCurrentYear() (*YearExt, error) {
 	query := postgres.SELECT(table.Years.AllColumns).
 		FROM(table.Years).
 		WHERE(table.Years.Current.IS_TRUE())
 
-	var year NYear
+	var year YearExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -170,7 +174,7 @@ func (m YearModel) GetCurrentYear() (*NYear, error) {
 	return &year, nil
 }
 
-func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {
+func (m YearModel) GetYearsForStudent(studentID int) ([]*YearExt, error) {
 
 	query := postgres.SELECT(table.Years.ID, table.Years.DisplayName, table.Years.Current).DISTINCT().
 		FROM(table.Years.
@@ -179,7 +183,7 @@ func (m YearModel) GetYearsForStudent(studentID int) ([]*NYear, error) {
 			INNER_JOIN(table.Users, table.Users.ClassID.EQ(table.ClassesYears.ClassID))).
 		WHERE(table.Users.ID.EQ(helpers.PostgresInt(studentID)))
 
-	var years []*NYear
+	var years []*YearExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

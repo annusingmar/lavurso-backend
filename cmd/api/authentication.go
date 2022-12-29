@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
@@ -68,7 +67,7 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 
 	currentTime := time.Now().UTC()
 
-	session := &model.Sessions{
+	session := &data.Session{
 		UserID:       &user.ID,
 		Token:        new(types.Token),
 		Expires:      helpers.ToPtr(currentTime.Add(3 * time.Minute)),

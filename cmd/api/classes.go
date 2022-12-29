@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -17,7 +16,7 @@ func (app *application) listAllClasses(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	var err error
-	var classes []*data.NClass
+	var classes []*data.ClassExt
 
 	current := r.URL.Query().Get("current")
 	if *sessionUser.Role != data.RoleAdministrator || current != "false" {
@@ -93,7 +92,7 @@ func (app *application) createClass(w http.ResponseWriter, r *http.Request) {
 
 	v := validator.NewValidator()
 
-	class := &model.Classes{
+	class := &data.Class{
 		Name: &input.Name,
 	}
 

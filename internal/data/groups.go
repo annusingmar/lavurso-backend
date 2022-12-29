@@ -19,8 +19,10 @@ var (
 	ErrGroupArchived = errors.New("group is archived")
 )
 
-type NGroup struct {
-	model.Groups
+type Group = model.Groups
+
+type GroupExt struct {
+	Group
 	MemberCount *int `json:"member_count,omitempty"`
 }
 
@@ -28,12 +30,12 @@ type GroupModel struct {
 	DB *sql.DB
 }
 
-func (m GroupModel) GetGroupByID(groupID int) (*model.Groups, error) {
+func (m GroupModel) GetGroupByID(groupID int) (*Group, error) {
 	query := postgres.SELECT(table.Groups.AllColumns).
 		FROM(table.Groups).
 		WHERE(table.Groups.ID.EQ(helpers.PostgresInt(groupID)))
 
-	var group model.Groups
+	var group Group
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -51,7 +53,7 @@ func (m GroupModel) GetGroupByID(groupID int) (*model.Groups, error) {
 	return &group, nil
 }
 
-func (m GroupModel) UpdateGroup(g *model.Groups) error {
+func (m GroupModel) UpdateGroup(g *Group) error {
 	stmt := table.Groups.UPDATE(table.Groups.Name, table.Groups.Archived).
 		MODEL(g).
 		WHERE(table.Groups.ID.EQ(helpers.PostgresInt(g.ID)))
@@ -67,14 +69,14 @@ func (m GroupModel) UpdateGroup(g *model.Groups) error {
 	return nil
 }
 
-func (m GroupModel) GetAllGroups(archived bool) ([]*NGroup, error) {
-	query := postgres.SELECT(table.Groups.AllColumns, postgres.COUNT(table.UsersGroups.UserID).AS("ngroup.member_count")).
+func (m GroupModel) GetAllGroups(archived bool) ([]*GroupExt, error) {
+	query := postgres.SELECT(table.Groups.AllColumns, postgres.COUNT(table.UsersGroups.UserID).AS("groupext.member_count")).
 		FROM(table.Groups.
 			LEFT_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.Groups.ID))).
 		WHERE(table.Groups.Archived.EQ(postgres.Bool(archived))).
 		GROUP_BY(table.Groups.ID)
 
-	var groups []*NGroup
+	var groups []*GroupExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -107,7 +109,7 @@ func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
 	return ids, nil
 }
 
-func (m GroupModel) GetUsersByGroupID(groupID int) ([]*NUser, error) {
+func (m GroupModel) GetUsersByGroupID(groupID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Users.ClassID, table.Classes.Name, table.ClassesYears.DisplayName).
 		FROM(table.Users.
 			INNER_JOIN(table.UsersGroups, table.UsersGroups.UserID.EQ(table.Users.ID)).
@@ -117,7 +119,7 @@ func (m GroupModel) GetUsersByGroupID(groupID int) ([]*NUser, error) {
 		WHERE(table.UsersGroups.GroupID.EQ(helpers.PostgresInt(groupID))).
 		ORDER_BY(table.Users.Name.ASC())
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -130,14 +132,14 @@ func (m GroupModel) GetUsersByGroupID(groupID int) ([]*NUser, error) {
 	return users, nil
 }
 
-func (m GroupModel) GetGroupsByUserID(userID int) ([]*model.Groups, error) {
+func (m GroupModel) GetGroupsByUserID(userID int) ([]*Group, error) {
 	query := postgres.SELECT(table.Groups.ID, table.Groups.Name).
 		FROM(table.Groups.
 			INNER_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.Groups.ID))).
 		WHERE(table.UsersGroups.UserID.EQ(helpers.PostgresInt(userID)).
 			AND(table.Groups.Archived.IS_FALSE()))
 
-	var groups []*model.Groups
+	var groups []*Group
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -150,7 +152,7 @@ func (m GroupModel) GetGroupsByUserID(userID int) ([]*model.Groups, error) {
 	return groups, nil
 }
 
-func (m GroupModel) InsertGroup(g *model.Groups) error {
+func (m GroupModel) InsertGroup(g *Group) error {
 	stmt := table.Groups.INSERT(table.Groups.Name).
 		MODEL(g).
 		RETURNING(table.Groups.ID)

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -66,13 +65,13 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 	}
 
 	type jwm struct {
-		*data.NJournal
-		Marks map[int][]*data.NMark `json:"marks,omitempty"`
+		*data.JournalExt
+		Marks map[int][]*data.MarkExt `json:"marks,omitempty"`
 	}
 
 	journalsWithMarks := make([]*jwm, len(journals))
 	for i, j := range journals {
-		journalsWithMarks[i] = &jwm{j, make(map[int][]*data.NMark)}
+		journalsWithMarks[i] = &jwm{j, make(map[int][]*data.MarkExt)}
 	}
 
 	for _, j := range journalsWithMarks {
@@ -293,7 +292,7 @@ func (app *application) setMarksForLesson(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	newMark := func(index int, ID int, studentID int, mtype string, comment *string, grade *int) *model.Marks {
+	newMark := func(index int, ID int, studentID int, mtype string, comment *string, grade *int) *data.Mark {
 		switch mtype {
 		case data.MarkCommonGrade:
 			if grade == nil {
@@ -324,7 +323,7 @@ func (app *application) setMarksForLesson(w http.ResponseWriter, r *http.Request
 			mtype = data.MarkLessonGrade
 		}
 
-		return &model.Marks{
+		return &data.Mark{
 			ID:        ID,
 			UserID:    &studentID,
 			LessonID:  &lesson.ID,
@@ -339,8 +338,8 @@ func (app *application) setMarksForLesson(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	var insertMarks []*model.Marks
-	var updateMarks []*model.Marks
+	var insertMarks []*data.Mark
+	var updateMarks []*data.Mark
 	var deletedMarkIDs []int
 
 	var deletedMarksByStudentIDType []data.MarkByStudentIDType
@@ -527,7 +526,7 @@ func (app *application) setMarksForCourse(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	newMark := func(index int, ID int, studentID int, comment *string, grade int) *model.Marks {
+	newMark := func(index int, ID int, studentID int, comment *string, grade int) *data.Mark {
 		if grade == 0 {
 			v.Add("grade", fmt.Sprintf("%d: must be provided", index))
 			return nil
@@ -540,7 +539,7 @@ func (app *application) setMarksForCourse(w http.ResponseWriter, r *http.Request
 			comment = nil
 		}
 
-		return &model.Marks{
+		return &data.Mark{
 			ID:        ID,
 			UserID:    &studentID,
 			Course:    &course,
@@ -554,8 +553,8 @@ func (app *application) setMarksForCourse(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	var insertMarks []*model.Marks
-	var updateMarks []*model.Marks
+	var insertMarks []*data.Mark
+	var updateMarks []*data.Mark
 	var deletedMarkIDs []int
 
 student:
@@ -697,7 +696,7 @@ func (app *application) setMarksForJournalSubject(w http.ResponseWriter, r *http
 		return
 	}
 
-	newMark := func(index int, ID int, studentID int, comment *string, grade int) *model.Marks {
+	newMark := func(index int, ID int, studentID int, comment *string, grade int) *data.Mark {
 		if grade == 0 {
 			v.Add("grade", fmt.Sprintf("%d: must be provided", index))
 			return nil
@@ -710,7 +709,7 @@ func (app *application) setMarksForJournalSubject(w http.ResponseWriter, r *http
 			comment = nil
 		}
 
-		return &model.Marks{
+		return &data.Mark{
 			ID:        ID,
 			UserID:    &studentID,
 			JournalID: &journal.ID,
@@ -723,8 +722,8 @@ func (app *application) setMarksForJournalSubject(w http.ResponseWriter, r *http
 		}
 	}
 
-	var insertMarks []*model.Marks
-	var updateMarks []*model.Marks
+	var insertMarks []*data.Mark
+	var updateMarks []*data.Mark
 	var deletedMarkIDs []int
 
 student:

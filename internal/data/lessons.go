@@ -18,11 +18,13 @@ var (
 	ErrNoSuchLesson = errors.New("no such lesson")
 )
 
-type NLesson struct {
-	model.Lessons
-	Journal *model.Journals `json:"journal,omitempty"`
-	Subject *model.Subjects `json:"subject,omitempty"`
-	Marks   []*NMark        `json:"marks,omitempty"`
+type Lesson = model.Lessons
+
+type LessonExt struct {
+	Lesson
+	Journal *Journal   `json:"journal,omitempty"`
+	Subject *Subject   `json:"subject,omitempty"`
+	Marks   []*MarkExt `json:"marks,omitempty"`
 }
 
 type LessonModel struct {
@@ -31,7 +33,7 @@ type LessonModel struct {
 
 // DATABASE
 
-func (m LessonModel) InsertLesson(l *NLesson) error {
+func (m LessonModel) InsertLesson(l *LessonExt) error {
 	stmt := table.Lessons.INSERT(table.Lessons.MutableColumns).
 		MODEL(l).
 		RETURNING(table.Lessons.ID)
@@ -48,13 +50,13 @@ func (m LessonModel) InsertLesson(l *NLesson) error {
 
 }
 
-func (m LessonModel) GetLessonByID(lessonID int) (*NLesson, error) {
+func (m LessonModel) GetLessonByID(lessonID int) (*LessonExt, error) {
 	query := postgres.SELECT(table.Lessons.AllColumns, table.Journals.AllColumns).
 		FROM(table.Lessons.
 			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Lessons.JournalID))).
 		WHERE(table.Lessons.ID.EQ(helpers.PostgresInt(lessonID)))
 
-	var lesson NLesson
+	var lesson LessonExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -72,7 +74,7 @@ func (m LessonModel) GetLessonByID(lessonID int) (*NLesson, error) {
 	return &lesson, nil
 }
 
-func (m LessonModel) UpdateLesson(l *NLesson) error {
+func (m LessonModel) UpdateLesson(l *LessonExt) error {
 	stmt := table.Lessons.UPDATE(table.Lessons.Description, table.Lessons.Date, table.Lessons.UpdatedAt).
 		MODEL(l).
 		WHERE(table.Lessons.ID.EQ(helpers.PostgresInt(l.ID)))
@@ -102,14 +104,14 @@ func (m LessonModel) DeleteLesson(lessonID int) error {
 	return nil
 }
 
-func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*NLesson, error) {
+func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*LessonExt, error) {
 	query := postgres.SELECT(table.Lessons.AllColumns).
 		FROM(table.Lessons).
 		WHERE(table.Lessons.JournalID.EQ(helpers.PostgresInt(journalID)).
 			AND(table.Lessons.Course.EQ(helpers.PostgresInt(course)))).
 		ORDER_BY(table.Lessons.Date.DESC())
 
-	var lessons []*NLesson
+	var lessons []*LessonExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -122,7 +124,7 @@ func (m LessonModel) GetLessonsByJournalID(journalID int, course int) ([]*NLesso
 	return lessons, nil
 }
 
-func (m LessonModel) GetLessonsAndStudentMarksByJournalID(studentID, journalID, course int) ([]*NLesson, error) {
+func (m LessonModel) GetLessonsAndStudentMarksByJournalID(studentID, journalID, course int) ([]*LessonExt, error) {
 	teacher := table.Users.AS("teacher")
 	excuser := table.Users.AS("excuser")
 
@@ -146,7 +148,7 @@ func (m LessonModel) GetLessonsAndStudentMarksByJournalID(studentID, journalID, 
 		)).
 		ORDER_BY(table.Lessons.Date.DESC(), table.Marks.UpdatedAt.ASC())
 
-	var lessons []*NLesson
+	var lessons []*LessonExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -159,7 +161,7 @@ func (m LessonModel) GetLessonsAndStudentMarksByJournalID(studentID, journalID, 
 	return lessons, nil
 }
 
-func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *types.Date) ([]*NLesson, error) {
+func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *types.Date) ([]*LessonExt, error) {
 	query := postgres.SELECT(table.Lessons.AllColumns, table.Subjects.AllColumns).
 		FROM(table.Lessons.
 			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Lessons.JournalID)).
@@ -179,7 +181,7 @@ func (m LessonModel) GetLatestLessonsForStudent(studentID int, from, until *type
 		)).ORDER_BY(table.Lessons.Date.DESC())
 	}
 
-	var lessons []*NLesson
+	var lessons []*LessonExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

@@ -10,7 +10,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
-	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -125,7 +124,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		classID = nil
 	}
 
-	user := &model.Users{
+	user := &data.User{
 		Name:        &input.Name,
 		Email:       &input.Email,
 		Password:    &types.Password{Plaintext: input.Password},
@@ -663,7 +662,7 @@ func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{
-		"user":         &model.Users{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
+		"user":         &data.User{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
 		"children":     children,
 		"current_year": currentYear,
 	})

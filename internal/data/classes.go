@@ -19,10 +19,12 @@ var (
 	ErrClassArchived  = errors.New("class is archived")
 )
 
-type NClass struct {
-	model.Classes
-	DisplayName *string        `json:"display_name,omitempty" alias:"classes_years.display_name"`
-	Teachers    []*model.Users `json:"teachers,omitempty" alias:"teachers"`
+type Class = model.Classes
+
+type ClassExt struct {
+	Class
+	DisplayName *string `json:"display_name,omitempty" alias:"classes_years.display_name"`
+	Teachers    []*User `json:"teachers,omitempty" alias:"teachers"`
 }
 
 type ClassModel struct {
@@ -31,7 +33,7 @@ type ClassModel struct {
 
 // DATABASE
 
-func (m ClassModel) InsertClass(c *model.Classes) error {
+func (m ClassModel) InsertClass(c *Class) error {
 	stmt := table.Classes.INSERT(table.Classes.Name).
 		MODEL(c).
 		RETURNING(table.Classes.ID)
@@ -47,7 +49,7 @@ func (m ClassModel) InsertClass(c *model.Classes) error {
 	return nil
 }
 
-func (m ClassModel) UpdateClass(c *NClass) error {
+func (m ClassModel) UpdateClass(c *ClassExt) error {
 	stmt := table.Classes.UPDATE(table.Classes.Name).
 		MODEL(c).
 		WHERE(table.Classes.ID.EQ(helpers.PostgresInt(c.ID)))
@@ -104,7 +106,7 @@ func (m ClassModel) SetClassTeachers(classID int, teacherIDs []int) error {
 	return nil
 }
 
-func (m ClassModel) AllClasses(current bool) ([]*NClass, error) {
+func (m ClassModel) AllClasses(current bool) ([]*ClassExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(table.Classes.AllColumns, table.ClassesYears.DisplayName, teacher.ID, teacher.Name, teacher.Role)
@@ -127,7 +129,7 @@ func (m ClassModel) AllClasses(current bool) ([]*NClass, error) {
 					AND(table.ClassesYears.YearID.EQ(table.Years.ID))))
 	}
 
-	var classes []*NClass
+	var classes []*ClassExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -157,7 +159,7 @@ func (m ClassModel) GetAllClassIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
+func (m ClassModel) GetClassByID(classID int) (*ClassExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(table.Classes.AllColumns, teacher.ID, teacher.Name, teacher.Role).
@@ -166,7 +168,7 @@ func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
 			LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersClasses.TeacherID))).
 		WHERE(table.Classes.ID.EQ(helpers.PostgresInt(classID)))
 
-	var class NClass
+	var class ClassExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -184,7 +186,7 @@ func (m ClassModel) GetClassByID(classID int) (*NClass, error) {
 	return &class, nil
 }
 
-func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, error) {
+func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*ClassExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(table.Classes.AllColumns, table.ClassesYears.DisplayName, teacher.ID, teacher.Name, teacher.Role).
@@ -200,7 +202,7 @@ func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, e
 				WHERE(table.TeachersClasses.TeacherID.EQ(helpers.PostgresInt(teacherID))),
 		))
 
-	var classes []*NClass
+	var classes []*ClassExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -213,13 +215,13 @@ func (m ClassModel) GetCurrentYearClassesForTeacher(teacherID int) ([]*NClass, e
 	return classes, nil
 }
 
-func (m ClassModel) GetUsersForClassID(classID int) ([]*NUser, error) {
+func (m ClassModel) GetUsersForClassID(classID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role).
 		FROM(table.Users).
 		WHERE(table.Users.ClassID.EQ(helpers.PostgresInt(classID))).
 		ORDER_BY(table.Users.Name.ASC())
 
-	var users []*NUser
+	var users []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

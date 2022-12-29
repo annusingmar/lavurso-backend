@@ -28,8 +28,8 @@ type Assignment = model.Assignments
 
 type AssignmentExt struct {
 	Assignment
-	Done    *bool           `json:"done,omitempty" alias:"assignment.done"`
-	Subject *model.Subjects `json:"subject,omitempty"`
+	Done    *bool    `json:"done,omitempty" alias:"assignment.done"`
+	Subject *Subject `json:"subject,omitempty"`
 }
 
 type AssignmentModel struct {

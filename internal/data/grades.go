@@ -20,16 +20,18 @@ var (
 	ErrIdentifierAlreadyExists = errors.New("identifier already exists")
 )
 
+type Grade = model.Grades
+
 type GradeModel struct {
 	DB *sql.DB
 }
 
-func (m GradeModel) AllGrades() ([]*model.Grades, error) {
+func (m GradeModel) AllGrades() ([]*Grade, error) {
 	query := postgres.SELECT(table.Grades.AllColumns).
 		FROM(table.Grades).
 		ORDER_BY(table.Grades.ID.ASC())
 
-	var grades []*model.Grades
+	var grades []*Grade
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -59,12 +61,12 @@ func (m GradeModel) GetAllGradeIDs() ([]int, error) {
 	return ids, nil
 }
 
-func (m GradeModel) GetGradeByID(gradeID int) (*model.Grades, error) {
+func (m GradeModel) GetGradeByID(gradeID int) (*Grade, error) {
 	query := postgres.SELECT(table.Grades.AllColumns).
 		FROM(table.Grades).
 		WHERE(table.Grades.ID.EQ(helpers.PostgresInt(gradeID)))
 
-	var grade model.Grades
+	var grade Grade
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -82,7 +84,7 @@ func (m GradeModel) GetGradeByID(gradeID int) (*model.Grades, error) {
 	return &grade, nil
 }
 
-func (m GradeModel) UpdateGrade(g *model.Grades) error {
+func (m GradeModel) UpdateGrade(g *Grade) error {
 	stmt := table.Grades.UPDATE(table.Grades.Identifier, table.Grades.Value).
 		MODEL(g).
 		WHERE(table.Grades.ID.EQ(helpers.PostgresInt(g.ID)))
@@ -103,7 +105,7 @@ func (m GradeModel) UpdateGrade(g *model.Grades) error {
 	return nil
 }
 
-func (m GradeModel) InsertGrade(g *model.Grades) error {
+func (m GradeModel) InsertGrade(g *Grade) error {
 	stmt := table.Grades.INSERT(table.Grades.Identifier, table.Grades.Value).
 		MODEL(g).
 		RETURNING(table.Grades.ID)

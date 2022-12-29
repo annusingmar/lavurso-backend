@@ -18,19 +18,21 @@ var (
 	ErrUserNotInJournal = errors.New("user not in journal")
 )
 
-type NJournal struct {
-	model.Journals
-	Subject  *model.Subjects `json:"subject,omitempty"`
-	Teachers []*model.Users  `json:"teachers,omitempty" alias:"teachers"`
-	Year     *model.Years    `json:"year,omitempty"`
-	Course   *int            `json:"course,omitempty" alias:"coursenr"`
+type Journal = model.Journals
+
+type JournalExt struct {
+	Journal
+	Subject  *Subject `json:"subject,omitempty"`
+	Teachers []*User  `json:"teachers,omitempty" alias:"teachers"`
+	Year     *Year    `json:"year,omitempty"`
+	Course   *int     `json:"course,omitempty" alias:"coursenr"`
 }
 
 type JournalModel struct {
 	DB *sql.DB
 }
 
-func (j *NJournal) IsUserTeacherOfJournal(userID int) bool {
+func (j *JournalExt) IsUserTeacherOfJournal(userID int) bool {
 	for _, t := range j.Teachers {
 		if t.ID == userID {
 			return true
@@ -39,7 +41,7 @@ func (j *NJournal) IsUserTeacherOfJournal(userID int) bool {
 	return false
 }
 
-func (m JournalModel) AllJournals(yearID int) ([]*NJournal, error) {
+func (m JournalModel) AllJournals(yearID int) ([]*JournalExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(
@@ -55,7 +57,7 @@ func (m JournalModel) AllJournals(yearID int) ([]*NJournal, error) {
 		WHERE(table.Years.ID.EQ(helpers.PostgresInt(yearID))).
 		ORDER_BY(table.Journals.LastUpdated.DESC())
 
-	var journals []*NJournal
+	var journals []*JournalExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -68,7 +70,7 @@ func (m JournalModel) AllJournals(yearID int) ([]*NJournal, error) {
 	return journals, nil
 }
 
-func (m JournalModel) GetJournalByID(journalID int) (*NJournal, error) {
+func (m JournalModel) GetJournalByID(journalID int) (*JournalExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(
@@ -78,7 +80,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*NJournal, error) {
 		table.Years.ID, table.Years.DisplayName,
 		postgres.SELECT(postgres.MAX(table.Lessons.Course)).
 			FROM(table.Lessons).
-			WHERE(table.Lessons.JournalID.EQ(table.Journals.ID)).AS("njournal.coursenr")).
+			WHERE(table.Lessons.JournalID.EQ(table.Journals.ID)).AS("journalext.coursenr")).
 		FROM(table.Journals.
 			LEFT_JOIN(table.TeachersJournals, table.TeachersJournals.JournalID.EQ(table.Journals.ID)).
 			LEFT_JOIN(teacher, teacher.ID.EQ(table.TeachersJournals.TeacherID)).
@@ -86,7 +88,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*NJournal, error) {
 			INNER_JOIN(table.Years, table.Years.ID.EQ(table.Journals.YearID))).
 		WHERE(table.Journals.ID.EQ(helpers.PostgresInt(journalID)))
 
-	var journal NJournal
+	var journal JournalExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -104,7 +106,7 @@ func (m JournalModel) GetJournalByID(journalID int) (*NJournal, error) {
 	return &journal, nil
 }
 
-func (m JournalModel) InsertJournal(j *model.Journals, teacherID int) error {
+func (m JournalModel) InsertJournal(j *Journal, teacherID int) error {
 	stmt := table.Journals.INSERT(table.Journals.Name, table.Journals.SubjectID, table.Journals.YearID).
 		MODEL(j).
 		RETURNING(table.Journals.ID)
@@ -128,7 +130,7 @@ func (m JournalModel) InsertJournal(j *model.Journals, teacherID int) error {
 	return nil
 }
 
-func (m JournalModel) UpdateJournal(j *NJournal, teacherIDs []int) error {
+func (m JournalModel) UpdateJournal(j *JournalExt, teacherIDs []int) error {
 	stmt := table.Journals.UPDATE(table.Journals.Name, table.Journals.LastUpdated).
 		MODEL(j).
 		WHERE(table.Journals.ID.EQ(helpers.PostgresInt(j.ID)))
@@ -193,7 +195,7 @@ func (m JournalModel) DeleteJournal(journalID int) error {
 	return nil
 }
 
-func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*NJournal, error) {
+func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*JournalExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(
@@ -214,7 +216,7 @@ func (m JournalModel) GetJournalsForTeacher(teacherID, yearID int) ([]*NJournal,
 		).AND(table.Journals.YearID.EQ(helpers.PostgresInt(yearID)))).
 		ORDER_BY(table.Journals.LastUpdated.DESC())
 
-	var journals []*NJournal
+	var journals []*JournalExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -277,7 +279,7 @@ func (m JournalModel) DeleteStudentFromJournal(studentID, journalID int) error {
 	return nil
 }
 
-func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*NUser, error) {
+func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Classes.ID, table.Classes.Name, table.ClassesYears.DisplayName).
 		FROM(table.Users.
 			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.StudentID.EQ(table.Users.ID)).
@@ -287,7 +289,7 @@ func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*NUser, error) {
 		WHERE(table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))).
 		ORDER_BY(table.Users.Name.ASC())
 
-	var students []*NUser
+	var students []*UserExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -300,7 +302,7 @@ func (m JournalModel) GetStudentsByJournalID(journalID int) ([]*NUser, error) {
 	return students, nil
 }
 
-func (m JournalModel) GetJournalsByStudent(studentID, yearID int) ([]*NJournal, error) {
+func (m JournalModel) GetJournalsByStudent(studentID, yearID int) ([]*JournalExt, error) {
 	teacher := table.Users.AS("teachers")
 
 	query := postgres.SELECT(
@@ -319,7 +321,7 @@ func (m JournalModel) GetJournalsByStudent(studentID, yearID int) ([]*NJournal, 
 			AND(table.Years.ID.EQ(helpers.PostgresInt(yearID)))).
 		ORDER_BY(table.Subjects.Name.ASC())
 
-	var journals []*NJournal
+	var journals []*JournalExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
