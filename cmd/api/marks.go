@@ -67,12 +67,12 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 
 	type jwm struct {
 		*data.NJournal
-		Marks map[int][]*data.Mark `json:"marks,omitempty"`
+		Marks map[int][]*data.NMark `json:"marks,omitempty"`
 	}
 
 	journalsWithMarks := make([]*jwm, len(journals))
 	for i, j := range journals {
-		journalsWithMarks[i] = &jwm{j, make(map[int][]*data.Mark)}
+		journalsWithMarks[i] = &jwm{j, make(map[int][]*data.NMark)}
 	}
 
 	for _, j := range journalsWithMarks {

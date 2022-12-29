@@ -14,7 +14,7 @@ import (
 
 type StudentLatestByDate struct {
 	Date    string          `json:"date"`
-	Marks   []*data.Mark    `json:"marks"`
+	Marks   []*data.NMark   `json:"marks"`
 	Lessons []*data.NLesson `json:"lessons"`
 }
 
@@ -93,7 +93,7 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 	for _, m := range marks {
 		dateString := m.UpdatedAt.Format("2006-01-02")
 		if val, ok := dateIndexMap[dateString]; !ok {
-			latest = append(latest, &StudentLatestByDate{Date: dateString, Marks: []*data.Mark{m}})
+			latest = append(latest, &StudentLatestByDate{Date: dateString, Marks: []*data.NMark{m}})
 			dateIndexMap[dateString] = len(latest) - 1
 		} else {
 			latest[val].Marks = append(latest[val].Marks, m)

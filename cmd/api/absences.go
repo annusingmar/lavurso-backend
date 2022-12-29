@@ -31,7 +31,7 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	mark, err := app.models.Marks.GetMarkByID(markID)
+	mark, err := app.models.Marks.GetMarkAndExcuseByID(markID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchMark):
@@ -42,13 +42,13 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if mark.Type != data.MarkAbsent {
+	if *mark.Type != data.MarkAbsent {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
 		return
 	}
 
 	if *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, sessionUser.ID)
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*mark.UserID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
@@ -78,7 +78,7 @@ func (app *application) excuseAbsenceForStudent(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if mark.Excuse.MarkID != nil {
+	if mark.Excuse != nil {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.ErrAbsenceExcused.Error())
 		return
 	}
@@ -105,7 +105,7 @@ func (app *application) deleteExcuseForStudent(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	mark, err := app.models.Marks.GetMarkByID(markID)
+	mark, err := app.models.Marks.GetMarkAndExcuseByID(markID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchMark):
@@ -116,13 +116,13 @@ func (app *application) deleteExcuseForStudent(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if mark.Type != data.MarkAbsent {
+	if *mark.Type != data.MarkAbsent {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchMark.Error())
 		return
 	}
 
 	if *sessionUser.Role != data.RoleAdministrator {
-		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(mark.UserID, sessionUser.ID)
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(*mark.UserID, sessionUser.ID)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return

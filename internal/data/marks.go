@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -12,6 +11,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 )
 
 var (
@@ -97,108 +97,23 @@ const (
 	MarkLate          = "late"
 )
 
-func scanMarksWithExcuse(rows *sql.Rows) ([]*Mark, error) {
-	var marks []*Mark
+func (m MarkModel) GetMarkAndExcuseByID(markID int) (*NMark, error) {
+	query := postgres.SELECT(
+		table.Marks.AllColumns,
+		table.Excuses.AllColumns).
+		FROM(table.Marks.
+			LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(table.Marks.ID))).
+		WHERE(table.Marks.ID.EQ(helpers.PostgresInt(markID)))
 
-	for rows.Next() {
-		var mark Mark
-		mark.Grade = new(Grade)
-		mark.Teacher = new(User)
-		mark.Lesson = &Lesson{Date: new(types.Date)}
-		mark.Excuse = &Excuse{By: new(User)}
-
-		err := rows.Scan(
-			&mark.ID,
-			&mark.UserID,
-			&mark.Lesson.ID,
-			&mark.Lesson.Date.Time,
-			&mark.Lesson.Description,
-			&mark.Course,
-			&mark.JournalID,
-			&mark.Grade.ID,
-			&mark.Grade.Identifier,
-			&mark.Grade.Value,
-			&mark.Comment,
-			&mark.Type,
-			&mark.Teacher.ID,
-			&mark.Teacher.Name,
-			&mark.Teacher.Role,
-			&mark.CreatedAt,
-			&mark.UpdatedAt,
-			&mark.Excuse.MarkID,
-			&mark.Excuse.Excuse,
-			&mark.Excuse.By.ID,
-			&mark.Excuse.By.Name,
-			&mark.Excuse.By.Role,
-			&mark.Excuse.At,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		marks = append(marks, &mark)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return marks, nil
-}
-
-func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
-	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
-	FROM marks m
-	LEFT JOIN grades g
-	ON m.grade_id = g.id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	INNER JOIN users u
-	ON m.teacher_id = u.id
-    LEFT JOIN excuses ex
-    ON m.id = ex.mark_id
-    LEFT JOIN users u2
-    ON u2.id = ex.user_id
-	WHERE m.id = $1`
+	var mark NMark
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var mark Mark
-	mark.Grade = new(Grade)
-	mark.Teacher = new(User)
-	mark.Lesson = &Lesson{Date: new(types.Date)}
-	mark.Excuse = &Excuse{By: new(User)}
-
-	err := m.DB.QueryRowContext(ctx, query, markID).Scan(
-		&mark.ID,
-		&mark.UserID,
-		&mark.Lesson.ID,
-		&mark.Lesson.Date.Time,
-		&mark.Lesson.Description,
-		&mark.Course,
-		&mark.JournalID,
-		&mark.Grade.ID,
-		&mark.Grade.Identifier,
-		&mark.Grade.Value,
-		&mark.Comment,
-		&mark.Type,
-		&mark.Teacher.ID,
-		&mark.Teacher.Name,
-		&mark.Teacher.Role,
-		&mark.CreatedAt,
-		&mark.UpdatedAt,
-		&mark.Excuse.MarkID,
-		&mark.Excuse.Excuse,
-		&mark.Excuse.By.ID,
-		&mark.Excuse.By.Name,
-		&mark.Excuse.By.Role,
-		&mark.Excuse.At,
-	)
-
+	err := query.QueryContext(ctx, m.DB, &mark)
 	if err != nil {
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		case errors.Is(err, qrm.ErrNoRows):
 			return nil, ErrNoSuchMark
 		default:
 			return nil, err
@@ -208,36 +123,34 @@ func (m MarkModel) GetMarkByID(markID int) (*Mark, error) {
 	return &mark, nil
 }
 
-func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
-	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
-	FROM marks m
-	LEFT JOIN grades g
-	ON m.grade_id = g.id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	LEFT JOIN journals j
-	ON m.journal_id = j.id
-	INNER JOIN users u
-	ON m.teacher_id = u.id
-    LEFT JOIN excuses ex
-    ON m.id = ex.mark_id
-    LEFT JOIN users u2
-    ON u2.id = ex.user_id
-	WHERE m.user_id = $1 and j.year_id = $2
-	ORDER BY updated_at ASC`
+func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*NMark, error) {
+	teacher := table.Users.AS("teacher")
+	excuser := table.Users.AS("excuser")
+	lesson := table.Lessons.AS("mark_lesson")
+
+	query := postgres.SELECT(
+		table.Marks.AllColumns,
+		lesson.ID, lesson.Date, lesson.Description,
+		table.Grades.AllColumns,
+		teacher.ID, teacher.Name, teacher.Role,
+		table.Excuses.AllColumns, excuser.ID, excuser.Name, excuser.Role,
+	).FROM(table.Marks.
+		INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Marks.JournalID)).
+		LEFT_JOIN(table.Grades, table.Grades.ID.EQ(table.Marks.GradeID)).
+		LEFT_JOIN(lesson, lesson.ID.EQ(table.Marks.LessonID)).
+		INNER_JOIN(teacher, teacher.ID.EQ(table.Marks.TeacherID)).
+		LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(table.Marks.ID)).
+		LEFT_JOIN(excuser, excuser.ID.EQ(table.Excuses.UserID))).
+		WHERE(table.Marks.UserID.EQ(helpers.PostgresInt(userID)).
+			AND(table.Journals.YearID.EQ(helpers.PostgresInt(yearID)))).
+		ORDER_BY(table.Marks.UpdatedAt.ASC())
+
+	var marks []*NMark
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, userID, yearID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	marks, err := scanMarksWithExcuse(rows)
+	err := query.QueryContext(ctx, m.DB, &marks)
 	if err != nil {
 		return nil, err
 	}
@@ -245,125 +158,85 @@ func (m MarkModel) GetMarksByStudent(userID, yearID int) ([]*Mark, error) {
 	return marks, nil
 }
 
-func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Date) ([]*Mark, error) {
-	sqlQuery := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, s.id, s.name, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
-	FROM marks m
-	LEFT JOIN grades g
-	ON m.grade_id = g.id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	INNER JOIN journals j
-	ON m.journal_id = j.id
-	INNER JOIN subjects s
-	ON j.subject_id = s.id
-	INNER JOIN users u
-	ON m.teacher_id = u.id
-    LEFT JOIN excuses ex
-    ON m.id = ex.mark_id
-    LEFT JOIN users u2
-    ON u2.id = ex.user_id
-	WHERE m.user_id = $1 AND %s
-	ORDER BY m.updated_at DESC`
+func (m MarkModel) GetLatestMarksForStudent(studentID int, from, until *types.Date) ([]*NMark, error) {
+	teacher := table.Users.AS("teacher")
+	excuser := table.Users.AS("excuser")
+	lesson := table.Lessons.AS("mark_lesson")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	var rows *sql.Rows
-	var err error
-
+	where := table.Marks.UserID.EQ(helpers.PostgresInt(studentID))
+	updatedAtDate := postgres.CAST(table.Marks.UpdatedAt).AS_DATE()
 	if until != nil {
-		query := fmt.Sprintf(sqlQuery, "m.updated_at::date > $2::date AND m.updated_at::date <= $3::date")
-		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time, until.Time)
-	} else {
-		query := fmt.Sprintf(sqlQuery, "m.updated_at::date > $2::date")
-		rows, err = m.DB.QueryContext(ctx, query, studentID, from.Time)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var marks []*Mark
-
-	for rows.Next() {
-		var mark Mark
-		mark.Grade = new(Grade)
-		mark.Teacher = new(User)
-		mark.Lesson = &Lesson{Date: new(types.Date)}
-		mark.Excuse = &Excuse{By: new(User)}
-		mark.Subject = new(Subject)
-
-		err := rows.Scan(
-			&mark.ID,
-			&mark.UserID,
-			&mark.Lesson.ID,
-			&mark.Lesson.Date.Time,
-			&mark.Lesson.Description,
-			&mark.Course,
-			&mark.JournalID,
-			&mark.Grade.ID,
-			&mark.Grade.Identifier,
-			&mark.Grade.Value,
-			&mark.Comment,
-			&mark.Type,
-			&mark.Subject.ID,
-			&mark.Subject.Name,
-			&mark.Teacher.ID,
-			&mark.Teacher.Name,
-			&mark.Teacher.Role,
-			&mark.CreatedAt,
-			&mark.UpdatedAt,
-			&mark.Excuse.MarkID,
-			&mark.Excuse.Excuse,
-			&mark.Excuse.By.ID,
-			&mark.Excuse.By.Name,
-			&mark.Excuse.By.Role,
-			&mark.Excuse.At,
+		where = postgres.AND(
+			where,
+			updatedAtDate.GT(postgres.DateT(*from.Time)),
+			updatedAtDate.LT_EQ(postgres.DateT(*until.Time)),
 		)
-		if err != nil {
-			return nil, err
-		}
-
-		marks = append(marks, &mark)
+	} else {
+		where = where.AND(updatedAtDate.GT(postgres.DateT(*from.Time)))
 	}
-	if err := rows.Err(); err != nil {
+
+	query := postgres.SELECT(
+		table.Marks.AllColumns,
+		lesson.ID, lesson.Date, lesson.Description,
+		table.Subjects.AllColumns,
+		table.Grades.AllColumns,
+		teacher.ID, teacher.Name, teacher.Role,
+		table.Excuses.AllColumns, excuser.ID, excuser.Name, excuser.Role,
+	).FROM(table.Marks.
+		INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Marks.JournalID)).
+		INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID)).
+		LEFT_JOIN(table.Grades, table.Grades.ID.EQ(table.Marks.GradeID)).
+		LEFT_JOIN(lesson, lesson.ID.EQ(table.Marks.LessonID)).
+		INNER_JOIN(teacher, teacher.ID.EQ(table.Marks.TeacherID)).
+		LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(table.Marks.ID)).
+		LEFT_JOIN(excuser, excuser.ID.EQ(table.Excuses.UserID))).
+		WHERE(where).
+		ORDER_BY(table.Marks.UpdatedAt.DESC())
+
+	var marks []*NMark
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &marks)
+	if err != nil {
 		return nil, err
 	}
 
 	return marks, nil
 }
 
-func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*Mark, error) {
-	query := `SELECT
-	m.id, m.user_id, m.lesson_id, l.date, l.description, m.course, m.journal_id, m.grade_id, g.identifier, g.value, m.comment, m.type, m.teacher_id, u.name, u.role, m.created_at, m.updated_at, ex.mark_id, ex.excuse, ex.user_id, u2.name, u2.role, ex.at
-	FROM marks m
-	LEFT JOIN grades g
-	ON m.grade_id = g.id
-	LEFT JOIN lessons l
-	ON m.lesson_id = l.id
-	INNER JOIN users u
-	ON m.teacher_id = u.id
-    LEFT JOIN excuses ex
-    ON m.id = ex.mark_id
-    LEFT JOIN users u2
-    ON u2.id = ex.user_id
-	WHERE m.journal_id = $1 and m.course = $2 and m.lesson_id is not NULL and m.user_id = $3
-	ORDER BY updated_at ASC`
+func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalID, course int) ([]*NMark, error) {
+	teacher := table.Users.AS("teacher")
+	excuser := table.Users.AS("excuser")
+	lesson := table.Lessons.AS("mark_lesson")
+
+	query := postgres.SELECT(
+		table.Marks.AllColumns,
+		lesson.ID, lesson.Date, lesson.Description,
+		table.Grades.AllColumns,
+		teacher.ID, teacher.Name, teacher.Role,
+		table.Excuses.AllColumns, excuser.ID, excuser.Name, excuser.Role,
+	).FROM(table.Marks.
+		LEFT_JOIN(table.Grades, table.Grades.ID.EQ(table.Marks.GradeID)).
+		LEFT_JOIN(lesson, lesson.ID.EQ(table.Marks.LessonID)).
+		INNER_JOIN(teacher, teacher.ID.EQ(table.Marks.TeacherID)).
+		LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(table.Marks.ID)).
+		LEFT_JOIN(excuser, excuser.ID.EQ(table.Excuses.UserID))).
+		WHERE(postgres.AND(
+			table.Marks.JournalID.EQ(helpers.PostgresInt(journalID)),
+			table.Marks.Course.EQ(helpers.PostgresInt(course)),
+			table.Marks.LessonID.IS_NOT_NULL(),
+			table.Marks.UserID.EQ(helpers.PostgresInt(userID)),
+		)).
+		ORDER_BY(table.Marks.UpdatedAt.ASC())
+
+	var marks []*NMark
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := m.DB.QueryContext(ctx, query, journalID, course, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	marks, err := scanMarksWithExcuse(rows)
+	err := query.QueryContext(ctx, m.DB, &marks)
 	if err != nil {
 		return nil, err
 	}
