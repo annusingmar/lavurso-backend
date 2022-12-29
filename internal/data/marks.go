@@ -51,16 +51,28 @@ type MinimalMark struct {
 	Grade   *string `json:"grade,omitempty" alias:"grades.identifier"`
 }
 
+type HigherMinimalGradeMark struct {
+	ID      int     `json:"id" sql:"primary_key" alias:"higher_marks.id"`
+	Comment *string `json:"comment,omitempty" alias:"higher_marks.comment"`
+	Grade   string  `json:"grade,omitempty" alias:"higher_marks_grade.identifier"`
+}
+
 type LessonMarks struct {
-	Absent  bool           `json:"absent" alias:"absent"`
-	Late    bool           `json:"late" alias:"late"`
-	NotDone bool           `json:"not_done" alias:"not_done"`
-	Marks   []*MinimalMark `json:"marks,omitempty" alias:"marks"`
+	Absent  bool `json:"absent"`
+	Late    bool `json:"late"`
+	NotDone bool `json:"not_done"`
 }
 
 type LessonStudent struct {
 	NUser
-	Lesson LessonMarks `json:"lesson" alias:"lesson"`
+	Lesson LessonMarks    `json:"lesson"`
+	Marks  []*MinimalMark `json:"marks,omitempty"`
+}
+
+type StudentWithLowerMarks struct {
+	NUser
+	Marks      []*HigherMinimalGradeMark `json:"marks,omitempty"`
+	LowerMarks []*NMark                  `json:"lower_marks,omitempty"`
 }
 
 type MarkByStudentIDType struct {
@@ -536,7 +548,6 @@ func (m MarkModel) InsertMarks(tx *sql.Tx, marks []*model.Marks) error {
 
 	_, err := stmt.ExecContext(ctx, tx)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
@@ -571,7 +582,6 @@ func (m MarkModel) UpdateMarks(tx *sql.Tx, marks []*model.Marks) error {
 
 		_, err := stmt.ExecContext(ctx, tx)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
 	}
@@ -593,7 +603,6 @@ func (m MarkModel) DeleteMarks(tx *sql.Tx, markIDs []int) error {
 
 	_, err := stmt.ExecContext(ctx, tx)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
@@ -614,21 +623,20 @@ func (m MarkModel) DeleteMarksByStudentIDType(tx *sql.Tx, l []MarkByStudentIDTyp
 
 	_, err := stmt.ExecContext(ctx, tx)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
 	return nil
 }
 
-func (m MarkModel) GetStudentsForLesson(lessonID int) ([]*LessonStudent, error) {
+func (m MarkModel) GetStudentsMarksForLesson(lessonID int) ([]*LessonStudent, error) {
 	query := postgres.SELECT(
-		table.Users.ID,
-		table.Users.Name,
-		table.Marks.ID,
-		postgres.CASE().WHEN(table.Marks.Type.EQ(postgres.String(MarkLessonGrade))).THEN(postgres.String("grade")).ELSE(table.Marks.Type).AS("marks.type"),
-		table.Marks.Comment,
-		table.Grades.Identifier,
+		table.Users.ID, table.Users.Name, table.Marks.ID,
+		postgres.CASE().
+			WHEN(table.Marks.Type.EQ(postgres.String(MarkLessonGrade))).
+			THEN(postgres.String("grade")).
+			ELSE(table.Marks.Type).AS("marks.type"),
+		table.Marks.Comment, table.Grades.Identifier,
 	).
 		FROM(table.Lessons.
 			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(table.Lessons.JournalID)).
@@ -650,8 +658,8 @@ func (m MarkModel) GetStudentsForLesson(lessonID int) ([]*LessonStudent, error) 
 
 	// todo: can be improved?
 	for _, s := range students {
-		marks := make([]*MinimalMark, 0, len(s.Lesson.Marks))
-		for _, m := range s.Lesson.Marks {
+		marks := make([]*MinimalMark, 0, len(s.Marks))
+		for _, m := range s.Marks {
 			switch m.Type {
 			case MarkAbsent:
 				s.Lesson.Absent = true
@@ -663,10 +671,63 @@ func (m MarkModel) GetStudentsForLesson(lessonID int) ([]*LessonStudent, error) 
 				marks = append(marks, m)
 			}
 		}
-		s.Lesson.Marks = marks
+		s.Marks = marks
 	}
 
 	return students, nil
+}
+
+func (m MarkModel) GetStudentsMarksForCourse(journalID, course int) ([]*StudentWithLowerMarks, error) {
+	courseMarks := table.Marks.AS("higher_marks")
+	courseMarksGrade := table.Grades.AS("higher_marks_grade")
+	lessonMarks := table.Marks.AS("marks")
+	lessonMarksGrade := table.Grades.AS("grades")
+	lessonMarksTeacher := table.Users.AS("teacher")
+	lesson := table.Lessons.AS("mark_lesson")
+
+	query := postgres.SELECT(
+		table.Users.ID, table.Users.Name,
+		courseMarks.ID, courseMarks.Comment, courseMarksGrade.Identifier,
+		lessonMarks.AllColumns,
+		lessonMarksGrade.Identifier, lessonMarksGrade.Value,
+		lessonMarksTeacher.ID, lessonMarksTeacher.Name, lessonMarksTeacher.Role,
+		lesson.ID, lesson.Date, lesson.Description,
+		table.Excuses.MarkID,
+	).
+		FROM(table.Journals.
+			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))).
+			INNER_JOIN(table.Users, table.Users.ID.EQ(table.StudentsJournals.StudentID)).
+			LEFT_JOIN(courseMarks, postgres.AND(
+				courseMarks.UserID.EQ(table.Users.ID),
+				courseMarks.JournalID.EQ(helpers.PostgresInt(journalID)),
+				courseMarks.Course.EQ(helpers.PostgresInt(course)),
+				courseMarks.Type.EQ(postgres.String(MarkCourseGrade)),
+			)).
+			LEFT_JOIN(courseMarksGrade, courseMarksGrade.ID.EQ(courseMarks.GradeID)).
+			LEFT_JOIN(lessonMarks, postgres.AND(
+				lessonMarks.UserID.EQ(table.Users.ID),
+				lessonMarks.JournalID.EQ(helpers.PostgresInt(journalID)),
+				lessonMarks.Course.EQ(helpers.PostgresInt(course)),
+				lessonMarks.LessonID.IS_NOT_NULL(),
+			)).
+			LEFT_JOIN(lessonMarksGrade, lessonMarksGrade.ID.EQ(lessonMarks.GradeID)).
+			LEFT_JOIN(lessonMarksTeacher, lessonMarksTeacher.ID.EQ(lessonMarks.TeacherID)).
+			LEFT_JOIN(lesson, lesson.ID.EQ(lessonMarks.LessonID)).
+			LEFT_JOIN(table.Excuses, table.Excuses.MarkID.EQ(lessonMarks.ID))).
+		ORDER_BY(table.Users.Name.ASC(), courseMarks.CreatedAt.ASC(), lesson.Date.DESC())
+
+	var students []*StudentWithLowerMarks
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &students)
+	if err != nil {
+		return nil, err
+	}
+
+	return students, nil
+
 }
 
 func (m MarkModel) GetMarkIDsForLesson(lessonID int) ([]int, error) {
@@ -674,6 +735,28 @@ func (m MarkModel) GetMarkIDsForLesson(lessonID int) ([]int, error) {
 		FROM(table.Marks).
 		WHERE(table.Marks.LessonID.EQ(helpers.PostgresInt(lessonID)).
 			AND(table.Marks.Type.NOT_IN(postgres.String(MarkAbsent), postgres.String(MarkLate), postgres.String(MarkNotDone))))
+
+	var ids []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
+func (m MarkModel) GetMarkIDsForCourse(journalID, course int) ([]int, error) {
+	query := postgres.SELECT(table.Marks.ID).
+		FROM(table.Marks).
+		WHERE(postgres.AND(
+			table.Marks.JournalID.EQ(helpers.PostgresInt(journalID)),
+			table.Marks.Course.EQ(helpers.PostgresInt(course)),
+			table.Marks.Type.EQ(postgres.String(MarkCourseGrade)),
+		))
 
 	var ids []int
 

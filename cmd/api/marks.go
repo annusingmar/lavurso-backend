@@ -9,6 +9,7 @@ import (
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -614,7 +615,49 @@ func (app *application) getMarksForLesson(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	students, err := app.models.Marks.GetStudentsForLesson(lesson.ID)
+	students, err := app.models.Marks.GetStudentsMarksForLesson(lesson.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"students": students})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getMarksForCourse(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	course, err := strconv.Atoi(chi.URLParam(r, "course"))
+	if course < 1 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "invalid course")
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	students, err := app.models.Marks.GetStudentsMarksForCourse(journal.ID, course)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
@@ -822,6 +865,7 @@ student:
 		app.writeInternalServerError(w, r, err)
 		return
 	}
+	defer tx.Rollback()
 
 	if len(insertMarks) > 0 {
 		err := app.models.Marks.InsertMarks(tx, insertMarks)
@@ -849,6 +893,182 @@ student:
 
 	if len(deletedMarksByStudentIDType) > 0 {
 		err := app.models.Marks.DeleteMarksByStudentIDType(tx, deletedMarksByStudentIDType)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) setMarksForCourse(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	journalID, err := strconv.Atoi(chi.URLParam(r, "jid"))
+	if journalID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchJournal.Error())
+		return
+	}
+
+	course, err := strconv.Atoi(chi.URLParam(r, "course"))
+	if course < 1 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, "invalid course")
+		return
+	}
+
+	journal, err := app.models.Journals.GetJournalByID(journalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchJournal):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if !journal.IsUserTeacherOfJournal(sessionUser.ID) && *sessionUser.Role != data.RoleAdministrator {
+		app.notAllowed(w, r)
+		return
+	}
+
+	var input []struct {
+		StudentID int `json:"student_id"`
+		Marks     []struct {
+			ID      *int    `json:"id"`
+			Grade   int     `json:"grade"`
+			Comment *string `json:"comment"`
+			Remove  bool    `json:"remove"`
+		} `json:"marks"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	currentTime := time.Now().UTC()
+	v := validator.NewValidator()
+
+	allMarkIDs, err := app.models.Marks.GetMarkIDsForCourse(journal.ID, course)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	allStudentIDs, err := app.models.Journals.GetStudentIDsForJournal(journal.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	allGradeIDs, err := app.models.Grades.GetAllGradeIDs()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	newMark := func(index int, ID int, studentID int, comment *string, grade int) *model.Marks {
+		if grade == 0 {
+			v.Add("grade", fmt.Sprintf("%d: must be provided", index))
+			return nil
+		} else if !slices.Contains(allGradeIDs, grade) {
+			v.Add("grade", fmt.Sprintf("%d: invalid grade ID", index))
+			return nil
+		}
+
+		if comment != nil && *comment == "" {
+			comment = nil
+		}
+
+		return &model.Marks{
+			ID:        ID,
+			UserID:    &studentID,
+			Course:    &course,
+			JournalID: &journal.ID,
+			TeacherID: &sessionUser.ID,
+			Type:      helpers.ToPtr(data.MarkCourseGrade),
+			GradeID:   &grade,
+			Comment:   comment,
+			CreatedAt: &currentTime,
+			UpdatedAt: &currentTime,
+		}
+	}
+
+	var insertMarks []*model.Marks
+	var updateMarks []*model.Marks
+	var deletedMarkIDs []int
+
+student:
+	for _, s := range input {
+		if s.StudentID < 1 {
+			continue
+		}
+
+		if !slices.Contains(allStudentIDs, s.StudentID) {
+			v.Add("student_id", fmt.Sprintf("%s: %d", data.ErrUserNotInJournal.Error(), s.StudentID))
+			continue student
+		}
+	marks:
+		for mi, m := range s.Marks {
+			if m.ID != nil {
+				if !slices.Contains(allMarkIDs, *m.ID) {
+					v.Add("mark_id", fmt.Sprintf("%s: %d at %d", data.ErrNoSuchMark.Error(), *m.ID, mi))
+					continue marks
+				}
+				if m.Remove {
+					deletedMarkIDs = append(deletedMarkIDs, *m.ID)
+				} else {
+					updateMarks = append(updateMarks, newMark(mi, *m.ID, 0, m.Comment, m.Grade))
+				}
+			} else {
+				if m.Remove {
+					continue marks
+				}
+				insertMarks = append(insertMarks, newMark(mi, 0, s.StudentID, m.Comment, m.Grade))
+			}
+		}
+	}
+
+	if !v.Valid() {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)
+		return
+	}
+
+	tx, err := app.models.Marks.DB.Begin()
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	defer tx.Rollback()
+
+	if len(insertMarks) > 0 {
+		err := app.models.Marks.InsertMarks(tx, insertMarks)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	if len(updateMarks) > 0 {
+		err := app.models.Marks.UpdateMarks(tx, updateMarks)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+	}
+
+	if len(deletedMarkIDs) > 0 {
+		err := app.models.Marks.DeleteMarks(tx, deletedMarkIDs)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
