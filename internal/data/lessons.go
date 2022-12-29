@@ -18,18 +18,6 @@ var (
 	ErrNoSuchLesson = errors.New("no such lesson")
 )
 
-type Lesson struct {
-	ID          *int        `json:"id,omitempty"`
-	Journal     *Journal    `json:"journal,omitempty"`
-	Subject     *Subject    `json:"subject,omitempty"`
-	Description *string     `json:"description,omitempty"`
-	Date        *types.Date `json:"date,omitempty"`
-	Course      *int        `json:"course,omitempty"`
-	CreatedAt   *time.Time  `json:"created_at,omitempty"`
-	UpdatedAt   *time.Time  `json:"updated_at,omitempty"`
-	Marks       []*Mark     `json:"marks,omitempty"`
-}
-
 type NLesson struct {
 	model.Lessons
 	Journal *model.Journals `json:"journal,omitempty"`

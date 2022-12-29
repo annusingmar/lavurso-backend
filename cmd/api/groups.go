@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -70,13 +71,13 @@ func (app *application) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	group := &data.Group{
-		Name: input.Name,
+	group := &model.Groups{
+		Name: &input.Name,
 	}
 
 	v := validator.NewValidator()
 
-	v.Check(group.Name != "", "name", "must be provided")
+	v.Check(*group.Name != "", "name", "must be provided")
 
 	if !v.Valid() {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, v.Errors)

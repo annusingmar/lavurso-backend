@@ -17,11 +17,6 @@ var (
 	ErrNoSuchSubject = errors.New("no such subject")
 )
 
-type Subject struct {
-	ID   *int    `json:"id,omitempty"`
-	Name *string `json:"name,omitempty"`
-}
-
 type SubjectModel struct {
 	DB *sql.DB
 }

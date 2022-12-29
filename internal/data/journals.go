@@ -26,17 +26,6 @@ type NJournal struct {
 	Course   *int            `json:"course,omitempty" alias:"coursenr"`
 }
 
-type Journal struct {
-	ID          int             `json:"id"`
-	Name        *string         `json:"name,omitempty"`
-	Teacher     *User           `json:"teacher,omitempty"`
-	Subject     *Subject        `json:"subject,omitempty"`
-	Year        *Year           `json:"year,omitempty"`
-	LastUpdated *time.Time      `json:"last_updated,omitempty"`
-	Courses     []int           `json:"courses,omitempty"`
-	Marks       map[int][]*Mark `json:"marks,omitempty"`
-}
-
 type JournalModel struct {
 	DB *sql.DB
 }

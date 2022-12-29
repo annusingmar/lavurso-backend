@@ -19,13 +19,6 @@ var (
 	ErrClassArchived  = errors.New("class is archived")
 )
 
-type Class struct {
-	ID          *int    `json:"id,omitempty"`
-	Name        *string `json:"name,omitempty"`
-	DisplayName *string `json:"display_name,omitempty"`
-	Teacher     *User   `json:"teacher,omitempty"`
-}
-
 type NClass struct {
 	model.Classes
 	DisplayName *string        `json:"display_name,omitempty" alias:"classes_years.display_name"`

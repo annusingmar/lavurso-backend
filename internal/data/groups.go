@@ -19,13 +19,6 @@ var (
 	ErrGroupArchived = errors.New("group is archived")
 )
 
-type Group struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Archived    bool   `json:"archived"`
-	MemberCount *int   `json:"member_count,omitempty"`
-}
-
 type NGroup struct {
 	model.Groups
 	MemberCount *int `json:"member_count,omitempty"`
@@ -157,7 +150,7 @@ func (m GroupModel) GetGroupsByUserID(userID int) ([]*model.Groups, error) {
 	return groups, nil
 }
 
-func (m GroupModel) InsertGroup(g *Group) error {
+func (m GroupModel) InsertGroup(g *model.Groups) error {
 	stmt := table.Groups.INSERT(table.Groups.Name).
 		MODEL(g).
 		RETURNING(table.Groups.ID)

@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
 )
@@ -60,7 +61,7 @@ func (app *application) createGrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	grade := &data.Grade{
+	grade := &model.Grades{
 		Identifier: &input.Identifier,
 		Value:      &input.Value,
 	}

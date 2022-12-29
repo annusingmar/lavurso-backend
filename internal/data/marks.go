@@ -19,22 +19,6 @@ var (
 	ErrNoSuchType = errors.New("no such mark type")
 )
 
-type Mark struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	Lesson    *Lesson   `json:"lesson,omitempty"`
-	Course    *int      `json:"course,omitempty"`
-	JournalID *int      `json:"journal_id,omitempty"`
-	Grade     *Grade    `json:"grade,omitempty"`
-	Comment   *string   `json:"comment,omitempty"`
-	Type      string    `json:"type"`
-	Subject   *Subject  `json:"subject,omitempty"`
-	Excuse    *Excuse   `json:"excuse,omitempty"`
-	Teacher   *User     `json:"teacher"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type NMark struct {
 	model.Marks
 	Lesson  *model.Lessons  `json:"lesson,omitempty" alias:"mark_lesson"`

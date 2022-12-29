@@ -20,12 +20,6 @@ var (
 	ErrIdentifierAlreadyExists = errors.New("identifier already exists")
 )
 
-type Grade struct {
-	ID         *int    `json:"id,omitempty"`
-	Identifier *string `json:"identifier,omitempty"`
-	Value      *int    `json:"value,omitempty"`
-}
-
 type GradeModel struct {
 	DB *sql.DB
 }
@@ -109,7 +103,7 @@ func (m GradeModel) UpdateGrade(g *model.Grades) error {
 	return nil
 }
 
-func (m GradeModel) InsertGrade(g *Grade) error {
+func (m GradeModel) InsertGrade(g *model.Grades) error {
 	stmt := table.Grades.INSERT(table.Grades.Identifier, table.Grades.Value).
 		MODEL(g).
 		RETURNING(table.Grades.ID)

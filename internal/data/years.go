@@ -15,13 +15,6 @@ import (
 
 var ErrNoCurrentYear = errors.New("no current year set")
 
-type Year struct {
-	ID          int        `json:"id"`
-	DisplayName string     `json:"display_name"`
-	Courses     *int       `json:"courses"`
-	Stats       *YearStats `json:"stats"`
-}
-
 type NYear struct {
 	model.Years
 	Stats *YearStats `json:"stats,omitempty" alias:"stats.*"`

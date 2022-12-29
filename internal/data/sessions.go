@@ -18,18 +18,6 @@ var (
 	ErrNoSuchSession = errors.New("no such session")
 )
 
-type Session struct {
-	ID             int       `json:"id"`
-	TokenHash      []byte    `json:"-"`
-	TokenPlaintext string    `json:"token,omitempty"`
-	UserID         int       `json:"user_id"`
-	Expires        time.Time `json:"expires"`
-	LoginIP        string    `json:"login_ip"`
-	LoginBrowser   string    `json:"login_browser"`
-	LoggedIn       time.Time `json:"logged_in"`
-	LastSeen       time.Time `json:"last_seen"`
-}
-
 type SessionModel struct {
 	DB *sql.DB
 }

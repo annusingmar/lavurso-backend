@@ -663,7 +663,7 @@ func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{
-		"user":         &data.User{ID: &sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
+		"user":         &model.Users{ID: sessionUser.ID, Name: sessionUser.Name, Role: sessionUser.Role},
 		"children":     children,
 		"current_year": currentYear,
 	})

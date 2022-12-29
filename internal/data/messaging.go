@@ -26,27 +26,6 @@ const (
 	MsgTypeThreadStart = "thread_start"
 )
 
-type Thread struct {
-	ID           int       `json:"id"`
-	User         *User     `json:"user"`
-	Title        string    `json:"title"`
-	Locked       bool      `json:"locked"`
-	MessageCount *int      `json:"message_count,omitempty"`
-	Read         *bool     `json:"read,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-}
-
-type Message struct {
-	ID        int       `json:"id"`
-	ThreadID  int       `json:"thread_id"`
-	User      *User     `json:"user"`
-	Body      string    `json:"body,omitempty"`
-	Type      string    `json:"type"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type NThread struct {
 	model.Threads
 	User         *model.Users `json:"user"`

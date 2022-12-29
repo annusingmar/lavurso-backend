@@ -18,13 +18,6 @@ var (
 	ErrNoSuchExcuse    = errors.New("no such excuse")
 )
 
-type Excuse struct {
-	MarkID *int       `json:"mark_id,omitempty"`
-	Excuse *string    `json:"excuse,omitempty"`
-	By     *User      `json:"by,omitempty"`
-	At     *time.Time `json:"at,omitempty"`
-}
-
 type NExcuse struct {
 	model.Excuses
 	By *model.Users `json:"by,omitempty" alias:"excuser"`
