@@ -191,7 +191,14 @@ func (app *application) routes() http.Handler {
 			// get course + all lessons marks for course
 			mux.Get("/journals/{jid}/courses/{course}/marks", app.getMarksForCourse)
 
+			// save marks for course
 			mux.Patch("/journals/{jid}/courses/{course}/marks", app.setMarksForCourse)
+
+			// get subject + all course marks for journal
+			mux.Get("/journals/{jid}/subject/marks", app.getMarksForJournalSubject)
+
+			// save marks for journal's subject
+			mux.Patch("/journals/{jid}/subject/marks", app.setMarksForJournalSubject)
 
 			// add mark
 			mux.Post("/marks", app.addMark)
