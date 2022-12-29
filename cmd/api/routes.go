@@ -178,10 +178,6 @@ func (app *application) routes() http.Handler {
 			// delete assignment
 			mux.Delete("/assignments/{id}", app.deleteAssignment)
 
-			// get marks for journal
-			// ?mark_type=(&course=)
-			mux.Get("/journals/{id}/marks", app.getMarksForJournal)
-
 			// get students and marks for lesson
 			mux.Get("/lessons/{id}/marks", app.getMarksForLesson)
 
@@ -199,18 +195,6 @@ func (app *application) routes() http.Handler {
 
 			// save marks for journal's subject
 			mux.Patch("/journals/{jid}/subject/marks", app.setMarksForJournalSubject)
-
-			// add mark
-			mux.Post("/marks", app.addMark)
-
-			// get mark by id
-			mux.Get("/marks/{id}", app.getMark)
-
-			// delete mark
-			mux.Delete("/marks/{id}", app.deleteMark)
-
-			// update mark
-			mux.Patch("/marks/{id}", app.updateMark)
 
 			// list all subjects
 			mux.Get("/subjects", app.listAllSubjects)
