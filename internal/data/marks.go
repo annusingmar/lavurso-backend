@@ -28,6 +28,7 @@ type MarkExt struct {
 	Subject *Subject   `json:"subject,omitempty"`
 	Excuse  *ExcuseExt `json:"excuse,omitempty"`
 	Teacher *User      `json:"teacher,omitempty" alias:"teacher"`
+	YearID  *int       `json:"year_id,omitempty" alias:"years.id"`
 }
 
 type MinimalMark struct {
@@ -216,6 +217,39 @@ func (m MarkModel) GetLessonMarksForStudentByCourseAndJournalID(userID, journalI
 			table.Marks.UserID.EQ(helpers.PostgresInt(userID)),
 		)).
 		ORDER_BY(table.Marks.UpdatedAt.ASC())
+
+	var marks []*MarkExt
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &marks)
+	if err != nil {
+		return nil, err
+	}
+
+	return marks, nil
+}
+
+func (m MarkModel) GetAllCourseSubjectGradesForStudent(studentID int) ([]*MarkExt, error) {
+	query := postgres.SELECT(
+		table.Marks.AllColumns,
+		table.Grades.AllColumns,
+		table.Subjects.AllColumns,
+		table.Years.ID).
+		FROM(table.Marks.
+			INNER_JOIN(table.Grades, table.Grades.ID.EQ(table.Marks.GradeID)).
+			INNER_JOIN(table.Journals, table.Journals.ID.EQ(table.Marks.JournalID)).
+			INNER_JOIN(table.Years, table.Years.ID.EQ(table.Journals.YearID)).
+			INNER_JOIN(table.Subjects, table.Subjects.ID.EQ(table.Journals.SubjectID))).
+		WHERE(postgres.AND(
+			table.Marks.Type.EQ(postgres.String(MarkCourseGrade)).OR(table.Marks.Type.EQ(postgres.String(MarkSubjectGrade))),
+			table.Marks.UserID.EQ(helpers.PostgresInt(studentID)),
+		)).
+		ORDER_BY(
+			table.Subjects.Name.ASC(),
+			table.Marks.CreatedAt.ASC(),
+		)
 
 	var marks []*MarkExt
 

@@ -171,7 +171,7 @@ func (m YearModel) GetCurrentYear() (*YearExt, error) {
 
 func (m YearModel) GetYearsForStudent(studentID int) ([]*YearExt, error) {
 
-	query := postgres.SELECT(table.Years.ID, table.Years.DisplayName, table.Years.Current).DISTINCT().
+	query := postgres.SELECT(table.Years.ID, table.Years.DisplayName, table.Years.Current, table.ClassesYears.DisplayName).DISTINCT().
 		FROM(table.Years.
 			INNER_JOIN(table.ClassesYears, table.ClassesYears.YearID.EQ(table.Years.ID)).
 			INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.ClassesYears.ClassID)).

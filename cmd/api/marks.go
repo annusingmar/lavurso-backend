@@ -11,6 +11,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -87,6 +88,72 @@ func (app *application) getMarksForStudent(w http.ResponseWriter, r *http.Reques
 	}
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"journals": journalsWithMarks})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) getGradesByYearForStudent(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	student, err := app.models.Users.GetStudentByID(userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchUser):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if sessionUser.ID != student.ID && *sessionUser.Role != data.RoleAdministrator {
+		ok, err := app.models.Users.IsUserTeacherOrParentOfStudent(student.ID, sessionUser.ID)
+		if err != nil {
+			app.writeInternalServerError(w, r, err)
+			return
+		}
+		if !ok {
+			app.notAllowed(w, r)
+			return
+		}
+	}
+
+	years, err := app.models.Years.GetYearsForStudent(student.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	marks, err := app.models.Marks.GetAllCourseSubjectGradesForStudent(student.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	subjects := make(map[int]*data.SubjectExt)
+
+	for _, m := range marks {
+		if subjects[m.Subject.ID] == nil {
+			subjects[m.Subject.ID] = new(data.SubjectExt)
+			subjects[m.Subject.ID].Name = m.Subject.Name
+			subjects[m.Subject.ID].Marks = make(map[int][]*data.MarkExt)
+		}
+
+		if m.Course == nil {
+			subjects[m.Subject.ID].Marks[-1] = append(subjects[m.Subject.ID].Marks[-1], m)
+		} else {
+			subjects[m.Subject.ID].Marks[*m.YearID] = append(subjects[m.Subject.ID].Marks[*m.YearID], m)
+		}
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"years": years, "subjects": maps.Values(subjects)})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

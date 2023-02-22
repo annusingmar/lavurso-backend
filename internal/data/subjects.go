@@ -19,6 +19,11 @@ var (
 
 type Subject = model.Subjects
 
+type SubjectExt struct {
+	Subject
+	Marks map[int][]*MarkExt `json:"marks,omitempty"`
+}
+
 type SubjectModel struct {
 	DB *sql.DB
 }

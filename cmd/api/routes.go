@@ -218,6 +218,9 @@ func (app *application) routes() http.Handler {
 		// get current marks for student
 		mux.Get("/students/{id}/marks", app.getMarksForStudent)
 
+		// get all grades for student
+		mux.Get("/students/{id}/grades", app.getGradesByYearForStudent)
+
 		// get lessons and marks for student's journal
 		mux.Get("/students/{sid}/journals/{jid}/lessons", app.getLessonsForStudentsJournalsCourse)
 
