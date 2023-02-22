@@ -19,7 +19,8 @@ type Year = model.Years
 
 type YearExt struct {
 	Year
-	Stats *YearStats `json:"stats,omitempty" alias:"stats"`
+	ClassName *string    `json:"class_name,omitempty" alias:"classes_years.display_name"`
+	Stats     *YearStats `json:"stats,omitempty" alias:"stats"`
 }
 
 type YearStats struct {
@@ -28,12 +29,6 @@ type YearStats struct {
 }
 
 type ClassYear = model.ClassesYears
-
-type ClassAndYear struct {
-	YearID    int     `json:"year_id" alias:"years.id"`
-	YearName  string  `json:"year_name" alias:"years.display_name"`
-	ClassName *string `json:"class_name,omitempty" alias:"classes_years.display_name"`
-}
 
 type YearModel struct {
 	DB *sql.DB
@@ -196,7 +191,7 @@ func (m YearModel) GetYearsForStudent(studentID int) ([]*YearExt, error) {
 	return years, nil
 }
 
-func (m YearModel) GetYearsForClass(classID int) ([]*ClassAndYear, error) {
+func (m YearModel) GetYearsForClass(classID int) ([]*YearExt, error) {
 	query := postgres.SELECT(
 		table.Years.ID,
 		table.Years.DisplayName,
@@ -207,7 +202,7 @@ func (m YearModel) GetYearsForClass(classID int) ([]*ClassAndYear, error) {
 				AND(table.ClassesYears.ClassID.EQ(helpers.PostgresInt(classID))))).
 		ORDER_BY(table.Years.ID.DESC())
 
-	var cy []*ClassAndYear
+	var cy []*YearExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
