@@ -1,0 +1,10 @@
+[web]
+listen = "0.0.0.0:8080"
+cors_allowed_origins = ["http://localhost:9000", "http://127.0.0.1:9000"]
+
+[database]
+host = "database"
+port = 5432
+user = "POSTGRES_USER"
+password = "POSTGRES_PASSWORD"
+dbname = "POSTGRES_DATABASE"
