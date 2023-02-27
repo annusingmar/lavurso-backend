@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -27,7 +26,7 @@ func main() {
 	infoLogger := log.New(os.Stdout, "INFO ", log.Ltime|log.Ldate)
 	errorLogger := log.New(os.Stderr, "ERROR ", log.Ltime|log.Ldate)
 
-	db := openDBConnection(fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s", config.Database.Host, config.Database.Port, config.Database.User, config.Database.Password, config.Database.DBName))
+	db := config.Database.openConnection()
 	models := data.NewModel(db)
 
 	app := &application{
