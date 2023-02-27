@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -60,8 +59,6 @@ func parseConfig() configuration {
 	}
 
 	cfg.checkEnvironment()
-
-	fmt.Println(cfg)
 
 	return cfg
 }
