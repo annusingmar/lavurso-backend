@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func openDBConnection(connectionString string) *sql.DB {
-	db, err := sql.Open("pgx", connectionString)
+func (config database) openConnection() *sql.DB {
+	db, err := sql.Open("pgx", fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s", config.Host, config.Port, config.User, config.Password, config.Name))
 	if err != nil {
 		log.Fatalln(err)
 	}
