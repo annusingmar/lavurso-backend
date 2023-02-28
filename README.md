@@ -16,11 +16,6 @@
 
 [toml](https://github.com/BurntSushi/toml) => parsing config file
 
-## running
+## running / käitamine
 
-1.  clone this git repository: `git clone https://github.com/annusingmar/lavurso-backend.git`
-2.  install the [`migrate`](https://github.com/golang-migrate/migrate) tool
-3.  copy `.makerc.example` to `.makerc`, edit `MIGRATE_DSN` to database connection string
-4.  run `make db/migration_up`
-5.  copy `config.toml.example` to `config.toml`, change values
-6.  run `make api/run`
+see / vaata [lavurso](https://github.com/annusingmar/lavurso)
