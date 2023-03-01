@@ -62,7 +62,8 @@ type StudentWithLowerMarks struct {
 	LowerMarks []*MarkExt                `json:"lower_marks,omitempty"`
 }
 
-type MarkByStudentIDType struct {
+type MarkByLessonStudentType struct {
+	LessonID  int
 	StudentID int
 	Type      string
 }
@@ -337,10 +338,14 @@ func (m MarkModel) DeleteMarks(tx *sql.Tx, markIDs []int) error {
 	return nil
 }
 
-func (m MarkModel) DeleteMarksByStudentIDType(tx *sql.Tx, l []MarkByStudentIDType) error {
+func (m MarkModel) DeleteMarksByStudentIDType(tx *sql.Tx, l []MarkByLessonStudentType) error {
 	var or []postgres.BoolExpression
 	for _, m := range l {
-		or = append(or, table.Marks.UserID.EQ(helpers.PostgresInt(m.StudentID)).AND(table.Marks.Type.EQ(postgres.String(m.Type))))
+		or = append(or, postgres.AND(
+			table.Marks.LessonID.EQ(helpers.PostgresInt(m.LessonID)),
+			table.Marks.UserID.EQ(helpers.PostgresInt(m.StudentID)),
+			table.Marks.Type.EQ(postgres.String(m.Type)),
+		))
 	}
 
 	stmt := table.Marks.DELETE().

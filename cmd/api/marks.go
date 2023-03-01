@@ -409,7 +409,7 @@ func (app *application) setMarksForLesson(w http.ResponseWriter, r *http.Request
 	var updateMarks []*data.Mark
 	var deletedMarkIDs []int
 
-	var deletedMarksByStudentIDType []data.MarkByStudentIDType
+	var deletedMarksByLessonStudentType []data.MarkByLessonStudentType
 
 student:
 	for _, s := range input {
@@ -425,7 +425,7 @@ student:
 			if *s.Absent {
 				insertMarks = append(insertMarks, newMark(0, 0, s.StudentID, data.MarkAbsent, nil, nil))
 			} else {
-				deletedMarksByStudentIDType = append(deletedMarksByStudentIDType, data.MarkByStudentIDType{StudentID: s.StudentID, Type: data.MarkAbsent})
+				deletedMarksByLessonStudentType = append(deletedMarksByLessonStudentType, data.MarkByLessonStudentType{LessonID: lesson.ID, StudentID: s.StudentID, Type: data.MarkAbsent})
 			}
 		}
 
@@ -433,7 +433,7 @@ student:
 			if *s.Late {
 				insertMarks = append(insertMarks, newMark(0, 0, s.StudentID, data.MarkLate, nil, nil))
 			} else {
-				deletedMarksByStudentIDType = append(deletedMarksByStudentIDType, data.MarkByStudentIDType{StudentID: s.StudentID, Type: data.MarkLate})
+				deletedMarksByLessonStudentType = append(deletedMarksByLessonStudentType, data.MarkByLessonStudentType{LessonID: lesson.ID, StudentID: s.StudentID, Type: data.MarkLate})
 			}
 		}
 
@@ -441,7 +441,7 @@ student:
 			if *s.NotDone {
 				insertMarks = append(insertMarks, newMark(0, 0, s.StudentID, data.MarkNotDone, nil, nil))
 			} else {
-				deletedMarksByStudentIDType = append(deletedMarksByStudentIDType, data.MarkByStudentIDType{StudentID: s.StudentID, Type: data.MarkNotDone})
+				deletedMarksByLessonStudentType = append(deletedMarksByLessonStudentType, data.MarkByLessonStudentType{LessonID: lesson.ID, StudentID: s.StudentID, Type: data.MarkNotDone})
 			}
 		}
 
@@ -507,8 +507,8 @@ student:
 		}
 	}
 
-	if len(deletedMarksByStudentIDType) > 0 {
-		err := app.models.Marks.DeleteMarksByStudentIDType(tx, deletedMarksByStudentIDType)
+	if len(deletedMarksByLessonStudentType) > 0 {
+		err := app.models.Marks.DeleteMarksByStudentIDType(tx, deletedMarksByLessonStudentType)
 		if err != nil {
 			app.writeInternalServerError(w, r, err)
 			return
