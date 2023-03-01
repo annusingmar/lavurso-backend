@@ -149,7 +149,7 @@ func (app *application) getGradesByYearForStudent(w http.ResponseWriter, r *http
 		if m.Course == nil {
 			subjects[m.Subject.ID].Marks[-1] = append(subjects[m.Subject.ID].Marks[-1], m)
 		} else {
-			subjects[m.Subject.ID].Marks[*m.YearID] = append(subjects[m.Subject.ID].Marks[*m.YearID], m)
+			subjects[m.Subject.ID].Marks[m.Journal.Year.ID] = append(subjects[m.Subject.ID].Marks[m.Journal.Year.ID], m)
 		}
 	}
 
@@ -273,7 +273,7 @@ func (app *application) getMarksForJournalSubject(w http.ResponseWriter, r *http
 		return
 	}
 
-	students, err := app.models.Marks.GetStudentsMarksForJournalSubject(journal.ID)
+	students, err := app.models.Marks.GetStudentsMarksForJournalSubject(journal.ID, *journal.SubjectID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

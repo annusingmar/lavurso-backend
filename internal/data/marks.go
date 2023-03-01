@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -23,12 +24,12 @@ type Mark = model.Marks
 
 type MarkExt struct {
 	Mark
-	Lesson  *Lesson    `json:"lesson,omitempty" alias:"mark_lesson"`
-	Grade   *Grade     `json:"grade,omitempty"`
-	Subject *Subject   `json:"subject,omitempty"`
-	Excuse  *ExcuseExt `json:"excuse,omitempty"`
-	Teacher *User      `json:"teacher,omitempty" alias:"teacher"`
-	YearID  *int       `json:"year_id,omitempty" alias:"years.id"`
+	Lesson  *Lesson     `json:"lesson,omitempty" alias:"mark_lesson"`
+	Grade   *Grade      `json:"grade,omitempty"`
+	Subject *Subject    `json:"subject,omitempty"`
+	Excuse  *ExcuseExt  `json:"excuse,omitempty"`
+	Teacher *User       `json:"teacher,omitempty" alias:"teacher"`
+	Journal *JournalExt `json:"journal,omitempty"`
 }
 
 type MinimalMark struct {
@@ -463,12 +464,16 @@ func (m MarkModel) GetStudentsMarksForCourse(journalID, course int) ([]*StudentW
 
 }
 
-func (m MarkModel) GetStudentsMarksForJournalSubject(journalID int) ([]*StudentWithLowerMarks, error) {
+func (m MarkModel) GetStudentsMarksForJournalSubject(journalID, subjectID int) ([]*StudentWithLowerMarks, error) {
 	subjectMarks := table.Marks.AS("higher_marks")
 	subjectMarksGrade := table.Grades.AS("higher_marks_grade")
 	courseMarks := table.Marks.AS("marks")
 	courseMarksGrade := table.Grades.AS("grades")
 	courseMarksTeacher := table.Users.AS("teacher")
+	mj := table.Journals.AS("main_journal")
+	courseMarksJournal := table.Journals.AS("journals")
+
+	subjectJournals := postgres.SELECT(table.Journals.ID).FROM(table.Journals).WHERE(table.Journals.SubjectID.EQ(helpers.PostgresInt(subjectID)))
 
 	query := postgres.SELECT(
 		table.Users.ID, table.Users.Name,
@@ -476,29 +481,35 @@ func (m MarkModel) GetStudentsMarksForJournalSubject(journalID int) ([]*StudentW
 		courseMarks.AllColumns,
 		courseMarksGrade.Identifier, courseMarksGrade.Value,
 		courseMarksTeacher.ID, courseMarksTeacher.Name, courseMarksTeacher.Role,
+		courseMarksJournal.ID, courseMarksJournal.Name,
+		table.Years.ID, table.Years.DisplayName,
 	).
-		FROM(table.Journals.
-			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(helpers.PostgresInt(journalID))).
+		FROM(mj.
+			INNER_JOIN(table.StudentsJournals, table.StudentsJournals.JournalID.EQ(mj.ID)).
 			INNER_JOIN(table.Users, table.Users.ID.EQ(table.StudentsJournals.StudentID)).
 			LEFT_JOIN(subjectMarks, postgres.AND(
 				subjectMarks.UserID.EQ(table.Users.ID),
-				subjectMarks.JournalID.EQ(helpers.PostgresInt(journalID)),
+				subjectMarks.JournalID.EQ(mj.ID),
 				subjectMarks.Type.EQ(postgres.String(MarkSubjectGrade)),
 			)).
 			LEFT_JOIN(subjectMarksGrade, subjectMarksGrade.ID.EQ(subjectMarks.GradeID)).
 			LEFT_JOIN(courseMarks, postgres.AND(
 				courseMarks.UserID.EQ(table.Users.ID),
-				courseMarks.JournalID.EQ(helpers.PostgresInt(journalID)),
+				courseMarks.JournalID.IN(subjectJournals),
 				courseMarks.Type.EQ(postgres.String(MarkCourseGrade)),
 			)).
+			LEFT_JOIN(courseMarksJournal, courseMarksJournal.ID.EQ(courseMarks.JournalID)).
+			LEFT_JOIN(table.Years, table.Years.ID.EQ(courseMarksJournal.YearID)).
 			LEFT_JOIN(courseMarksGrade, courseMarksGrade.ID.EQ(courseMarks.GradeID)).
 			LEFT_JOIN(courseMarksTeacher, courseMarksTeacher.ID.EQ(courseMarks.TeacherID))).
+		WHERE(mj.ID.EQ(helpers.PostgresInt(journalID))).
 		ORDER_BY(table.Users.Name.ASC(), subjectMarks.CreatedAt.ASC(), courseMarks.UpdatedAt.DESC())
 
 	var students []*StudentWithLowerMarks
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+	fmt.Println(query.DebugSql())
 
 	err := query.QueryContext(ctx, m.DB, &students)
 	if err != nil {
