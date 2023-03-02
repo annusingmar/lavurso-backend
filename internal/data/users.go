@@ -135,7 +135,12 @@ func (m UserModel) GetUserByID(userID int) (*UserExt, error) {
 
 	err := query.QueryContext(ctx, m.DB, &user)
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(err, qrm.ErrNoRows):
+			return nil, ErrNoSuchUser
+		default:
+			return nil, err
+		}
 	}
 
 	return &user, nil
