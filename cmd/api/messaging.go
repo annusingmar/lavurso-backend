@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int, userID int) ([]int, error) {
+func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int, userID int, userRole string) ([]int, error) {
 	if len(userIDs) > 0 {
 		allUserIDs, err := app.models.Users.GetAllUserIDs()
 		if err != nil {
@@ -28,7 +28,15 @@ func (app *application) verifyUserAndGroupIDs(userIDs, groupIDs []int, userID in
 	}
 
 	if len(groupIDs) > 0 {
-		allGroupIDs, err := app.models.Groups.GetAllGroupIDsForUser(userID)
+		var allGroupIDs []int
+		var err error
+
+		if userRole == data.RoleAdministrator || userRole == data.RoleTeacher {
+			allGroupIDs, err = app.models.Groups.GetAllGroupIDs()
+		} else {
+			allGroupIDs, err = app.models.Groups.GetAllGroupIDsForUser(userID)
+		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +90,7 @@ func (app *application) createThread(w http.ResponseWriter, r *http.Request) {
 		input.UserIDs = append(input.UserIDs, sessionUser.ID)
 	}
 
-	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, sessionUser.ID)
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, sessionUser.ID, *sessionUser.Role)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
@@ -295,7 +303,7 @@ func (app *application) addMembersToThread(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, sessionUser.ID)
+	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, sessionUser.ID, *sessionUser.Role)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
@@ -363,18 +371,6 @@ func (app *application) removeMembersFromThread(w http.ResponseWriter, r *http.R
 	if err != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
-	}
-
-	badIDs, err := app.verifyUserAndGroupIDs(input.UserIDs, input.GroupIDs, sessionUser.ID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUsers) || errors.Is(err, data.ErrNoSuchGroups):
-			app.writeErrorResponse(w, r, http.StatusBadRequest, fmt.Sprintf("%s: %v", err.Error(), badIDs))
-			return
-		default:
-			app.writeInternalServerError(w, r, err)
-			return
-		}
 	}
 
 	var removeUserIDs []int

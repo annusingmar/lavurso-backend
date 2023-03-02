@@ -151,6 +151,36 @@ func (app *application) updateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (app *application) deleteGroup(w http.ResponseWriter, r *http.Request) {
+	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if groupID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchGroup.Error())
+		return
+	}
+
+	group, err := app.models.Groups.GetGroupByID(groupID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchGroup):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	err = app.models.Groups.DeleteGroup(group.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
 func (app *application) addUsersToGroup(w http.ResponseWriter, r *http.Request) {
 	groupID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if groupID < 0 || err != nil {
@@ -359,7 +389,14 @@ func (app *application) getGroupsForUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	groups, err := app.models.Groups.GetGroupsByUserID(user.ID)
+	var groups []*data.GroupExt
+
+	if *sessionUser.Role == data.RoleAdministrator || *sessionUser.Role == data.RoleTeacher {
+		groups, err = app.models.Groups.GetAllGroups(false)
+	} else {
+		groups, err = app.models.Groups.GetGroupsByUserID(user.ID)
+	}
+
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

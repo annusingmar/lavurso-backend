@@ -84,6 +84,9 @@ func (app *application) routes() http.Handler {
 			// update group
 			mux.Patch("/groups/{id}", app.updateGroup)
 
+			// delete group
+			mux.Delete("/groups/{id}", app.deleteGroup)
+
 			// add users to group
 			mux.Post("/groups/{id}/users", app.addUsersToGroup)
 

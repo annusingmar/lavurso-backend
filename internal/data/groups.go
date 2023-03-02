@@ -69,6 +69,21 @@ func (m GroupModel) UpdateGroup(g *Group) error {
 	return nil
 }
 
+func (m GroupModel) DeleteGroup(groupID int) error {
+	stmt := table.Groups.DELETE().
+		WHERE(table.Groups.ID.EQ(helpers.PostgresInt(groupID)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m GroupModel) GetAllGroups(archived bool) ([]*GroupExt, error) {
 	query := postgres.SELECT(table.Groups.AllColumns, postgres.COUNT(table.UsersGroups.UserID).AS("groupext.member_count")).
 		FROM(table.Groups.
@@ -109,6 +124,24 @@ func (m GroupModel) GetAllGroupIDsForUser(userID int) ([]int, error) {
 	return ids, nil
 }
 
+func (m GroupModel) GetAllGroupIDs() ([]int, error) {
+	query := postgres.SELECT(table.Groups.ID).
+		FROM(table.Groups).
+		WHERE(table.Groups.Archived.IS_FALSE())
+
+	var ids []int
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := query.QueryContext(ctx, m.DB, &ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
 func (m GroupModel) GetUsersByGroupID(groupID int) ([]*UserExt, error) {
 	query := postgres.SELECT(table.Users.ID, table.Users.Name, table.Users.Role, table.Users.ClassID, table.Classes.Name, table.ClassesYears.DisplayName).
 		FROM(table.Users.
@@ -132,14 +165,14 @@ func (m GroupModel) GetUsersByGroupID(groupID int) ([]*UserExt, error) {
 	return users, nil
 }
 
-func (m GroupModel) GetGroupsByUserID(userID int) ([]*Group, error) {
+func (m GroupModel) GetGroupsByUserID(userID int) ([]*GroupExt, error) {
 	query := postgres.SELECT(table.Groups.ID, table.Groups.Name).
 		FROM(table.Groups.
 			INNER_JOIN(table.UsersGroups, table.UsersGroups.GroupID.EQ(table.Groups.ID))).
 		WHERE(table.UsersGroups.UserID.EQ(helpers.PostgresInt(userID)).
 			AND(table.Groups.Archived.IS_FALSE()))
 
-	var groups []*Group
+	var groups []*GroupExt
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
