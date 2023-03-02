@@ -29,7 +29,7 @@ type GradeModel struct {
 func (m GradeModel) AllGrades() ([]*Grade, error) {
 	query := postgres.SELECT(table.Grades.AllColumns).
 		FROM(table.Grades).
-		ORDER_BY(table.Grades.ID.ASC())
+		ORDER_BY(table.Grades.Value.DESC())
 
 	var grades []*Grade
 
