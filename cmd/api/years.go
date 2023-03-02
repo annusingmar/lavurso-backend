@@ -319,7 +319,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = app.outputJSON(w, http.StatusCreated, envelope{"message": "success"})
+	err = app.outputJSON(w, http.StatusCreated, envelope{"year": year})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}

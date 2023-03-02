@@ -96,7 +96,7 @@ func (m YearModel) GetAllYearIDs() ([]int, error) {
 
 func (m YearModel) InsertYear(y *Year) error {
 	stmt := table.Years.INSERT(table.Years.MutableColumns).
-		MODEL(y).RETURNING(table.Years.ID)
+		MODEL(y).RETURNING(table.Years.ID, table.Years.DisplayName)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
