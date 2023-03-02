@@ -268,6 +268,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	var classYears []*model.ClassesYears
 
 	for _, nc := range input.NewClasses {
+		nc := nc
 		class := &data.Class{
 			Name: &nc.Name,
 		}
@@ -282,6 +283,7 @@ func (app *application) newYear(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, tc := range input.TransferredClasses {
+		tc := tc
 		classYears = append(classYears, &model.ClassesYears{
 			DisplayName: &tc.DisplayName,
 			ClassID:     &tc.ClassID,
