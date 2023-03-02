@@ -67,7 +67,7 @@ func (app *application) updateSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subject, err := app.models.Subjects.GetSubjectByID(subjectID)
+	subject, err := app.models.Subjects.GetSubjectByID(subjectID, false)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
@@ -101,6 +101,41 @@ func (app *application) updateSubject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.models.Subjects.UpdateSubject(subject)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) deleteSubject(w http.ResponseWriter, r *http.Request) {
+	subjectID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if subjectID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchSubject.Error())
+		return
+	}
+
+	subject, err := app.models.Subjects.GetSubjectByID(subjectID, true)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoSuchSubject):
+			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
+		default:
+			app.writeInternalServerError(w, r, err)
+		}
+		return
+	}
+
+	if *subject.JournalCount != 0 {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrCantDeleteSubject.Error())
+		return
+	}
+
+	err = app.models.Subjects.DeleteSubject(subject.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

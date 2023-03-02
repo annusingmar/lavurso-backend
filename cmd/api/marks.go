@@ -137,11 +137,11 @@ func (app *application) getGradesByYearForStudent(w http.ResponseWriter, r *http
 		return
 	}
 
-	subjects := make(map[int]*data.SubjectExt)
+	subjects := make(map[int]*data.SubjectWithMarks)
 
 	for _, m := range marks {
 		if subjects[m.Subject.ID] == nil {
-			subjects[m.Subject.ID] = new(data.SubjectExt)
+			subjects[m.Subject.ID] = new(data.SubjectWithMarks)
 			subjects[m.Subject.ID].Name = m.Subject.Name
 			subjects[m.Subject.ID].Marks = make(map[int][]*data.MarkExt)
 		}

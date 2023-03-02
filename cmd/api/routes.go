@@ -63,6 +63,9 @@ func (app *application) routes() http.Handler {
 			// update subject
 			mux.Patch("/subjects/{id}", app.updateSubject)
 
+			// delete subject
+			mux.Delete("/subjects/{id}", app.deleteSubject)
+
 			// get grade by id
 			mux.Get("/grades/{id}", app.getGrade)
 

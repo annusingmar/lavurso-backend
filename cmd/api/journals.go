@@ -91,7 +91,7 @@ func (app *application) createJournal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = app.models.Subjects.GetSubjectByID(*journal.SubjectID)
+	_, err = app.models.Subjects.GetSubjectByID(*journal.SubjectID, false)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoSuchSubject):
