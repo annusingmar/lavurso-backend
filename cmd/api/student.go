@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -109,6 +110,12 @@ func (app *application) getLatestMarksLessonsForStudent(w http.ResponseWriter, r
 			latest[val].Lessons = append(latest[val].Lessons, l)
 		}
 	}
+
+	sort.Slice(latest, func(i, j int) bool {
+		t1, _ := time.Parse("2006-01-02", latest[i].Date)
+		t2, _ := time.Parse("2006-01-02", latest[j].Date)
+		return t1.After(t2)
+	})
 
 	err = app.outputJSON(w, http.StatusOK, envelope{"latest": latest})
 	if err != nil {

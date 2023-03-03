@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -153,7 +154,12 @@ func (app *application) getGradesByYearForStudent(w http.ResponseWriter, r *http
 		}
 	}
 
-	err = app.outputJSON(w, http.StatusOK, envelope{"years": years, "subjects": maps.Values(subjects)})
+	x := maps.Values(subjects)
+	sort.Slice(x, func(i, j int) bool {
+		return *x[i].Name < *x[j].Name
+	})
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"years": years, "subjects": x})
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 	}
