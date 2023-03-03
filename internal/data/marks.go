@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
@@ -509,7 +508,6 @@ func (m MarkModel) GetStudentsMarksForJournalSubject(journalID, subjectID int) (
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	fmt.Println(query.DebugSql())
 
 	err := query.QueryContext(ctx, m.DB, &students)
 	if err != nil {
