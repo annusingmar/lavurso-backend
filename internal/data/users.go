@@ -357,10 +357,13 @@ func (m UserModel) GetStudentByID(userID int) (*UserExt, error) {
 
 	query := postgres.SELECT(
 		table.Users.ID, table.Users.Name, table.Users.Email, table.Users.PhoneNumber, table.Users.IDCode, table.Users.BirthDate, table.Users.Role, table.Users.ClassID,
-		table.Classes.ID, table.Classes.Name,
+		table.Classes.ID, table.Classes.Name, table.ClassesYears.DisplayName,
 		parent.ID, parent.Name, parent.Email, parent.PhoneNumber, parent.IDCode, parent.BirthDate, parent.Role,
 	).FROM(table.Users.
 		INNER_JOIN(table.Classes, table.Classes.ID.EQ(table.Users.ClassID)).
+		LEFT_JOIN(table.Years, table.Years.Current.IS_TRUE()).
+		LEFT_JOIN(table.ClassesYears, table.ClassesYears.ClassID.EQ(table.Classes.ID).
+			AND(table.ClassesYears.YearID.EQ(table.Years.ID))).
 		LEFT_JOIN(table.ParentsChildren, table.ParentsChildren.ChildID.EQ(table.Users.ID)).
 		LEFT_JOIN(parent, parent.ID.EQ(table.ParentsChildren.ParentID))).
 		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)).
