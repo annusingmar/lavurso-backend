@@ -670,3 +670,108 @@ func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
 		app.writeInternalServerError(w, r, err)
 	}
 }
+
+func (app *application) start2FA(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if userID != sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if *user.TotpEnabled {
+		app.writeErrorResponse(w, r, http.StatusConflict, data.Err2FAAlreadyEnabled.Error())
+		return
+	}
+
+	token, err := app.models.Users.AddTOTPTokenToUser(user.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	uri := fmt.Sprintf("otpauth://totp/Lavurso:%s?secret=%s&issuer=Lavurso", *user.Email, token)
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"uri": uri})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) enable2FA(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if userID != sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
+	var input struct {
+		Code *int `json:"code"`
+	}
+
+	err = app.inputJSON(w, r, &input)
+	if err != nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if input.Code == nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrMissingOTP.Error())
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if user.TotpSecret == nil {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.Err2FANotStarted.Error())
+		return
+	}
+	if *user.TotpEnabled {
+		app.writeErrorResponse(w, r, http.StatusConflict, data.Err2FAAlreadyEnabled.Error())
+		return
+	}
+
+	ok, err := user.TotpSecret.Validate(*input.Code)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+	if !ok {
+		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrInvalidOTP.Error())
+		return
+	}
+
+	err = app.models.Users.Enable2FAForUser(user.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}

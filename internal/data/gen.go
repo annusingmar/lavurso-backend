@@ -36,6 +36,9 @@ func main() {
 								} else if table.Name == "sessions" && columnMetaData.Name == "token" {
 									defaultTableModelField.Tags = append(defaultTableModelField.Tags, `json:"token"`)
 									defaultTableModelField.Type = template.NewType(new(types.Token))
+								} else if table.Name == "users" && columnMetaData.Name == "totp_secret" {
+									defaultTableModelField.Tags = append(defaultTableModelField.Tags, `json:"-"`)
+									defaultTableModelField.Type = template.NewType(new(types.TOTPSecret))
 								} else {
 									defaultTableModelField.Tags = append(defaultTableModelField.Tags, fmt.Sprintf(`json:"%s,omitempty"`, columnMetaData.Name))
 								}

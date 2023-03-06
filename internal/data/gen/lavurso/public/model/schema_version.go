@@ -7,7 +7,6 @@
 
 package model
 
-type SchemaMigrations struct {
-	Version int64 `sql:"primary_key" json:"version,omitempty"`
-	Dirty   *bool `json:"dirty,omitempty"`
+type SchemaVersion struct {
+	Version *int `json:"version,omitempty"`
 }

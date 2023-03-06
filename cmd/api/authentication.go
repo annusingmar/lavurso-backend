@@ -19,6 +19,7 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 	var input struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+		OTP      *int   `json:"otp"`
 	}
 
 	err := app.inputJSON(w, r, &input)
@@ -57,6 +58,23 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 	if !correct {
 		app.writeErrorResponse(w, r, http.StatusForbidden, ErrInvalidCredentials.Error())
 		return
+	}
+
+	if *user.TotpEnabled {
+		if input.OTP == nil {
+			app.writeErrorResponse(w, r, http.StatusForbidden, data.ErrMissingOTP.Error())
+			return
+		} else {
+			ok, err := user.TotpSecret.Validate(*input.OTP)
+			if err != nil {
+				app.writeInternalServerError(w, r, err)
+				return
+			}
+			if !ok {
+				app.writeErrorResponse(w, r, http.StatusForbidden, data.ErrInvalidOTP.Error())
+				return
+			}
+		}
 	}
 
 	ip, err := app.getIP(r)

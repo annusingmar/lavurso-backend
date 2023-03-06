@@ -29,6 +29,8 @@ type usersTable struct {
 	CreatedAt   postgres.ColumnTimestampz
 	Active      postgres.ColumnBool
 	Archived    postgres.ColumnBool
+	TotpEnabled postgres.ColumnBool
+	TotpSecret  postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -81,8 +83,10 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		CreatedAtColumn   = postgres.TimestampzColumn("created_at")
 		ActiveColumn      = postgres.BoolColumn("active")
 		ArchivedColumn    = postgres.BoolColumn("archived")
-		allColumns        = postgres.ColumnList{IDColumn, NameColumn, EmailColumn, PhoneNumberColumn, IDCodeColumn, BirthDateColumn, PasswordColumn, RoleColumn, ClassIDColumn, CreatedAtColumn, ActiveColumn, ArchivedColumn}
-		mutableColumns    = postgres.ColumnList{NameColumn, EmailColumn, PhoneNumberColumn, IDCodeColumn, BirthDateColumn, PasswordColumn, RoleColumn, ClassIDColumn, CreatedAtColumn, ActiveColumn, ArchivedColumn}
+		TotpEnabledColumn = postgres.BoolColumn("totp_enabled")
+		TotpSecretColumn  = postgres.StringColumn("totp_secret")
+		allColumns        = postgres.ColumnList{IDColumn, NameColumn, EmailColumn, PhoneNumberColumn, IDCodeColumn, BirthDateColumn, PasswordColumn, RoleColumn, ClassIDColumn, CreatedAtColumn, ActiveColumn, ArchivedColumn, TotpEnabledColumn, TotpSecretColumn}
+		mutableColumns    = postgres.ColumnList{NameColumn, EmailColumn, PhoneNumberColumn, IDCodeColumn, BirthDateColumn, PasswordColumn, RoleColumn, ClassIDColumn, CreatedAtColumn, ActiveColumn, ArchivedColumn, TotpEnabledColumn, TotpSecretColumn}
 	)
 
 	return usersTable{
@@ -101,6 +105,8 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		CreatedAt:   CreatedAtColumn,
 		Active:      ActiveColumn,
 		Archived:    ArchivedColumn,
+		TotpEnabled: TotpEnabledColumn,
+		TotpSecret:  TotpSecretColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

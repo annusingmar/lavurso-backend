@@ -15,6 +15,7 @@ import (
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/model"
 	"github.com/annusingmar/lavurso-backend/internal/data/gen/lavurso/public/table"
 	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/go-jet/jet/v2/qrm"
 )
@@ -35,6 +36,10 @@ var (
 	ErrNotAStudent         = errors.New("not a student")
 	ErrNoSuchParentForUser = errors.New("no such parent set for child")
 	ErrNotAParent          = errors.New("not a parent")
+	ErrMissingOTP          = errors.New("missing OTP")
+	ErrInvalidOTP          = errors.New("invalid OTP")
+	Err2FAAlreadyEnabled   = errors.New("2fa already enabled")
+	Err2FANotStarted       = errors.New("2fa not started")
 )
 
 var EmailRegex = regexp.MustCompile("^(?:(?:(?:(?:[a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+(?:\\.([a-zA-Z]|\\d|[!#\\$%&'\\*\\+\\-\\/=\\?\\^_`{\\|}~]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])+)*)|(?:(?:\\x22)(?:(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(?:\\x20|\\x09)+)?(?:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]|\\x21|[\\x23-\\x5b]|[\\x5d-\\x7e]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[\\x01-\\x09\\x0b\\x0c\\x0d-\\x7f]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}]))))*(?:(?:(?:\\x20|\\x09)*(?:\\x0d\\x0a))?(\\x20|\\x09)+)?(?:\\x22))))@(?:(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|\\d|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.)+(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])|(?:(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])(?:[a-zA-Z]|\\d|-|\\.|~|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])*(?:[a-zA-Z]|[\\x{00A0}-\\x{D7FF}\\x{F900}-\\x{FDCF}\\x{FDF0}-\\x{FFEF}])))\\.?$")
@@ -509,6 +514,43 @@ func (m UserModel) ArchiveUsersByClassID(classID int) error {
 	stmt := table.Users.UPDATE(table.Users.Archived).
 		SET(postgres.Bool(true)).
 		WHERE(table.Users.ClassID.EQ(helpers.PostgresInt(classID)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m UserModel) AddTOTPTokenToUser(userID int) (types.TOTPSecret, error) {
+	token, err := types.GenerateSecret()
+	if err != nil {
+		return "", err
+	}
+
+	stmt := table.Users.UPDATE(table.Users.TotpSecret).
+		SET(token).
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err = stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (m UserModel) Enable2FAForUser(userID int) error {
+	stmt := table.Users.UPDATE(table.Users.TotpEnabled).
+		SET(postgres.Bool(true)).
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
