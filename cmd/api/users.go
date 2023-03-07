@@ -218,6 +218,7 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 		BirthDate   *types.Date `json:"birth_date"`
 		ClassID     *int        `json:"class_id"`
 		Active      *bool       `json:"active"`
+		TotpEnabled *bool       `json:"totp_enabled"`
 		Archived    *bool       `json:"archived"`
 	}
 
@@ -288,6 +289,10 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 
 	if input.Archived != nil {
 		user.Archived = input.Archived
+	}
+
+	if input.TotpEnabled != nil && *user.HasTOTPSecret {
+		user.TotpEnabled = input.TotpEnabled
 	}
 
 	err = app.models.Users.UpdateUser(user)

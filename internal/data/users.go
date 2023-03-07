@@ -54,8 +54,9 @@ type Student struct {
 
 type UserExt struct {
 	User
-	Student   *Student `json:"student,omitempty"`
-	SessionID *int     `json:"-" alias:"sessions.id"`
+	Student       *Student `json:"student,omitempty"`
+	HasTOTPSecret *bool    `json:"has_totp_secret,omitempty"`
+	SessionID     *int     `json:"-" alias:"sessions.id"`
 }
 
 type Role struct {
@@ -122,6 +123,7 @@ func (m UserModel) GetUserByID(userID int) (*UserExt, error) {
 	parent := table.Users.AS("parents")
 
 	query := postgres.SELECT(table.Users.AllColumns,
+		table.Users.TotpSecret.IS_NOT_NULL().AS("userext.has_totp_secret"),
 		table.Classes.ID, table.Classes.Name, table.ClassesYears.DisplayName,
 		parent.ID, parent.Name, parent.Role).
 		FROM(table.Users.
