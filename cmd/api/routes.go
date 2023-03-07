@@ -290,24 +290,35 @@ func (app *application) routes() http.Handler {
 		// get student by id
 		mux.Get("/students/{id}", app.getStudent)
 
+		// get latest marks/lessons for student
 		mux.Get("/students/{id}/latest", app.getLatestMarksLessonsForStudent)
 
 		// get user by id
 		mux.Get("/users/{id}", app.getUser)
 
-		mux.Put("/users/{id}", app.updateUser)
+		// update own user
+		mux.Put("/me", app.updateUser)
 
-		mux.Post("/users/{id}/password", app.changeUserPassword)
+		// change own password
+		mux.Post("/me/password", app.changeUserPassword)
 
+		// get user, children, year
 		mux.Get("/me", app.myInfo)
 
+		// all years
 		mux.Get("/years", app.getAllYears)
 
+		// years for student's class
 		mux.Get("/students/{id}/years", app.getYearsForStudent)
 
-		mux.Post("/users/{id}/2fa", app.start2FA)
-		mux.Post("/users/{id}/2fa/finish", app.enable2FA)
-		mux.Delete("/users/{id}/2fa", app.disable2FA)
+		// start 2fa (generate secret)
+		mux.Post("/me/2fa", app.start2FA)
+
+		// enable 2fa
+		mux.Post("/me/2fa/finish", app.enable2FA)
+
+		// disable 2fa
+		mux.Delete("/me/2fa", app.disable2FA)
 	})
 
 	return mux

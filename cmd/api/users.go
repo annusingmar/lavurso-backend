@@ -314,36 +314,14 @@ func (app *application) updateUserAdmin(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	if user.ID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
+	user := app.getUserFromContext(r)
 
 	var input struct {
 		Email       string  `json:"email"`
 		PhoneNumber *string `json:"phone_number"`
 	}
 
-	err = app.inputJSON(w, r, &input)
+	err := app.inputJSON(w, r, &input)
 	if err != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
@@ -380,36 +358,14 @@ func (app *application) updateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrNoSuchUser):
-			app.writeErrorResponse(w, r, http.StatusNotFound, err.Error())
-		default:
-			app.writeInternalServerError(w, r, err)
-		}
-		return
-	}
-
-	if user.ID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
+	user := app.getUserFromContext(r)
 
 	var input struct {
 		CurrentPassword string `json:"current_password"`
 		NewPassword     string `json:"new_password"`
 	}
 
-	err = app.inputJSON(w, r, &input)
+	err := app.inputJSON(w, r, &input)
 	if err != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
@@ -449,7 +405,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.models.Sessions.RemoveAllSessionsByUserIDExceptOne(user.ID, *sessionUser.SessionID)
+	err = app.models.Sessions.RemoveAllSessionsByUserIDExceptOne(user.ID, *user.SessionID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -677,24 +633,7 @@ func (app *application) myInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) start2FA(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	if userID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+	user := app.getUserFromContext(r)
 
 	if *user.TotpEnabled {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.Err2FAAlreadyEnabled.Error())
@@ -716,24 +655,13 @@ func (app *application) start2FA(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) enable2FA(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	if userID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
+	user := app.getUserFromContext(r)
 
 	var input struct {
 		Code *int `json:"code"`
 	}
 
-	err = app.inputJSON(w, r, &input)
+	err := app.inputJSON(w, r, &input)
 	if err != nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, err.Error())
 		return
@@ -741,12 +669,6 @@ func (app *application) enable2FA(w http.ResponseWriter, r *http.Request) {
 
 	if input.Code == nil {
 		app.writeErrorResponse(w, r, http.StatusBadRequest, data.ErrMissingOTP.Error())
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
 		return
 	}
 
@@ -782,31 +704,14 @@ func (app *application) enable2FA(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) disable2FA(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	if userID != sessionUser.ID {
-		app.notAllowed(w, r)
-		return
-	}
-
-	user, err := app.models.Users.GetUserByID(userID)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+	user := app.getUserFromContext(r)
 
 	if !*user.TotpEnabled {
 		app.writeErrorResponse(w, r, http.StatusConflict, data.Err2FANotEnabled.Error())
 		return
 	}
 
-	err = app.models.Users.Disable2FAForUser(user.ID)
+	err := app.models.Users.Disable2FAForUser(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
