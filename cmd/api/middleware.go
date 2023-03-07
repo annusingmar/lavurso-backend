@@ -87,6 +87,11 @@ func (app *application) requireTeacher(next http.Handler) http.Handler {
 
 func (app *application) log(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.EscapedPath() == "/me/unread" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		t1 := time.Now()
 
 		log := &data.Log{
