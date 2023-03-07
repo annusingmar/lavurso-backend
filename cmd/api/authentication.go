@@ -77,11 +77,7 @@ func (app *application) authenticateUser(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	ip, err := app.getIP(r)
-	if err != nil {
-		app.writeInternalServerError(w, r, err)
-		return
-	}
+	ip := app.getIP(r)
 
 	currentTime := time.Now().UTC()
 

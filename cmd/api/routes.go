@@ -24,6 +24,7 @@ func (app *application) routes() http.Handler {
 	}))
 
 	mux.Use(app.authenticateSession)
+	mux.Use(app.log)
 
 	mux.MethodNotAllowed(app.methodNotAllowed)
 	mux.NotFound(app.notFound)

@@ -63,11 +63,8 @@ func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destin
 	return nil
 }
 
-func (app *application) getIP(r *http.Request) (string, error) {
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return "", err
-	}
+func (app *application) getIP(r *http.Request) string {
+	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 
-	return ip, nil
+	return ip
 }

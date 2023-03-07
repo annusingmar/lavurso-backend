@@ -4,8 +4,11 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 var (
@@ -79,5 +82,33 @@ func (app *application) requireTeacher(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) log(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t1 := time.Now()
+
+		log := &data.Log{
+			Method: &r.Method,
+			Target: helpers.ToPtr(r.URL.EscapedPath()),
+			IP:     helpers.ToPtr(app.getIP(r)),
+			At:     helpers.ToPtr(time.Now().UTC()),
+		}
+
+		user := app.getUserFromContext(r)
+		if user != nil {
+			log.UserID = &user.ID
+			log.SessionID = user.SessionID
+		}
+
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+
+		next.ServeHTTP(ww, r)
+
+		log.ResponseCode = helpers.ToPtr(ww.Status())
+		log.Duration = helpers.ToPtr(int(time.Since(t1).Milliseconds()))
+
+		app.models.Logs.InsertLog(log)
 	})
 }

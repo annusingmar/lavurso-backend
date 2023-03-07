@@ -16,6 +16,7 @@ type Models struct {
 	Messaging   MessagingModel
 	Sessions    SessionModel
 	Years       YearModel
+	Logs        LogModel
 }
 
 func NewModel(db *sql.DB) Models {
@@ -33,5 +34,6 @@ func NewModel(db *sql.DB) Models {
 		Messaging:   MessagingModel{DB: db},
 		Sessions:    SessionModel{DB: db},
 		Years:       YearModel{DB: db},
+		Logs:        LogModel{DB: db},
 	}
 }
