@@ -81,7 +81,8 @@ func (m SessionModel) ExpireSessionByID(sessionID int) error {
 func (m SessionModel) ExpireAllSessionsByUserID(userID int) error {
 	stmt := table.Sessions.UPDATE(table.Sessions.Expires).
 		SET(time.Now().UTC()).
-		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)))
+		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
+			AND(table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -97,8 +98,11 @@ func (m SessionModel) ExpireAllSessionsByUserID(userID int) error {
 func (m SessionModel) ExpireAllSessionsByUserIDExceptOne(userID, sessionID int) error {
 	stmt := table.Sessions.UPDATE(table.Sessions.Expires).
 		SET(time.Now().UTC()).
-		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
-			AND(table.Sessions.ID.NOT_EQ(helpers.PostgresInt(sessionID))))
+		WHERE(postgres.AND(
+			table.Sessions.UserID.EQ(helpers.PostgresInt(userID)),
+			table.Sessions.ID.NOT_EQ(helpers.PostgresInt(sessionID)),
+			table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC())),
+		))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
