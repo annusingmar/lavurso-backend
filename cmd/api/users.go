@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/annusingmar/lavurso-backend/internal/data"
+	"github.com/annusingmar/lavurso-backend/internal/helpers"
 	"github.com/annusingmar/lavurso-backend/internal/types"
 	"github.com/annusingmar/lavurso-backend/internal/validator"
 	"github.com/go-chi/chi/v5"
@@ -133,6 +134,7 @@ func (app *application) createUser(w http.ResponseWriter, r *http.Request) {
 		BirthDate:   input.BirthDate,
 		Role:        &input.Role,
 		ClassID:     classID,
+		TotpEnabled: helpers.ToPtr(false),
 	}
 
 	err = user.Password.CreateHash()
