@@ -240,10 +240,10 @@ func (app *application) routes() http.Handler {
 		mux.Get("/users/{id}/groups", app.getGroupsForUser)
 
 		// get all threads for user
-		mux.Get("/users/{id}/threads", app.getThreadsForUser)
+		mux.Get("/me/threads", app.getThreadsForUser)
 
 		// does user have unread
-		mux.Get("/users/{id}/unread", app.userHasUnread)
+		mux.Get("/me/unread", app.userHasUnread)
 
 		// create thread
 		mux.Post("/threads", app.createThread)

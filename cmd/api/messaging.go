@@ -409,17 +409,6 @@ func (app *application) getThreadsForUser(w http.ResponseWriter, r *http.Request
 
 	search := r.URL.Query().Get("search")
 
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	if sessionUser.ID != userID {
-		app.notAllowed(w, r)
-		return
-	}
-
 	threads, err := app.models.Messaging.GetThreadsForUser(sessionUser.ID, search)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
@@ -735,18 +724,7 @@ func (app *application) getThreadMembers(w http.ResponseWriter, r *http.Request)
 func (app *application) userHasUnread(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
-	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
-	if userID < 0 || err != nil {
-		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
-		return
-	}
-
-	if sessionUser.ID != userID {
-		app.notAllowed(w, r)
-		return
-	}
-
-	unread, err := app.models.Messaging.DoesUserHaveUnread(userID)
+	unread, err := app.models.Messaging.DoesUserHaveUnread(sessionUser.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
