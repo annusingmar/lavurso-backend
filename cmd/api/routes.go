@@ -307,6 +307,7 @@ func (app *application) routes() http.Handler {
 
 		mux.Post("/users/{id}/2fa", app.start2FA)
 		mux.Post("/users/{id}/2fa/finish", app.enable2FA)
+		mux.Delete("/users/{id}/2fa", app.disable2FA)
 	})
 
 	return mux

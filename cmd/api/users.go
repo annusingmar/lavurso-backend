@@ -775,3 +775,40 @@ func (app *application) enable2FA(w http.ResponseWriter, r *http.Request) {
 		app.writeInternalServerError(w, r, err)
 	}
 }
+
+func (app *application) disable2FA(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if userID < 0 || err != nil {
+		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
+		return
+	}
+
+	if userID != sessionUser.ID {
+		app.notAllowed(w, r)
+		return
+	}
+
+	user, err := app.models.Users.GetUserByID(userID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	if !*user.TotpEnabled {
+		app.writeErrorResponse(w, r, http.StatusConflict, data.Err2FANotEnabled.Error())
+		return
+	}
+
+	err = app.models.Users.Disable2FAForUser(user.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}

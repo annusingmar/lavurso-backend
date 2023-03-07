@@ -39,6 +39,7 @@ var (
 	ErrMissingOTP          = errors.New("missing OTP")
 	ErrInvalidOTP          = errors.New("invalid OTP")
 	Err2FAAlreadyEnabled   = errors.New("2fa already enabled")
+	Err2FANotEnabled       = errors.New("2fa not enabled")
 	Err2FANotStarted       = errors.New("2fa not started")
 )
 
@@ -550,6 +551,22 @@ func (m UserModel) AddTOTPTokenToUser(userID int) (types.TOTPSecret, error) {
 func (m UserModel) Enable2FAForUser(userID int) error {
 	stmt := table.Users.UPDATE(table.Users.TotpEnabled).
 		SET(postgres.Bool(true)).
+		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, err := stmt.ExecContext(ctx, m.DB)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m UserModel) Disable2FAForUser(userID int) error {
+	stmt := table.Users.UPDATE(table.Users.TotpEnabled, table.Users.TotpSecret).
+		SET(postgres.Bool(false), nil).
 		WHERE(table.Users.ID.EQ(helpers.PostgresInt(userID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
