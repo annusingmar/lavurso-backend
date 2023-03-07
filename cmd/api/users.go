@@ -405,7 +405,7 @@ func (app *application) changeUserPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.models.Sessions.RemoveAllSessionsByUserIDExceptOne(user.ID, *user.SessionID)
+	err = app.models.Sessions.ExpireAllSessionsByUserIDExceptOne(user.ID, *user.SessionID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

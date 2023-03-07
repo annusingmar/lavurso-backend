@@ -119,6 +119,11 @@ func (app *application) routes() http.Handler {
 
 			mux.Put("/classes/{id}/years", app.setYearsForClass)
 
+			// get all sessions for user
+			mux.Get("/users/{id}/sessions", app.allSessionsForUser)
+
+			// delete all sesions for user
+			mux.Delete("/users/{id}/sessions", app.expireAllSessionsForUser)
 		})
 
 		// requires at least role 'teacher'
@@ -279,14 +284,8 @@ func (app *application) routes() http.Handler {
 		// get thread by id
 		mux.Get("/threads/{id}", app.getThread)
 
-		// get all sessions for user
-		mux.Get("/users/{id}/sessions", app.allSessionsForUser)
-
-		// delete all sesions for user
-		mux.Delete("/users/{id}/sessions", app.removeAllSessionsForUser)
-
 		// delete session by id
-		mux.Delete("/sessions/{id}", app.removeSession)
+		mux.Delete("/sessions/{id}", app.expireSession)
 
 		// get student by id
 		mux.Get("/students/{id}", app.getStudent)
@@ -320,6 +319,9 @@ func (app *application) routes() http.Handler {
 
 		// disable 2fa
 		mux.Delete("/me/2fa", app.disable2FA)
+
+		// logout
+		mux.Post("/me/logout", app.logout)
 	})
 
 	return mux

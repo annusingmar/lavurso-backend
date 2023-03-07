@@ -10,21 +10,10 @@ import (
 )
 
 func (app *application) allSessionsForUser(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
-	}
-
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	default:
-		if sessionUser.ID != userID {
-			app.notAllowed(w, r)
-			return
-		}
 	}
 
 	user, err := app.models.Users.GetUserByID(userID)
@@ -50,22 +39,11 @@ func (app *application) allSessionsForUser(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.Request) {
-	sessionUser := app.getUserFromContext(r)
-
+func (app *application) expireAllSessionsForUser(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if userID < 0 || err != nil {
 		app.writeErrorResponse(w, r, http.StatusNotFound, data.ErrNoSuchUser.Error())
 		return
-	}
-
-	switch *sessionUser.Role {
-	case data.RoleAdministrator:
-	default:
-		if sessionUser.ID != userID {
-			app.notAllowed(w, r)
-			return
-		}
 	}
 
 	user, err := app.models.Users.GetUserByID(userID)
@@ -79,7 +57,7 @@ func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.
 		return
 	}
 
-	err = app.models.Sessions.RemoveAllSessionsByUserID(user.ID)
+	err = app.models.Sessions.ExpireAllSessionsByUserID(user.ID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return
@@ -91,7 +69,7 @@ func (app *application) removeAllSessionsForUser(w http.ResponseWriter, r *http.
 	}
 }
 
-func (app *application) removeSession(w http.ResponseWriter, r *http.Request) {
+func (app *application) expireSession(w http.ResponseWriter, r *http.Request) {
 	sessionUser := app.getUserFromContext(r)
 
 	sessionID, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -120,7 +98,22 @@ func (app *application) removeSession(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = app.models.Sessions.RemoveSessionByID(session.ID)
+	err = app.models.Sessions.ExpireSessionByID(session.ID)
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+		return
+	}
+
+	err = app.outputJSON(w, http.StatusOK, envelope{"message": "success"})
+	if err != nil {
+		app.writeInternalServerError(w, r, err)
+	}
+}
+
+func (app *application) logout(w http.ResponseWriter, r *http.Request) {
+	sessionUser := app.getUserFromContext(r)
+
+	err := app.models.Sessions.ExpireSessionByID(*sessionUser.SessionID)
 	if err != nil {
 		app.writeInternalServerError(w, r, err)
 		return

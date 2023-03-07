@@ -62,8 +62,9 @@ func (m SessionModel) ExtendSession(sessionID int) error {
 	return nil
 }
 
-func (m SessionModel) RemoveSessionByID(sessionID int) error {
-	stmt := table.Sessions.DELETE().
+func (m SessionModel) ExpireSessionByID(sessionID int) error {
+	stmt := table.Sessions.UPDATE(table.Sessions.Expires).
+		SET(time.Now().UTC()).
 		WHERE(table.Sessions.ID.EQ(helpers.PostgresInt(sessionID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -77,8 +78,9 @@ func (m SessionModel) RemoveSessionByID(sessionID int) error {
 	return nil
 }
 
-func (m SessionModel) RemoveAllSessionsByUserID(userID int) error {
-	stmt := table.Sessions.DELETE().
+func (m SessionModel) ExpireAllSessionsByUserID(userID int) error {
+	stmt := table.Sessions.UPDATE(table.Sessions.Expires).
+		SET(time.Now().UTC()).
 		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -92,8 +94,9 @@ func (m SessionModel) RemoveAllSessionsByUserID(userID int) error {
 	return nil
 }
 
-func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) error {
-	stmt := table.Sessions.DELETE().
+func (m SessionModel) ExpireAllSessionsByUserIDExceptOne(userID, sessionID int) error {
+	stmt := table.Sessions.UPDATE(table.Sessions.Expires).
+		SET(time.Now().UTC()).
 		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
 			AND(table.Sessions.ID.NOT_EQ(helpers.PostgresInt(sessionID))))
 
@@ -111,8 +114,8 @@ func (m SessionModel) RemoveAllSessionsByUserIDExceptOne(userID, sessionID int) 
 func (m SessionModel) GetSessionsByUserID(userID int) ([]*Session, error) {
 	query := postgres.SELECT(table.Sessions.AllColumns).
 		FROM(table.Sessions).
-		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID)).
-			AND(table.Sessions.Expires.GT(postgres.TimestampzT(time.Now().UTC()))))
+		WHERE(table.Sessions.UserID.EQ(helpers.PostgresInt(userID))).
+		ORDER_BY(table.Sessions.Expires.DESC())
 
 	var sessions []*Session
 
