@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type Log struct {
+type Logs struct {
 	UserID       *int       `json:"user_id,omitempty"`
 	SessionID    *int       `json:"session_id,omitempty"`
 	Method       *string    `json:"method,omitempty"`
@@ -20,4 +20,5 @@ type Log struct {
 	ResponseCode *int       `json:"response_code,omitempty"`
 	Duration     *int       `json:"duration,omitempty"`
 	At           *time.Time `json:"at,omitempty"`
+	ID           int64      `sql:"primary_key" json:"id,omitempty"`
 }

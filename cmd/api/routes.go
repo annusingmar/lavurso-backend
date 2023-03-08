@@ -124,6 +124,8 @@ func (app *application) routes() http.Handler {
 
 			// delete all sesions for user
 			mux.Delete("/users/{id}/sessions", app.expireAllSessionsForUser)
+
+			mux.Get("/logs", app.getLogs)
 		})
 
 		// requires at least role 'teacher'

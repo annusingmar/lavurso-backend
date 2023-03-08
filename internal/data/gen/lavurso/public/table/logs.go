@@ -11,9 +11,9 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-var Log = newLogTable("public", "log", "")
+var Logs = newLogsTable("public", "logs", "")
 
-type logTable struct {
+type logsTable struct {
 	postgres.Table
 
 	//Columns
@@ -25,45 +25,46 @@ type logTable struct {
 	ResponseCode postgres.ColumnInteger
 	Duration     postgres.ColumnInteger
 	At           postgres.ColumnTimestampz
+	ID           postgres.ColumnInteger
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
 }
 
-type LogTable struct {
-	logTable
+type LogsTable struct {
+	logsTable
 
-	EXCLUDED logTable
+	EXCLUDED logsTable
 }
 
-// AS creates new LogTable with assigned alias
-func (a LogTable) AS(alias string) *LogTable {
-	return newLogTable(a.SchemaName(), a.TableName(), alias)
+// AS creates new LogsTable with assigned alias
+func (a LogsTable) AS(alias string) *LogsTable {
+	return newLogsTable(a.SchemaName(), a.TableName(), alias)
 }
 
-// Schema creates new LogTable with assigned schema name
-func (a LogTable) FromSchema(schemaName string) *LogTable {
-	return newLogTable(schemaName, a.TableName(), a.Alias())
+// Schema creates new LogsTable with assigned schema name
+func (a LogsTable) FromSchema(schemaName string) *LogsTable {
+	return newLogsTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new LogTable with assigned table prefix
-func (a LogTable) WithPrefix(prefix string) *LogTable {
-	return newLogTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
+// WithPrefix creates new LogsTable with assigned table prefix
+func (a LogsTable) WithPrefix(prefix string) *LogsTable {
+	return newLogsTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
 }
 
-// WithSuffix creates new LogTable with assigned table suffix
-func (a LogTable) WithSuffix(suffix string) *LogTable {
-	return newLogTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
+// WithSuffix creates new LogsTable with assigned table suffix
+func (a LogsTable) WithSuffix(suffix string) *LogsTable {
+	return newLogsTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
 }
 
-func newLogTable(schemaName, tableName, alias string) *LogTable {
-	return &LogTable{
-		logTable: newLogTableImpl(schemaName, tableName, alias),
-		EXCLUDED: newLogTableImpl("", "excluded", ""),
+func newLogsTable(schemaName, tableName, alias string) *LogsTable {
+	return &LogsTable{
+		logsTable: newLogsTableImpl(schemaName, tableName, alias),
+		EXCLUDED:  newLogsTableImpl("", "excluded", ""),
 	}
 }
 
-func newLogTableImpl(schemaName, tableName, alias string) logTable {
+func newLogsTableImpl(schemaName, tableName, alias string) logsTable {
 	var (
 		UserIDColumn       = postgres.IntegerColumn("user_id")
 		SessionIDColumn    = postgres.IntegerColumn("session_id")
@@ -73,11 +74,12 @@ func newLogTableImpl(schemaName, tableName, alias string) logTable {
 		ResponseCodeColumn = postgres.IntegerColumn("response_code")
 		DurationColumn     = postgres.IntegerColumn("duration")
 		AtColumn           = postgres.TimestampzColumn("at")
-		allColumns         = postgres.ColumnList{UserIDColumn, SessionIDColumn, MethodColumn, TargetColumn, IPColumn, ResponseCodeColumn, DurationColumn, AtColumn}
+		IDColumn           = postgres.IntegerColumn("id")
+		allColumns         = postgres.ColumnList{UserIDColumn, SessionIDColumn, MethodColumn, TargetColumn, IPColumn, ResponseCodeColumn, DurationColumn, AtColumn, IDColumn}
 		mutableColumns     = postgres.ColumnList{UserIDColumn, SessionIDColumn, MethodColumn, TargetColumn, IPColumn, ResponseCodeColumn, DurationColumn, AtColumn}
 	)
 
-	return logTable{
+	return logsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
@@ -89,6 +91,7 @@ func newLogTableImpl(schemaName, tableName, alias string) logTable {
 		ResponseCode: ResponseCodeColumn,
 		Duration:     DurationColumn,
 		At:           AtColumn,
+		ID:           IDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
