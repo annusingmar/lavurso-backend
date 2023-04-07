@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -15,8 +14,7 @@ type configuration struct {
 }
 
 type web struct {
-	Listen             string   `toml:"listen"`
-	CORSAllowedOrigins []string `toml:"cors_allowed_origins"`
+	Listen string `toml:"listen"`
 }
 
 type database struct {
@@ -31,8 +29,7 @@ func parseConfig() configuration {
 	// default config
 	cfg := configuration{
 		web{
-			Listen:             "127.0.0.1:8080",
-			CORSAllowedOrigins: []string{"http://localhost:9000", "http://127.0.0.1:9000"},
+			Listen: "127.0.0.1:8080",
 		},
 		database{
 			Host:     "localhost",
@@ -68,16 +65,6 @@ func (cfg *configuration) checkEnvironment() {
 	if ok {
 		log.Println("INFO using environment variable WEB_LISTEN")
 		cfg.Web.Listen = val
-	}
-
-	val, ok = os.LookupEnv("WEB_CORS_ALLOWED_ORIGINS")
-	if ok {
-		log.Println("INFO using environment variable WEB_CORS_ALLOWED_ORIGINS")
-		list := strings.Split(val, ",")
-		for i, v := range list {
-			list[i] = strings.TrimSpace(v)
-		}
-		cfg.Web.CORSAllowedOrigins = list
 	}
 
 	val, ok = os.LookupEnv("DATABASE_HOST")

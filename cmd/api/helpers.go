@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strings"
 )
@@ -64,7 +63,5 @@ func (app *application) inputJSON(w http.ResponseWriter, r *http.Request, destin
 }
 
 func (app *application) getIP(r *http.Request) string {
-	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-
-	return ip
+	return r.Header.Get("X-Real-IP")
 }
